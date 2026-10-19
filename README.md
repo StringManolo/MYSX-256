@@ -153,7 +153,7 @@ node check_linear_trail2.js
 
 ```
 StringManolo. "MYSX-256/512: A 256-bit Block Cipher with 512-bit Keys
-(v0.1-draft)". 2026. https://github.com/[user]/MYSX-256
+(v0.1-draft)". 2026. https://github.com/stringmanolo/MYSX-256
 ```
 
 ## Final warning
