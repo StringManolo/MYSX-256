@@ -6,7 +6,6 @@ For real data: AES-256-GCM or XChaCha20-Poly1305.
 
 Author: StringManolo
 Version: `v0.1-draft` (2026)
-License: MIT (see [LICENSE](LICENSE))
 
 ## Status
 
