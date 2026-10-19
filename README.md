@@ -12,7 +12,7 @@ Diseño propio, **no auditado externamente**. **No usar en producción.**
 | Análisis de seguridad | [SECURITY.md](SECURITY.md) |
 | Criptoanálisis diferencial | Validado (margen ~113 rondas) |
 | Criptoanálisis lineal | Inconcluso (no alarmante) |
-| Related-key | Pendiente |
+| Related-key | Validado |
 | Revisión externa | No realizada |
 | Versión | `v0.1-experimental` (congelada) |
 
