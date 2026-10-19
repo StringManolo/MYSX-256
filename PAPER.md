@@ -1,7 +1,7 @@
 ---
 title: "MYSX-256/512: A 256-bit Block Cipher with 512-bit Keys (v0.1-draft)"
-author: "[Your name]"
-date: "2024"
+author: "StringManolo"
+date: "2026"
 abstract: |
   We present MYSX-256/512, a 256-bit block cipher with 512-bit keys and
   128 rounds. The design combines Feistel cells with Simon's round
