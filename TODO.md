@@ -18,4 +18,8 @@
 
 - Portar a WASM.
 
+- Libreria WASM con instancia para uso web y node
+
+- Medir rendimiento con cifrado de archivos (optimizar)
+
 - Añadir tests.
