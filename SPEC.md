@@ -1,32 +1,32 @@
-# MYSX-256/512 — Especificación
+# MYSX-256/512 — Specification
 
-Versión: 0.1 (experimental)
-Estado: congelada. Cualquier cambio requiere versión nueva.
+Version: 0.1 (experimental)
+Status: frozen. Any change requires a new version.
 
-## 1. Parámetros
+## 1. Parameters
 
-| Parámetro | Valor |
+| Parameter | Value |
 |---|---|
-| Tamaño de bloque | 256 bits (8 palabras de 32 bits) |
-| Tamaño de clave | 512 bits (16 palabras de 32 bits) |
-| Rondas | 128 |
-| Estructura | Feistel de 2 ramas (128 + 128 bits) |
-| No linealidad | `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)` |
-| Difusión | Transposición de Myszkowski (keyword `MYSZKOWS`) |
-| Rotación | `rotl(word, (r mod 31) + 1)` por palabra y ronda |
-| Whitening final | XOR con 8 palabras del key schedule |
+| Block size | 256 bits (8 words of 32 bits) |
+| Key size | 512 bits (16 words of 32 bits) |
+| Rounds | 128 |
+| Structure | Feistel of 2 branches (128 + 128 bits) |
+| Non-linearity | `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)` |
+| Diffusion | Myszkowski transposition (keyword `MYSZKOWS`) |
+| Rotation | `rotl(word, (r mod 31) + 1)` per word and round |
+| Final whitening | XOR with 8 words from the key schedule |
 
-## 2. Notación
+## 2. Notation
 
-- `rotl(x, n)`: rotación circular a la izquierda de `x` por `n` bits.
-- `∧`: AND bit a bit.
-- `⊕`: XOR bit a bit.
-- `s[r]`: estado en la ronda `r` (`s[0]` = texto plano, `s[128]` = texto cifrado).
-- `s[r][i]`: palabra `i` (0..7) del estado en la ronda `r`.
-- `rk[r][i]`: subclave `i` (0..7) de la ronda `r`.
-- `rkFinal[i]`: palabra `i` (0..7) del whitening final.
+- `rotl(x, n)`: circular left rotation of `x` by `n` bits.
+- `∧`: bitwise AND.
+- `⊕`: bitwise XOR.
+- `s[r]`: state at round `r` (`s[0]` = plaintext, `s[128]` = ciphertext).
+- `s[r][i]`: word `i` (0..7) of the state at round `r`.
+- `rk[r][i]`: subkey `i` (0..7) of round `r`.
+- `rkFinal[i]`: word `i` (0..7) of the final whitening.
 
-## 3. Constantes
+## 3. Constants
 
 ```
 CONST[0..7] = [
@@ -35,60 +35,60 @@ CONST[0..7] = [
 ]
 ```
 
-Estas constantes son los dígitos fraccionarios de π (mismos que Blowfish).
+These constants are the fractional digits of π (same as Blowfish).
 
-### 3.1. Permutación de Myszkowski
+### 3.1. Myszkowski permutation
 
-Keyword: `MYSZKOWS` (8 letras, S repetida en posiciones 3 y 8).
+Keyword: `MYSZKOWS` (8 letters, S repeated at positions 3 and 8).
 
-Orden alfabético: K(5), M(1), O(6), S(3,8), W(7), Y(2), Z(4).
+Alphabetical order: K(5), M(1), O(6), S(3,8), W(7), Y(2), Z(4).
 
-La permutación de bytes `MYZ_PERM[0..31]` se construye como:
+The byte permutation `MYZ_PERM[0..31]` is constructed as:
 
 ```
 MYZ_PERM = [
-   4,12,20,28,                 # K (columna 4)
-   0, 8,16,24,                 # M (columna 0)
-   5,13,21,29,                 # O (columna 5)
-   2, 7,10,15,18,23,26,31,     # S,S (columnas 2 y 7, leídas por filas)
-   6,14,22,30,                 # W (columna 6)
-   1, 9,17,25,                 # Y (columna 1)
-   3,11,19,27                  # Z (columna 3)
+   4,12,20,28,                 # K (column 4)
+   0, 8,16,24,                 # M (column 0)
+   5,13,21,29,                 # O (column 5)
+   2, 7,10,15,18,23,26,31,     # S,S (columns 2 and 7, read row-wise)
+   6,14,22,30,                 # W (column 6)
+   1, 9,17,25,                 # Y (column 1)
+   3,11,19,27                  # Z (column 3)
 ]
 ```
 
-La permutación inversa `MYZ_INV` satisface `MYZ_INV[MYZ_PERM[i]] = i`.
+The inverse permutation `MYZ_INV` satisfies `MYZ_INV[MYZ_PERM[i]] = i`.
 
 ## 4. Key schedule
 
-### 4.1. Inicialización
+### 4.1. Initialization
 
-Entrada: clave `K[0..63]` (64 bytes).
+Input: key `K[0..63]` (64 bytes).
 
-Estado inicial `s[0..15]` (16 palabras de 32 bits):
+Initial state `s[0..15]` (16 words of 32 bits):
 
 ```
 s[i] = big_endian_word(K[4i .. 4i+3])
 ```
 
-### 4.2. Expansión
+### 4.2. Expansion
 
-Para `r = 0 .. 127`:
+For `r = 0 .. 127`:
 
 ```
 spread = (r + 1) * 0x9E3779B9  (mod 2^32)
 
-# Subclaves de ronda
+# Round subkeys
 for i in 0..7:
     rk[r][i] = s[i] ⊕ s[(i+5) mod 16] ⊕ s[(i+11) mod 16]
                ⊕ CONST[(r+i) mod 8] ⊕ spread
 
-# Para i = 0..3: plegar fk en rk
+# For i = 0..3: fold fk into rk
 for i in 0..3:
     fk = s[(i+8) mod 16] ⊕ CONST[(r+i+3) mod 8]
     rk[r][i] = rk[r][i] ⊕ fk
 
-# Actualización del estado (Feistel 8+8, biyectiva)
+# State update (Feistel 8+8, bijective)
 L = s[0..7]
 R = s[8..15]
 for i in 0..7:
@@ -100,18 +100,18 @@ for i in 0..7:
     s[i + 8] = L[i] ⊕ F
 ```
 
-### 4.3. Whitening final
+### 4.3. Final whitening
 
-Después de las 128 rondas:
+After the 128 rounds:
 
 ```
 for i in 0..7:
     rkFinal[i] = s[i] ⊕ s[(i+8) mod 16] ⊕ CONST[(128+i) mod 8]
 ```
 
-## 5. Función de ronda
+## 5. Round function
 
-Cada ronda `r` transforma el estado `s[r]` en `s[r+1]` mediante cuatro pasos:
+Each round `r` transforms state `s[r]` into `s[r+1]` in four steps:
 
 ### 5.1. AddRoundKey
 
@@ -120,9 +120,9 @@ for i in 0..7:
     s[r][i] = s[r][i] ⊕ rk[r][i]
 ```
 
-### 5.2. Feistel por parejas
+### 5.2. Feistel per pair
 
-Para `p = 0..3`:
+For `p = 0..3`:
 
 ```
 L = s[r][p]
@@ -131,29 +131,29 @@ s_mid[p]     = R
 s_mid[p + 4] = L ⊕ F(R)
 ```
 
-donde `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)`.
+where `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)`.
 
-### 5.3. Transposición de Myszkowski
+### 5.3. Myszkowski transposition
 
-Convertir `s_mid[0..7]` a bytes (big-endian por palabra):
+Convert `s_mid[0..7]` to bytes (big-endian per word):
 
 ```
 bytes[4i .. 4i+3] = big_endian(s_mid[i])
 ```
 
-Aplicar la permutación:
+Apply the permutation:
 
 ```
-permuted[j] = bytes[MYZ_PERM[j]]  para j = 0..31
+permuted[j] = bytes[MYZ_PERM[j]]  for j = 0..31
 ```
 
-Reconstruir palabras:
+Reconstruct words:
 
 ```
 s_perm[i] = big_endian_word(permuted[4i .. 4i+3])
 ```
 
-### 5.4. Rotación por palabra
+### 5.4. Word rotation
 
 ```
 shift = (r mod 31) + 1
@@ -161,47 +161,47 @@ for i in 0..7:
     s[r+1][i] = rotl(s_perm[i], shift)
 ```
 
-## 6. Cifrado
+## 6. Encryption
 
 ```
-s[0] = plaintext  (como 8 palabras big-endian)
+s[0] = plaintext  (as 8 big-endian words)
 for r = 0..127:
-    aplicar ronda r (sección 5)
+    apply round r (section 5)
 for i = 0..7:
     s[128][i] = s[128][i] ⊕ rkFinal[i]
-ciphertext = s[128]  (como 32 bytes big-endian)
+ciphertext = s[128]  (as 32 big-endian bytes)
 ```
 
-## 7. Descifrado
+## 7. Decryption
 
-Inverso del cifrado:
+Inverse of encryption:
 
 ```
 s[128] = ciphertext
 for i = 0..7:
     s[128][i] = s[128][i] ⊕ rkFinal[i]
 for r = 127..0:
-    aplicar ronda inversa r (inverso de sección 5, en orden inverso)
+    apply inverse round r (inverse of section 5, in reverse order)
 plaintext = s[0]
 ```
 
-La ronda inversa consiste en:
+The inverse round consists of:
 
-1. Rotación inversa: `rotl(word, 32 - shift)`.
-2. Transposición inversa: `bytes[MYZ_PERM[j]] = permuted[j]`.
-3. Feistel inverso: `R = newL`, `L = newR ⊕ F(R)`.
-4. XOR con `rk[r][i]`.
+1. Inverse rotation: `rotl(word, 32 - shift)`.
+2. Inverse transposition: `bytes[MYZ_PERM[j]] = permuted[j]`.
+3. Inverse Feistel: `R = newL`, `L = newR ⊕ F(R)`.
+4. XOR with `rk[r][i]`.
 
-## 8. Modo de operación (CTR)
+## 8. Mode of operation (CTR)
 
-Contador de 32 bytes:
+32-byte counter:
 
 ```
 counter[0..15]  = nonce (16 bytes)
 counter[16..31] = 0  (128 bits, big-endian)
 ```
 
-Para cada bloque de 32 bytes de plaintext:
+For each 32-byte plaintext block:
 
 ```
 keystream = MYSX_encrypt(counter)
@@ -211,24 +211,24 @@ counter[16..31] += 1  (big-endian)
 
 ## 9. AEAD (encrypt-then-MAC)
 
-Paquete: `VERSION(1) ‖ NONCE(16) ‖ CT(n) ‖ TAG(32)`
+Packet: `VERSION(1) ‖ NONCE(16) ‖ CT(n) ‖ TAG(32)`
 
 MAC input: `VERSION ‖ NONCE ‖ AAD_LEN(4 BE) ‖ AAD ‖ CT_LEN(4 BE) ‖ CT`
 
 TAG: `HMAC-SHA256(macKey, MAC input)`
 
-Verificación: el descifrador verifica el TAG antes de descifrar.
+Verification: the decryptor verifies the TAG before decrypting.
 
-## 10. Derivación de claves
+## 10. Key derivation
 
-### 10.1. Desde secreto aleatorio (HKDF-SHA256)
+### 10.1. From a random secret (HKDF-SHA256)
 
 ```
 encKey = HKDF-SHA256(secret, salt, info = context ‖ ":enc", L = 64)
 macKey = HKDF-SHA256(secret, salt, info = context ‖ ":mac", L = 32)
 ```
 
-### 10.2. Desde contraseña (PBKDF2-SHA256 + HKDF)
+### 10.2. From a password (PBKDF2-SHA256 + HKDF)
 
 ```
 prk    = PBKDF2-SHA256(password, salt, iterations = 600000, L = 32)
@@ -236,20 +236,19 @@ encKey = HKDF-SHA256(prk, salt, info = context ‖ ":enc", L = 64)
 macKey = HKDF-SHA256(prk, salt, info = context ‖ ":mac", L = 32)
 ```
 
-## 11. Vectores de prueba
+## 11. Test vectors
 
-Ver [KAT.json](KAT.json).
+See [KAT.json](KAT.json).
 
-## 12. Referencias
+## 12. References
 
-- Simon (NSA, 2013): función `F`.
-- Myszkowski (1902): transposición con keyword de letras repetidas.
-- Blowfish (Schneier, 1993): constantes de π.
+- Simon (NSA, 2013): function `F`.
+- Myszkowski (1902): transposition with repeated-letter keyword.
+- Blowfish (Schneier, 1993): π constants.
 - HKDF (RFC 5869), PBKDF2 (RFC 8018), HMAC (RFC 2104).
 
-## 13. Advertencia
+## 13. Warning
 
-MYSX **no ha sido auditado externamente**. El análisis de seguridad
-en [SECURITY.md](SECURITY.md) documenta lo que se ha probado y lo que
-no. **No usar en producción.**
-
+MYSX **has not been externally audited**. The security analysis in
+[SECURITY.md](SECURITY.md) documents what has been tested and what has
+not. **Do not use in production.**

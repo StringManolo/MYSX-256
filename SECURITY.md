@@ -1,39 +1,44 @@
-# MYSX-256/512 — Estado de seguridad (v0.1-experimental)
+# MYSX-256/512 — Security Status (v0.1-draft)
 
-**Cifrador propio. NO auditado externamente. NO usar para datos sensibles.**
-Para producción: AES-256-GCM o XChaCha20-Poly1305.
+**Proprietary cipher. NOT externally audited. DO NOT use for sensitive data.**
+For production: AES-256-GCM or XChaCha20-Poly1305.
 
-Tag de congelación: `v0.1-experimental`.
-KAT de referencia: `KAT.json` (digest `5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`).
+Author: StringManolo
+Version: `v0.1-draft` (2026)
+This document is a standalone summary. The full analysis (with
+methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 
-## Resumen
+`CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`
 
-| Familia de ataque | Estado | Evidencia |
+## Summary
+
+| Attack family | Status | What this means |
 |---|---|---|
-| Diferencial (MILP) | **Resistente** | Peso 114 a r=14, umbral r≈15, margen ~113. Validado empíricamente a r=4. |
-| Lineal (MILP) | **Inconcluso, no alarmante** | Single-trail: artefactos (no verifican). Estricto: modelo roto. Empírico: sin correlación detectable en trails de peso 8. |
-| Related-key | **Sin debilidades explotables** | 22 tests PASS: sin `Δrk[r]=0` persistente, beam search score 139, sin claves débiles. Difusión lenta r=1–4 (estructural). |
-| Integral / imposible / boomerang / algebraico | Pendiente | — |
-| Grover (cuántico) | Inviable | 2²⁵⁶ iteraciones |
-| Fuerza bruta clásica | Inviable | 2⁵¹² operaciones |
-| Colisiones de bloque | Inviable | 2¹²⁸ bloques (bloque de 256 bits) |
+| Differential (MILP) | **Upper bounds observed** | Weight 114 at r=14, extrapolating to 128 at r≈15. Not a proof: single-trail, one input, `gapRel=0.2`, Markov-independence not satisfied. |
+| Linear (MILP) | **No bound established** | Three models tried; none produced trails that verified empirically. Linear security is unknown. |
+| Related-key | **Heuristic coverage** | 22 tests up to weight-6 with no persistent `Δrk=0`. No targeted MILP; security unknown. |
+| Integral | **Not analyzed** | — |
+| Impossible differential | **Not analyzed** | — |
+| Boomerang | **Not analyzed** | — |
+| Algebraic (SAT) | **Not analyzed** | — |
+| Grover (quantum) | **Infeasible (trivial estimate)** | 2²⁵⁶ iterations for a 512-bit key. No post-quantum analysis beyond Grover. |
+| Classical brute force | **Infeasible** | 2⁵¹² operations. |
+| Block collisions | **Infeasible** | 2¹²⁸ blocks (256-bit block). |
 
-**Veredicto corto**: la resistencia diferencial es sólida; la lineal no está demostrada pero la evidencia no es alarmante; el key schedule no tiene debilidades explotables. El cifrador está congelado y no debe usarse en producción sin revisión externa.
+**Short verdict.** Differential resistance is reported as an *observed
+upper bound*, not a proof. Linear security is *unknown* (all three
+models produced trails that failed empirical verification). Related-key
+security is *unknown* (heuristic only). The cipher is a
+`v0.1-draft` awaiting external review. Do not use in production.
 
 ---
 
-## 1. Criptoanálisis diferencial (MILP)
+## 1. Differential cryptanalysis (summary)
 
-### 1.1. Modelo
+Model: `mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
+`timeLimit=300`. Single-bit input at r=12–14 (w2b30).
 
-- Herramienta: `mysx_milp.py` (PuLP + CBC/HiGHS).
-- Modelo del AND: `a = Δx ∨ Δy` (cota superior; sobreestima el coste, nunca lo subestima).
-- Input difference: single-bit, peor caso entre los 256 posibles (sweep completo a r=5–8).
-- Solver: CBC con `gapRel=0.2`, `timeLimit=300`.
-
-### 1.2. Resultados
-
-| Rondas | Peor input | Peso | Prob. single-trail |
+| Rounds | Input | Weight (upper bound) | Single-trail prob. |
 |---|---|---|---|
 | 5 | w1b24 | 2 | 2⁻² |
 | 6 | w1b24 | 6 | 2⁻⁶ |
@@ -42,331 +47,233 @@ KAT de referencia: `KAT.json` (digest `5c9ca63d19e0f385eb0142bbe0337771d32a25267
 | 12 | w2b30 | 68 | 2⁻⁶⁸ |
 | 14 | w2b30 | 114 | 2⁻¹¹⁴ |
 
-Crecimiento r=12→14: **+23 bits/ronda**, acelerando.
-Umbral práctico (peso 128): cruzado en **r≈15**.
-Margen con 128 rondas: **~113 rondas**.
+Empirical check at r=4, w0b0, N=2,000: match rate 0.5–1.15%
+(prob ≈ 2⁻⁷). Consistent with the model and differential clustering.
 
-### 1.3. Verificación empírica
-
-- Trail a r=4, w0b0, N=2.000 muestras.
-- Match rate 0.5–1.15% → prob ≈ 2⁻⁷.
-- Consistente con el modelo (2⁻⁸) y con **clustering diferencial** (factor ~2 sobre el single-trail).
-
-### 1.4. Limitaciones
-
-- Single-trail, single-input. No modela clustering a muchas rondas.
-- Sin related-key.
-- El modelo es cota superior: si da pesos altos, no es concluyente para seguridad; si da pesos bajos, indica debilidad. En este caso los pesos son altos y crecientes.
-- `gapRel=0.2` deja un margen del 20% en el peso reportado (real puede ser ~20% menor). La conclusión no cambia.
+**What this does not establish**: no lower bounds, no multi-bit input
+search, no differential clustering analysis, no related-key
+differentials. See PAPER.md §3.4.
 
 ---
 
-## 2. Criptoanálisis lineal (MILP) — INCONCLUO
+## 2. Linear cryptanalysis (summary)
 
-Se probaron tres modelos. Ninguno es concluyente. La evidencia empírica sugiere que el ataque real es **más difícil** que lo que los modelos predicen, pero no es una prueba.
+Three models tried. **None produced trails that verified empirically.**
 
-### 2.1. Modelo híbrido (`act = α ∨ β ∨ γ`, sin `γ ≥ α`)
-
-Resultados: trails con pesos crecientes (peso 8 a r=3, 18 a r=4, 86 a r=6, 434 a r=10).
-
-**Verificación empírica**:
-- Trail a r=4 (peso 8, corr esperada 2⁻⁸ = 0.0039).
-- 8 runs con N=2.000.000 cada uno.
-- Correlación observada: media −0.0004, entre −0.0014 y +0.0005.
-- **No significativa** (≈ ruido).
-
-**Diagnóstico**: el modelo permitía `(α,β,γ) = (1,0,0)`, que tiene correlación 0 en el AND real (no 1/2). Los trails encontrados eran artefactos.
-
-### 2.2. Modelo estricto (`x = y = z = w` en XOR)
-
-Resultados: **INFEASIBLE** en todas las rondas 1–10 para máscara w0b0.
-
-**Diagnóstico**: el modelo es demasiado restrictivo. Prohíbe trails válidos con correlación 1 (p. ej. el de r=1 con peso 0), porque en el XOR `w = x ⊕ y ⊕ z` la correlación 1 requiere solo que el número de máscaras activas sea par, no que todas sean iguales.
-
-### 2.3. Modelo relajado con AND correcto (`x+y+z-w=2u`, `γ = α OR β`)
-
-Resultados: pesos crecientes (8 a r=3, 18 a r=4, 86 a r=6, 434 a r=10).
-
-**Verificación empírica**:
-- Trail a r=3 (peso 8, corr esperada 2⁻⁸ = 0.0039).
-- N=5.000.000.
-- Correlación observada: −0.000238, a **0.53σ** de cero.
-- **No significativa**.
-
-**Diagnóstico**: artefacto del modelo o **clustering destructivo** (varios trails con signos opuestos que se cancelan). En ambos casos, el ataque real es **más difícil** que lo que sugiere el single-trail.
-
-### 2.4. Conclusión del análisis lineal
-
-El análisis lineal single-trail no es concluyente. La evidencia empírica sugiere que la correlación real es **mucho menor** que la predicha por los modelos. Esto es **bueno para la seguridad**: el ataque lineal real es más difícil que lo que sugiere el modelo. Pero no es una prueba.
-
-Para un análisis lineal riguroso haría falta:
-
-1. **Seguimiento de signos** (±1/2 por AND), que el MILP lineal no captura.
-2. **Linear hull analysis** (clustering de múltiples trails con la misma máscara de entrada/salida).
-3. **Modelo SAT/MILP más sofisticado** con correlaciones de XOR < 1.
-
-Eso está fuera del alcance de este trabajo.
-
----
-
-## 3. Análisis del key schedule
-
-Herramientas: `keyschedule_test.js` (auditoría básica) y
-`keyschedule_test_extended.js` (auditoría exhaustiva, 22 tests).
-
-### 3.1. Cobertura
-
-| Test | Cobertura |
-|---|---|
-| Verificación vs prod | 1 clave, 128 rondas |
-| Biyectividad | 128 rondas, reconstrucción completa |
-| Espacio nulo rk[0] | 255 patrones × 3 modos |
-| Propagación del espacio nulo | 765 pruebas |
-| Peso-1 | 512 bits exhaustivo |
-| Peso-2 | 130,816 pares exhaustivo |
-| Peso-3 "misma Δ" | 560 combos × 3 Δ = 1,680 pruebas |
-| Beam search | Hasta peso-6, beam 50 |
-| Multi-base | 5 claves base distintas |
-| Estructurados | 20 patrones (simétrico, periódico, bloque, palindrómico) |
-| Ciclos / puntos fijos | 10,000 claves |
-| Weak-key scan | 25 patrones |
-| Matriz de influencia | 512 bits → rk[64] |
-
-### 3.2. Resultados
-
-| Métrica | Valor |
-|---|---|
-| `Δrk[r]=0` persistente (r≥1) | **0** en todas las pruebas |
-| Beam search (peor `max_r weight`) | 139 (ideal 128) |
-| Peso mínimo en r≥8 | 103 |
-| Ventana máxima de bajo peso (<20) | 3–4 rondas |
-| Extensión con umbral 40 | 4 rondas |
-| Peor bit (weight-1, menor peso en r=1) | 160 (word 5, bit 0), 1 bit |
-| Peor bit (weight-1, ventana más larga) | 1, 3 rondas con umbral 20 |
-| Mejor extensión (umbral 40) | bit 4, 4 rondas |
-| Spread de peor peso entre 5 bases | 0 |
-| Mismo bit peor en todas las bases | Sí (bit 160) |
-| Ciclos / puntos fijos | Ninguno (10k claves) |
-| Claves débiles | Ninguna (25 patrones) |
-| Influencia r=64 | media 0.498, min 0.406, max 0.590 |
-
-**Peso mínimo por ronda (sobre 512 weight-1 ΔK)**:
-
-| Ronda | min | max |
+| Model | Observed weights (r=1..10) | Empirical check |
 |---|---|---|
-| 1 | 1 | 26 |
-| 2 | 6 | 55 |
-| 3 | 10 | 107 |
-| 4 | 27 | 128 |
-| 5 | 48 | 149 |
-| 6 | 81 | 153 |
-| 8 | 103 | 150 |
-| 12 | 106 | 152 |
-| 16 | 98 | 154 |
-| 32 | 107 | 155 |
-| 64 | 104 | 151 |
-| 128 | 105 | 154 |
+| Hybrid (`α ∨ β ∨ γ`, no `γ ≥ α`) | 0, 2, 6, 8, 10, 18, 32, 48, 72, 109 | r=4, weight 8, 8 runs × N=2M, mean corr −4×10⁻⁴ (0.57σ). Trail does not exist. |
+| Strict (`x = y = z = w` in XOR) | INFEASIBLE in r=1..10 | Model too restrictive. |
+| Relaxed + correct AND | 0, 2, 8, 18, 35, 86, 157, 244, 338, 434 | r=3, weight 8, N=5M, corr −2.38×10⁻⁴ (0.53σ). Trail does not exist. |
 
-### 3.3. Interpretación
-
-- **Sin `Δrk[r]=0` persistente.** El espacio nulo de `rk[0]` (255 patrones)
-  no sobrevive a la ronda 1. La propagación con `all-ones` da ≥96 bits de
-  diferencia en `rk[1]`. No hay distinguidor trivial de claves relacionadas.
-- **Sin trail persistente.** El beam search (peso ≤6, beam 50) confirma
-  que ningún `ΔK` de bajo peso mantiene bajo peso en todas las rondas.
-  El peor `max_r weight` es 139, casi el ideal de 128.
-- **Difusión lenta en r=1–4.** Esperado por diseño: el state update es
-  una sola ronda Feistel por iteración de cifrado. La difusión se
-  completa en r=8 (peso mínimo 103). No es una rotura.
-- **Bit 160 (word 5, bit 0) es el peor bit en peso mínimo.** `ΔK` con
-  solo ese bit produce `Δrk[1]` con 1 bit de diferencia. Es
-  **consistente entre 5 claves base distintas** (spread 0), así que es
-  estructural, no ruido. No es explotable: el beam search confirma que
-  se difunde a ~139 bits en la cola.
-- **Bit 1 es el peor en ventana.** Proporciona 3 rondas consecutivas con
-  peso <20 (r=1:2, r=2:6, r=3:17, r=4:74). Es una ventana corta, no un
-  trail persistente.
-- **Bit 4 es el que más se extiende con umbral 40.** Ventana de 4 rondas
-  (r=1..4) con pesos 2, 6, 14, 36. En r=5 salta a 65.
-- **Ventana máxima de bajo peso: 3–4 rondas.** Con umbral 20, ventana 3;
-  con umbral 40, ventana 4. No hay trail persistente más allá.
-- **Sin claves débiles, ciclos o puntos fijos.** 25 patrones y 10k
-  claves aleatorias, ninguno patológico.
-
-### 3.4. Limitaciones
-
-- **MILP/SAT dirigido no realizado.** El modelo completo de claves
-  relacionadas requiere modelar la suma modular con acarreos
-  (~650k variables para 128 rondas × 16 palabras × 32 bits). No es
-  viable con CBC/HiGHS en este contexto.
-- **Beam search hasta peso-6.** Un atacante con más recursos podría
-  buscar peso-7+ con MILP dirigido.
-- **Claves relacionadas adaptativas** (elección de ΔK basada en la clave
-  objetivo) no cubiertas.
-- **Ataques biclique o algebraicos** sobre el key schedule no cubiertos.
-
-### 3.5. Veredicto del key schedule
-
-**Sin debilidades explotables conocidas.** Cobertura exhaustiva hasta
-peso-2, peso-3 (misma Δ), beam search hasta peso-6, multi-base y
-análisis estructural. Tiene difusión lenta en r=1–4 (esperable) y un
-peor bit estructural (bit 160) que no es explotable.
-
-Para eliminar la lentitud de difusión: rediseñar el key schedule en
-`v0.2` con dos rondas Feistel por iteración (duplica el coste del key
-schedule, ~10% del total). Eso requiere re-evaluación completa
-(diferencial + lineal + key schedule). **No es necesario para publicar
-v0.1-experimental.**
+**Conclusion.** No linear bound is established. The linear security of
+MYSX is *unknown*. This is the most important open question, because
+the best published attacks against Simon128/128 are linear (hull
+attacks covering ~49/68 rounds). See PAPER.md §4.
 
 ---
 
-## 4. Ataques genéricos
+## 3. Related-key cryptanalysis (summary)
 
-| Ataque | Complejidad | Veredicto |
-|---|---|---|
-| Fuerza bruta clásica | 2⁵¹² operaciones | Inviable |
-| Grover (cuántico) | 2²⁵⁶ iteraciones | Inviable con tecnología previsible |
-| Colisiones de bloque (cumpleaños) | 2¹²⁸ bloques | Inviable |
+Tool: `keyschedule_test.js` + `keyschedule_test_extended.js` (22 tests).
 
-**Nota sobre Grover**: MYSX tiene clave de 512 bits, así que Grover deja 256 bits de seguridad efectiva. Con 1.000.000 de qubits lógicos y 1 ns/iteración, el tiempo sería ~10⁶⁰ años. Inviable.
+Coverage: exhaustive weight-1 (512 bits), exhaustive weight-2
+(130,816 pairs), weight-3 "same Δ" (1,680 trials), beam search up to
+weight-6 (beam 50), 5 base keys, structured patterns, cycles, weak
+keys, influence matrix.
 
-**Nota sobre la clave de 512 bits**: HKDF-SHA256 produce una clave pseudorrandom de 256 bits como máximo. Si el secreto maestro tiene 256 bits de entropía, la seguridad efectiva del sistema es 256 bits, no 512. El "tamaño de clave" de MYSX no es el nivel de seguridad del sistema.
-
----
-
-## 5. Ataques estructurales / Simon
-
-MYSX usa la `F` de Simon pero **no es Simon**:
-
-- Feistel de 2 ramas de **128 bits** (Simon usa `n` bits).
-- **4 `F` en paralelo** por ronda (Simon usa 1).
-- Transposición de Myszkowski (Simon no tiene).
-- Rotaciones por palabra dependientes de la ronda (Simon no tiene).
-- Key schedule ARX no lineal (Simon lo tiene lineal).
-- **128 rondas** (Simon128/128 tiene 68).
-
-### 5.1. Ataques publicados contra Simon128/128 (68 rondas)
-
-| Ataque | Rondas | Complejidad |
-|---|---|---|
-| Lineal (hull) | 49/68 | ~2¹²⁷ |
-| Diferencial | 46–50/68 | ~2¹²⁵·⁷ |
-| Algebraico (SAT) | 12–14/68 | práctico en PC |
-| Integral | 26/68 | — |
-
-### 5.2. ¿Aplican a MYSX?
-
-**No directamente**, por las diferencias estructurales listadas. En particular:
-
-- **Key schedule no lineal**: Simon tiene key schedule lineal, lo que permite recuperar la clave maestra a partir de bits de subclave con álgebra lineal. MYSX no. Eso invalida la parte de recuperación de clave de los ataques a Simon.
-- **128 rondas vs 68**: extender un ataque de 49 a 128 requiere que la correlación no decaiga, y la transposición/rotaciones de MYSX rompen la simetría que Simon explota.
-- **4 `F` en paralelo**: los trails de Simon (que asumen 1 `F` por ronda) no se mapean a MYSX.
-
-El análisis MILP específico de MYSX (secciones 1, 2 y 3) es el que da la evidencia. Los ataques a Simon son contexto, no transferencia directa.
-
----
-
-## 6. Limitaciones del análisis
-
-- **Diferencial**: single-trail, single-input, sin related-key, sin clustering explícito.
-- **Lineal**: single-trail no concluyente; falta linear hull analysis.
-- **Key schedule**: sin MILP/SAT dirigido; beam search hasta peso-6.
-- **Sin integral, imposible, boomerang, algebraico.**
-- **Sin criptoanálisis público independiente.**
-- **Modelos MILP con `gapRel`** (0.2 diferencial, 0.3 lineal). El peso real puede ser menor.
-- **Verificación empírica del KAT**: 16 bloques con clave `key[i]=i`. Es regresión, no prueba de seguridad.
-- **Tests funcionales**: 16/16 PASS. Cubren round-trip, AEAD, negativos, política de nonces, PBKDF2, avalancha. No demuestran seguridad.
-
----
-
-## 7. Tests funcionales (referencia)
-
-`MYSX_ENABLE_TEST=1 node mysx.test.js` → **RESULTADO GLOBAL: PASS**.
-
-| Test | Resultado |
+| Metric | Result |
 |---|---|
-| KAT (16 bloques, clave `key[i]=i`) | OK |
-| CTR round-trip (8 longitudes) | OK |
-| AEAD round-trip + AAD | OK |
-| AEAD rechaza nonce alterado | OK |
-| AEAD rechaza ciphertext alterado | OK |
-| AEAD rechaza tag alterado | OK |
-| AEAD rechaza AAD distinto | OK |
-| NonceGuard sin guard: rechazado | OK |
-| NonceGuard unsafeNoGuard: aceptado | OK |
-| NonceGuard límite operativo | OK |
-| HKDF longitudes correctas | OK |
-| HKDF contextos separan claves | OK |
-| PBKDF2 sin salt: rechazado | OK |
-| PBKDF2 determinista con misma salt | OK |
-| PBKDF2 salts distintas → claves distintas | OK |
-| Avalancha texto plano | 126.93/256 (ideal 128) |
+| Persistent `Δrk[r]=0` (r≥1) | 0 in all tests |
+| Beam search worst `max_r weight` | 139 (ideal 128) |
+| Minimum weight at r≥8 | 103 |
+| Maximum low-weight window (<20) | 3–4 rounds |
+| Worst bit (weight-1) | bit 160 (word 5, bit 0), 1-bit diff at r=1 |
+| Weak keys / cycles / fixed points | None |
+| Influence at r=64 | mean 0.498, min 0.406, max 0.590 |
 
-**`CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`** — el PASS solo dice que los tests elegidos no detectaron fallos funcionales.
+**Limitations.** Heuristic, not a proof. No targeted MILP/SAT
+related-key model (~650k variables). Adaptive related keys, biclique,
+and algebraic attacks on the key schedule not covered. **Related-key
+security is unknown.** See PAPER.md §5.
 
 ---
 
-## 8. Veredicto
+## 4. Generic attacks
 
-**Diferencial sólido. Lineal inconcluso pero no alarmante. Key schedule sin debilidades explotables. Sin integral, sin revisión externa.**
+| Attack | Complexity | Verdict |
+|---|---|---|
+| Classical brute force | 2⁵¹² operations | Infeasible |
+| Grover (quantum) | 2²⁵⁶ iterations | Infeasible with foreseeable technology |
+| Block collisions (birthday) | 2¹²⁸ blocks | Infeasible |
 
-El cifrador está **congelado en `v0.1-experimental`**. Cualquier cambio de ronda, key schedule o `F` requiere una versión nueva (`v0.2-...`) y re-evaluación completa desde cero.
+**Note on Grover.** With a 512-bit key, Grover leaves 256 bits of
+effective security. Theoretical estimate only; no other post-quantum
+analysis has been done.
 
-### Siguientes pasos, por orden de valor
-
-1. **Publicar especificación, vectores y estos resultados** para revisión externa. Es lo que convierte un diseño propio en una propuesta defendible.
-2. **Integral (MILP)**: tercer pilar del criptoanálisis simétrico. Viable computacionalmente.
-3. **Boomerang (BCT)**: complementa el diferencial. Viable.
-4. **Algebraico (SAT)**: verificación final, pero caro.
-5. **MILP related-key dirigido**: cierra el key schedule formalmente, pero su coste (~650k variables) no es viable en este contexto.
-
-### Lo que NO hacer
-
-- **No añadir rondas** por intuición: no elimina trails cortos, solo los alarga.
-- **No declarar MYSX "seguro"**: diferencial, lineal, related-key e integral son familias de ataques, no todas.
-- **No usar en producción** hasta que exista criptoanálisis público independiente.
-- **No presentar como "post-cuántico"**: el tamaño de clave es grande, pero la seguridad post-cuántica no está analizada formalmente.
+**Note on the 512-bit key.** HKDF-SHA256 produces at most a 256-bit
+pseudorandom key. If the master secret has 256 bits of entropy, the
+effective security is 256 bits, not 512.
 
 ---
 
-## 9. Reproducibilidad
+## 5. Structural / Simon attacks
 
-| Archivo | Propósito |
+MYSX uses Simon's `F`. It is not Simon. Differences:
+
+- Block size / branch organization: MYSX is an SPN-like structure with
+  four parallel Feistel cells over 32-bit word pairs. Simon is a
+  classical 2-branch Feistel over `n`-bit halves.
+- Four parallel `F` per round (Simon uses 1).
+- Myszkowski byte transposition (Simon has none).
+- Round-dependent word rotations (Simon has none).
+- Non-linear ARX key schedule (Simon's is linear).
+- 128 rounds vs 68.
+
+**What transfers.** F-level distinguishers (linear and differential
+biases of Simon's `F` as a function) are properties of the function,
+not of the key schedule. Any such bias may in principle be embedded in
+MYSX's structure.
+
+**What does not transfer.** Key recovery from Simon's linear key
+schedule does not apply to MYSX's non-linear schedule.
+
+**Published Simon128/128 attacks** (68 rounds):
+
+- Linear-hull distinguishers covering ~49 rounds, complexity ~2¹²⁷
+  (Chen–Wang, ePrint 2014/973).
+- Differential distinguishers covering ~46–50 rounds, complexity
+  ~2¹²⁵·⁷ (Biryukov–Roy–Velichkov, CRYPTO 2015).
+- SAT-based algebraic distinguishers covering ~12–14 rounds.
+- Integral distinguishers covering ~26 rounds.
+
+**None of these results is transferred to MYSX in this paper.** The
+MYSX-specific MILP analysis (Sections 1–3 above) is what provides the
+evidence.
+
+---
+
+## 6. Functional tests
+
+`MYSX_ENABLE_TEST=1 node mysx.test.js` → **GLOBAL RESULT: PASS**.
+
+The suite covers:
+
+- KAT regression (16 blocks with `key[i]=i`).
+- Block round-trip via CTR (8 lengths).
+- AEAD round-trip with AAD.
+- AEAD negative tests (altered nonce, ct, tag, AAD).
+- NonceGuard policy (without guard rejected, `unsafeNoGuard` accepted,
+  operational limit enforced, stats coherent, LRU eviction).
+- HKDF correct lengths and context separation.
+- PBKDF2 without salt rejected; deterministic with same salt;
+  different salts → different keys.
+- Avalanche (indicator only; 126.93/256, ideal 128).
+
+**These tests do not prove cryptographic security.** They verify
+functional correctness and negative-case handling. The test suite
+explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
+
+---
+
+## 7. Analysis limitations
+
+- **Differential**: upper bounds on single-trail for one input at
+  r=12–14; no lower bounds; no clustering.
+- **Linear**: no verified trail in three models; no bound.
+- **Related-key**: heuristic up to weight-6; no targeted MILP.
+- **Integral, impossible, boomerang, algebraic**: not analyzed.
+- **No independent public cryptanalysis.**
+- **No post-quantum analysis** beyond the trivial Grover bound.
+- **No side-channel analysis.** JavaScript execution is not
+  constant-time; cache-timing attacks on `crypto.subtle` HMAC are out
+  of scope here but may matter in some deployments.
+
+---
+
+## 8. Verdict
+
+**MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
+cipher.** The differential analysis reports upper bounds on
+single-trail weights, not a security proof. The linear analysis is a
+negative result on three models, not a bound. The related-key analysis
+is heuristic. No integral, impossible-differential, boomerang, or
+algebraic analysis has been done. The cipher has not been externally
+audited.
+
+### What to do
+
+- **Do not use MYSX in production.** For real data use AES-256-GCM or
+  XChaCha20-Poly1305.
+- **If reviewing**, focus on: linear hull analysis (the most likely
+  attack surface, by analogy with Simon), related-key MILP, and
+  integral distinguishers.
+- **If extending**, the priorities are documented in PAPER.md §1.1
+  and §8.
+
+### What **not** to do
+
+- Do not add rounds on intuition: it does not eliminate short trails,
+  only lengthens them.
+- Do not declare MYSX "secure": differential, linear, related-key, and
+  integral are attack families, not all of them.
+- Do not present as "post-quantum": the key size is large, but the
+  post-quantum analysis has not been done beyond Grover.
+
+---
+
+## 9. Reproducibility
+
+| File | Purpose |
 |---|---|
-| `SPEC.md` | Especificación formal del cifrado |
-| `KAT.json` | Vectores de prueba (bloque, AEAD, KDF) |
-| `generate_kat.py` | Generador de KAT desde la implementación |
-| `mysx.prod.js` | Implementación (API de producción) |
-| `mysx.test.js` | Suite de tests funcionales |
-| `mysx_milp.py` | Modelo MILP diferencial |
-| `mysx_linear_milp.py` | Modelo MILP lineal |
-| `keyschedule_test.js` | Auditoría básica del key schedule |
-| `keyschedule_test_extended.js` | Auditoría exhaustiva (22 tests) |
-| `check_trail.js` | Verificación empírica del trail diferencial a r=4 |
-| `check_linear_trail2.js` | Verificación empírica de trails lineales |
+| `PAPER.md` | Full paper (spec + analysis) |
+| `SPEC.md` | Formal specification |
+| `KAT.json` | Test vectors (block, AEAD, KDF) |
+| `generate_kat.py` | KAT generator |
+| `mysx.prod.js` | Public API |
+| `mysx.test.js` | Functional tests |
+| `mysx_milp.py` | Differential MILP |
+| `mysx_linear_milp.py` | Linear MILP |
+| `keyschedule_test.js` | Basic key schedule audit |
+| `keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
+| `check_trail.js` | Empirical differential trail at r=4 |
+| `check_linear_trail2.js` | Empirical linear trail at r=3 |
 
-**Semilla fija** en tests (`0xC0FFEE`). Los MILPs son deterministas dado el solver y `gapRel`. El KAT es determinista (`digest 5c9ca63d...`).
+Fixed seed in tests (`0xC0FFEE`). MILPs are deterministic given the
+solver and `gapRel`.
 
-**Digest interno del KAT** (`KNOWN_KAT_DIGEST`, 16 bloques con `key[i]=i`): `3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`.
+**Public KAT.json digest**:
+`5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`
 
-**Digest público del KAT.json**: `5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`.
+**Internal regression digest**:
+`3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`
 
----
-
-## 10. Referencias
-
-- Simon (NSA, 2013): función `F` usada en la ronda.
-- Myszkowski (1902): transposición con keyword de letras repetidas.
-- Blowfish (Schneier, 1993): constantes de π (`0x243f6a88...`).
-- HKDF (RFC 5869), PBKDF2 (RFC 8018), HMAC (RFC 2104), AES-GCM (NIST SP 800-38D).
-- Sun et al. (2016): modelo MILP para criptoanálisis lineal de Simon.
-- Biryukov–Roy–Velichkov (CRYPTO 2015): criptoanálisis diferencial de Simon.
-- Chen–Wang (2014): criptoanálisis lineal (hull) de Simon (ePrint 2014/973).
+A third-party implementation should target the **public digest**.
 
 ---
 
-## 11. Advertencia final
+## 10. References
 
-MYSX **no ha sido auditado externamente**. Este documento es un análisis del autor, no una certificación. Ningún resultado aquí presentado sustituye una revisión criptográfica independiente.
+- Simon (NSA, 2013): `F` function used in the round.
+- Myszkowski (1902): transposition with repeated-letter keyword.
+- Blowfish (Schneier, 1993): π constants.
+- HKDF (RFC 5869), PBKDF2 (RFC 8018), HMAC (RFC 2104), AES-GCM
+  (NIST SP 800-38D).
+- Chen–Wang (ePrint 2014/973): linear hull cryptanalysis of
+  round-reduced Simon.
+- Biryukov–Roy–Velichkov (CRYPTO 2015): differential analysis of
+  Simon and Speck.
+- Kölbl–Leander–Tiessen (CRYPTO 2015): observations on the SIMON
+  block cipher family.
 
-**No usar MYSX para proteger datos reales.** Para producción: **AES-256-GCM** o **XChaCha20-Poly1305**.
+---
+
+## 11. Final warning
+
+**MYSX has not been externally audited.** This document is a summary
+of the author's self-analysis; the full analysis with methodology is
+in [PAPER.md](PAPER.md). No result here replaces an independent
+cryptographic review.
+
+**Do not use MYSX to protect real data.** For production:
+**AES-256-GCM** or **XChaCha20-Poly1305**.
