@@ -31,19 +31,21 @@ and explicitly welcomes external review.
 
 **Model.** MYSX is analyzed in the single-key, chosen-plaintext model
 for confidentiality, combined with an encrypt-then-MAC AEAD wrapper for
-integrity. The design does not claim security under related-key,
-chosen-ciphertext, or side-channel models; see Section 9.
+integrity (Section 2.9). The design does not claim security under
+related-key, chosen-ciphertext, or side-channel models; see Section 5
+for related-key coverage and Section 9 for engineering notes.
 
 **Claimed security level.** None formally. The paper reports observed
-upper bounds on single-trail weights and negative results on three
-linear-trail models. These are inputs to cryptanalysis, not proofs.
+upper bounds on single-trail weights (Section 3) and negative results
+on three linear-trail models (Section 4). These are inputs to
+cryptanalysis, not proofs.
 
 **Non-objectives.** MYSX does not claim:
 
 - post-quantum security beyond the trivial Grover bound (2²⁵⁶ quantum
   iterations for a 512-bit key);
 - resistance to related-key attacks beyond the heuristic coverage in
-  Section 7;
+  Section 5;
 - resistance to integral, impossible-differential, boomerang, or
   algebraic attacks (none analyzed);
 - constant-time execution in JavaScript (side channels out of scope).
@@ -53,20 +55,22 @@ linear-trail models. These are inputs to cryptanalysis, not proofs.
 MYSX combines four building blocks:
 
 - **Simon's F** `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)`. Chosen
-  for its proven diffusion/linear/ differential properties in Simon and
-  its simplicity (no S-boxes, only AND/XOR/rotl). It does **not**
+  for its **studied** diffusion/linear/differential properties in Simon
+  and its simplicity (no S-boxes, only AND/XOR/rotl). It does **not**
   inherit Simon's security proofs; the surrounding structure is
-  different.
-- **Feistel cells over 128-bit branches.** Four parallel Feistel cells
-  per round, each acting on 32-bit word pairs.
-- **Myszkowski transposition.** A fixed byte permutation derived from
-  the keyword `MYSZKOWS`. The choice is aesthetic/didactic: it provides
-  byte-level diffusion but no cryptographic argument beyond that. An
-  optimized permutation would provide strictly better diffusion per
-  round; see Section 9.
-- **ARX key schedule.** A bijective Feistel 8+8 update with modular
-  addition, XOR, and rotations. Chosen for simplicity and to avoid
-  S-boxes; analyzed in Section 7.
+  different. See Section 7 for what transfers and what does not.
+- **Feistel cells over 32-bit word pairs.** Four parallel cells per
+  round, then a byte transposition over the full 32-byte state, then
+  word rotations. The result is classified as an SPN-like structure
+  with Feistel cells, not as a "2-branch Feistel". See Section 2.1.
+- **Myszkowski transposition** (Section 2.3.1). A fixed byte
+  permutation derived from the keyword `MYSZKOWS`. The choice is
+  didactic; it provides byte-level diffusion but no cryptographic
+  argument beyond that. An optimized permutation would provide
+  strictly better diffusion per round; see Section 9.
+- **ARX key schedule** (Section 2.4). A bijective Feistel 8+8 update
+  with modular addition, XOR, and rotations. Chosen for simplicity and
+  to avoid S-boxes; analyzed in Section 5.
 
 The parameter choices (256-bit block, 512-bit key, 128 rounds) are not
 derived from a formal argument. They were chosen to:
@@ -86,12 +90,12 @@ parameter, not a security level.
 | Simon128/128 | 128 | 128 | 68 | Feistel | No |
 | Speck128/256 | 128 | 256 | 34 | ARX | No |
 | ChaCha20 | 512 | 256 | 20 | ARX | No |
-| MYSX-256/512 | 256 | 512 | 128 | Feistel cells + transposition | No |
+| MYSX-256/512 | 256 | 512 | 128 | SPN-like with Feistel cells | No |
 
 MYSX's closest sibling is Simon. The differences (block size, branch
-width, transposition, word rotations, non-linear key schedule) are
-substantial enough that Simon cryptanalysis does not transfer directly
-(see Section 8).
+organization, transposition, word rotations, non-linear key schedule)
+are substantial enough that Simon cryptanalysis does not transfer
+directly (see Section 7).
 
 **Performance.** MYSX is estimated to run at a few MB/s in JavaScript,
 versus hundreds of MB/s for AES-GCM via WebCrypto (AES-NI). MYSX is not
@@ -112,8 +116,8 @@ competitive on performance; it is a research primitive.
 | Rotation | `rotl(word, (r mod 31) + 1)` per word and round |
 | Final whitening | XOR with 8 words from the key schedule |
 
-**Structural note.** MYSX is often described as a "2-branch Feistel" by
-analogy with Simon. Strictly, each round applies four independent
+**Structural note.** MYSX is sometimes described as a "2-branch Feistel"
+by analogy with Simon. Strictly, each round applies four independent
 Feistel cells over 32-bit word pairs, then a byte transposition over
 the full 32-byte state, then word rotations. It is more accurately
 classified as an SPN with Feistel cells. The "Feistel" label is a
@@ -166,8 +170,8 @@ The inverse permutation `MYZ_INV` satisfies `MYZ_INV[MYZ_PERM[i]] = i`.
 transposition with a keyword) and adds no cryptographic argument.
 A byte permutation optimized for diffusion (e.g., a structured
 permutation over the 4×8 byte grid) would strictly dominate it.
-We keep Myszkowski in v0.1 because it is frozen; a future version may
-replace it.
+We keep Myszkowski in v0.1 because it is the design under review; a
+future version may replace it.
 
 ## 2.4. Key schedule
 
@@ -337,19 +341,24 @@ macKey = HKDF-SHA256(prk, salt, info = context ‖ ":mac", L = 32)
 
 See `KAT.json` (public). Two digests are documented in `README.md`:
 
-- `KAT.json` public digest: covers the full JSON (block + AEAD + KDF).
-- `KNOWN_KAT_DIGEST` (internal): covers 16 blocks with `key[i] = i`,
-  used as fast regression in `mysx.test.js`.
+- `KAT.json` public digest: SHA-256 over the full JSON (block + AEAD +
+  KDF). This is the artifact a third-party implementation should
+  reproduce.
+- `KNOWN_KAT_DIGEST` (internal): SHA-256 over 16 blocks with
+  `key[i] = i`. Used as fast regression in `mysx.test.js`. It is
+  strictly a subset of the public KAT, not a different KAT.
+
+A third-party implementation should target the **public digest**; the
+internal digest is only a self-check.
 
 # 3. Differential cryptanalysis
 
 ## 3.1. Model
 
 Tool: `mysx_milp.py` (PuLP + CBC/HiGHS). AND model: `a = Δx ∨ Δy`,
-which **overestimates** the cost of an active AND (counts a cost-1
-event whenever at least one input is active). This is a heuristic;
-it is not a proof that the model represents all differential
-transitions. Specifically:
+which counts a cost-1 event whenever at least one input is active.
+For an AND with independent inputs, this is the exact per-bit cost.
+The real approximations in the model are:
 
 - The Markov-independence assumption does not hold: the two rotated
   inputs of F come from the same word `x`.
@@ -357,6 +366,8 @@ transitions. Specifically:
   differences may yield lower weights.
 - `gapRel=0.2` and `timeLimit=300` return feasible solutions (upper
   bounds), not certified optima.
+- The model captures single trails, not differentials (clusters of
+  trails with the same output difference).
 
 ## 3.2. Observed upper bounds
 
@@ -398,10 +409,17 @@ established for MYSX.
 
 ### 4.1.1. Hybrid model (`act = α ∨ β ∨ γ`, no `γ ≥ α`)
 
-This model produced growing weights (8 at r=3, 18 at r=4, 86 at r=6,
-434 at r=10). Empirical verification at r=4 (weight 8, expected
-correlation 2⁻⁸ = 0.0039) gave correlation −2.4×10⁻⁴ over 2,000,000
-samples, at 0.53σ from zero. **The predicted trail does not exist.**
+This model produced the following single-trail weights:
+
+| r | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| weight | 0 | 2 | 6 | 8 | 10 | 18 | 32 | 48 | 72 | 109 |
+
+Empirical verification targeted the r=4 trail (weight 8, expected
+correlation 2⁻⁸ = 0.0039). Eight independent runs at N=2,000,000 each
+(σ = 1/√N ≈ 7.07×10⁻⁴) gave a mean observed correlation of −4×10⁻⁴,
+corresponding to |corr|/σ ≈ 0.57σ per run. **The predicted trail does
+not exist.**
 
 Diagnosis: the model allowed `(α,β,γ) = (1,0,0)`, which has correlation
 0 in the real AND (not 1/2). The trails found were artifacts.
@@ -414,15 +432,24 @@ model is too restrictive: it forbids valid trails with correlation 1
 
 ### 4.1.3. Relaxed model with correct AND (`x+y+z-w=2u`, `γ = α OR β`)
 
-Growing weights (8 at r=3, 18 at r=4, 86 at r=6, 434 at r=10).
-Empirical verification at r=3 (weight 8) gave correlation −2.4×10⁻⁴
-over 5,000,000 samples, at 0.53σ from zero. **The predicted trail does
-not exist.**
+This model produced the following single-trail weights:
+
+| r | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| weight | 0 | 2 | 8 | 18 | 35 | 86 | 157 | 244 | 338 | 434 |
+
+Note that these weights differ from those of the hybrid model
+(§4.1.1), confirming that the two models are not equivalent.
+
+Empirical verification targeted the r=3 trail (weight 8, expected
+correlation 2⁻⁸ = 0.0039). A single run at N=5,000,000 (σ = 1/√N ≈
+4.47×10⁻⁴) gave an observed correlation of −2.38×10⁻⁴, at |corr|/σ ≈
+0.53σ. **The predicted trail does not exist.**
 
 Diagnosis: model artifact, or destructive clustering (multiple trails
-with opposite signs cancelling). **We do not know which.** Either way,
-the conclusion is the same: we have no verified linear trail, and
-therefore no linear bound.
+with opposite signs cancelling). We do not know which. Either way, the
+conclusion is the same: we have no verified linear trail, and therefore
+no linear bound.
 
 ## 4.2. Why this matters
 
@@ -486,8 +513,9 @@ the security level of the system.
 
 MYSX uses Simon's `F`. It is **not** Simon. The differences:
 
-- Block/branch size: 256-bit block with 128-bit branches (Simon uses
-  `n`-bit branches).
+- Block size and branch organization: MYSX is an SPN-like structure
+  with four parallel Feistel cells over 32-bit word pairs (Section 2.1).
+  Simon is a classical 2-branch Feistel over `n`-bit halves.
 - Four parallel `F` per round (Simon uses 1).
 - Myszkowski byte transposition (Simon has none).
 - Round-dependent word rotations (Simon has none).
@@ -505,16 +533,25 @@ attacking MYSX.
 **What does not transfer.** Key recovery from Simon's linear key
 schedule does not transfer: MYSX's key schedule is non-linear.
 
-**Relevant literature.**
+**Relevant literature and published attacks on Simon128/128** (68
+rounds):
 
-- Kölbl, Leander, Tiessen, "Observations on the SIMON block cipher
-  family", CRYPTO 2015.
-- Biryukov, Roy, Velichkov, "Differential analysis of block ciphers
-  SIMON and SPECK", CRYPTO 2015.
-- Chen, Wang, "Improved linear hull cryptanalysis of round-reduced
-  versions of SIMON", ePrint 2014/973.
+- Linear-hull distinguishers covering ~49 rounds, complexity ~2¹²⁷
+  (Chen–Wang, "Improved linear hull cryptanalysis of round-reduced
+  versions of SIMON", ePrint 2014/973).
+- Differential distinguishers covering ~46–50 rounds, complexity
+  ~2¹²⁵·⁷ (Biryukov–Roy–Velichkov, "Differential analysis of block
+  ciphers SIMON and SPECK", CRYPTO 2015).
+- SAT-based algebraic distinguishers covering ~12–14 rounds
+  (practical on a PC).
+- Integral distinguishers covering ~26 rounds.
+- Structural observations on the SIMON family
+  (Kölbl–Leander–Tiessen, "Observations on the SIMON block cipher
+  family", CRYPTO 2015).
 
-None of these results is transferred to MYSX in this paper.
+None of these results is transferred to MYSX in this paper. The
+MYSX-specific MILP analysis (Sections 3, 4, 5) is what provides the
+evidence; Simon attacks are context, not direct transfer.
 
 # 8. Analysis limitations
 
@@ -534,12 +571,12 @@ None of these results is transferred to MYSX in this paper.
 
 ## 9.1. API surface
 
-- Production API: `aeadEncrypt`, `aeadDecrypt`, `deriveAeadKeys`,
+- Public API: `aeadEncrypt`, `aeadDecrypt`, `deriveAeadKeys`,
   `deriveAeadKeysFromPassword`, `NonceGuard`.
-- Test API: gated by environment variable `MYSX_ENABLE_TEST=1`. Not
-  activatable from code (`globalThis`), only from the process
-  environment.
-- CTR (`_ctrXor`) is not exported from the production API.
+- Test API: **disabled by default**. Enabled only when the environment
+  variable `MYSX_ENABLE_TEST=1` is set in the process before requiring
+  the module. There is no code-level toggle.
+- CTR (`_ctrXor`) is not exported from the public API.
 
 ## 9.2. NonceGuard
 
@@ -547,12 +584,17 @@ None of these results is transferred to MYSX in this paper.
 
 - counts messages per key (default 2³²);
 - detects recent nonce reuse (window of 1024 per key);
-- **does not persist across restarts**;
-- **does not share state across processes or devices**;
-- caps the number of tracked keys (default 1024) to avoid unbounded
-  memory growth;
-- provides optional persistence callbacks (`onSave`, `onLoad`) for
-  applications that need it.
+- caps the number of tracked keys (default 1024, LRU eviction);
+- identifies keys by a non-cryptographic 64-bit hash (FNV-1a variant),
+  **not** by the raw key bytes; `onSave(state)` therefore does not leak
+  the secret key;
+- throttles `onSave` calls (default: once every 100 `check()` calls)
+  to avoid per-message state copies;
+- **does not persist across restarts by itself**;
+- **does not share state across processes or devices**.
+
+Persistence is provided by `onSave(state)` and `initialState` at
+construction, or by `save()` / `load(state)` for manual control.
 
 **It is not a substitute for key lifecycle management.** If the
 application reuses `(key, nonce)` across restarts, CTR confidentiality
@@ -561,23 +603,30 @@ is broken. See `mysx.prod.js` for the exact contract.
 ## 9.3. aeadEncrypt size validation
 
 `aeadEncrypt` validates plaintext size **before** allocating the CTR
-output buffer, and enforces a configurable `maxPlaintextBytes` limit
-(default 2³²). Applications that require larger limits should raise
-the limit explicitly and manage memory accordingly.
+output buffer, and enforces a configurable `MAX_PLAINTEXT_BYTES` limit
+(aligned with `MAX_CT_BYTES`, 2³¹−1). Applications that require larger
+limits should raise both limits explicitly and manage memory
+accordingly.
 
-## 9.4. KAT digests
+## 9.4. Type validation
+
+All public functions validate that byte inputs are `Uint8Array` of the
+expected length (where applicable). Passing a `string` as `aad` or
+`plaintext` throws instead of silently coercing to array-like
+behavior.
+
+## 9.5. KAT digests
 
 Two digests are documented in `README.md`:
 
 - `KAT.json` public digest: SHA-256 over the full JSON (block + AEAD +
-  KDF). This is the artifact that a third-party implementation should
+  KDF). This is the artifact a third-party implementation should
   reproduce.
 - `KNOWN_KAT_DIGEST` (internal): SHA-256 over 16 blocks with
   `key[i] = i`. Used as fast regression in `mysx.test.js`. It is
   strictly a subset of the public KAT, not a different KAT.
 
-A third-party implementation should target the **public digest**; the
-internal digest is only a self-check.
+A third-party implementation should target the **public digest**.
 
 # 10. Verdict
 
@@ -595,11 +644,11 @@ been done. The cipher has not been externally audited.
 
 | File | Purpose |
 |---|---|
-| `SPEC.md` | Formal specification |
+| `SPEC.md` | Formal specification (identical content to Section 2) |
 | `PAPER.md` | This document |
 | `KAT.json` | Test vectors (block, AEAD, KDF) |
 | `generate_kat.py` | KAT generator |
-| `mysx.prod.js` | Implementation (production API) |
+| `mysx.prod.js` | Implementation (public API) |
 | `mysx.test.js` | Functional tests |
 | `mysx_milp.py` | Differential MILP |
 | `mysx_linear_milp.py` | Linear MILP (three models) |

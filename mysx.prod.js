@@ -1,9 +1,9 @@
 'use strict';
 
 // =============================================================================
-// MYSX-256/512 — Production API (v0.1-draft)
+// MYSX-256/512 — Public API (v0.1-draft)
 // -----------------------------------------------------------------------------
-// Proprietary cipher. NOT externally audited. DO NOT use for sensitive data.
+// Experimental cipher. NOT externally audited. DO NOT use for sensitive data.
 // For production: AES-256-GCM or XChaCha20-Poly1305.
 //
 // This artifact does NOT expose:
@@ -15,6 +15,8 @@
 //
 // The cipher is DRAFT. Any change to rounds or key schedule requires a new
 // version (v0.2-...) and full re-evaluation.
+//
+// License: MIT (see LICENSE).
 // =============================================================================
 
 const cryptoNode =
@@ -22,6 +24,9 @@ const cryptoNode =
     ? globalThis.crypto
     : (typeof require !== 'undefined' ? require('crypto').webcrypto : null);
 if (!cryptoNode) throw new Error('WebCrypto not available');
+
+const nodeCrypto =
+  (typeof require !== 'undefined') ? require('crypto') : null;
 
 // ===== Parameters (draft) =====
 const CONFIG = Object.freeze({
@@ -34,10 +39,11 @@ const CONFIG = Object.freeze({
   VERSION: 0x01,
   MAX_AAD_BYTES: 0x7fffffff,
   MAX_CT_BYTES: 0x7fffffff,
-  MAX_PLAINTEXT_BYTES: 2 ** 32,        // P3: validate before allocating
+  MAX_PLAINTEXT_BYTES: 0x7fffffff,        // aligned with MAX_CT_BYTES
   DEFAULT_MAX_MESSAGES_PER_KEY: 2 ** 32,
   DEFAULT_MAX_TRACKED_NONCES: 1024,
-  DEFAULT_MAX_TRACKED_KEYS: 1024,      // P2: cap Map growth
+  DEFAULT_MAX_TRACKED_KEYS: 1024,
+  DEFAULT_SAVE_EVERY: 100,                // throttle onSave
   PBKDF2_ITERATIONS: 600000
 });
 
@@ -164,6 +170,18 @@ function _ctrXor(data, key, nonce16) {
 }
 
 // =============================================================================
+// Type validation helpers
+// =============================================================================
+function _requireBytes(name, value, expectedLen) {
+  if (!(value instanceof Uint8Array)) {
+    throw new Error(`${name} must be a Uint8Array`);
+  }
+  if (expectedLen !== undefined && value.length !== expectedLen) {
+    throw new Error(`${name} must be ${expectedLen} bytes`);
+  }
+}
+
+// =============================================================================
 // MAC input
 // =============================================================================
 function _writeU32BE(buf, off, v) {
@@ -188,16 +206,34 @@ function _buildMacInput(version, nonce, aad, ct) {
 }
 
 // =============================================================================
-// NonceGuard — best-effort nonce policy (P2)
+// NonceGuard — best-effort nonce policy
 // -----------------------------------------------------------------------------
 // - Counts messages per key.
 // - Detects recent nonce reuse (configurable window).
-// - Caps the number of tracked keys (LRU eviction) to avoid unbounded growth.
-// - Optional persistence callbacks: onSave(state) / onLoad(state).
+// - Caps the number of tracked keys (FIFO eviction) to avoid unbounded growth.
+// - Identifies keys by a non-cryptographic 64-bit hash of the key, NOT by
+//   the raw key bytes. onSave(state) therefore does not leak the secret key.
+// - onSave is throttled (default: once every 100 check() calls) to avoid
+//   per-message state copies.
 // - Does NOT persist across restarts by itself; does NOT share state across
-//   processes or devices. Callers that need lifecycle guarantees must persist
-//   state via onSave/onLoad AND rotate keys.
+//   processes or devices. Callers that need lifecycle guarantees must
+//   persist state via onSave/initialState (or save()/load()).
 // =============================================================================
+function _keyId(key) {
+  // FNV-1a 64-bit over the key. Non-cryptographic; used only as an opaque
+  // identifier. Collision probability per pair is ~2^-64.
+  let h1 = 0x811c9dc5 >>> 0;
+  let h2 = 0x84222325 >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    const b = key[i];
+    h1 ^= b;
+    h1 = Math.imul(h1, 0x01000193) >>> 0;
+    h2 ^= (b + i) & 0xff;
+    h2 = Math.imul(h2, 0x85ebca6b) >>> 0;
+  }
+  return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+}
+
 function _hex(buf) {
   let s = '';
   for (let i = 0; i < buf.length; i++) s += buf[i].toString(16).padStart(2, '0');
@@ -209,21 +245,27 @@ class NonceGuard {
     this.maxMessagesPerKey = opts.maxMessagesPerKey ?? CONFIG.DEFAULT_MAX_MESSAGES_PER_KEY;
     this.maxTrackedNonces  = opts.maxTrackedNonces  ?? CONFIG.DEFAULT_MAX_TRACKED_NONCES;
     this.maxTrackedKeys    = opts.maxTrackedKeys    ?? CONFIG.DEFAULT_MAX_TRACKED_KEYS;
+    this.saveEvery         = opts.saveEvery         ?? CONFIG.DEFAULT_SAVE_EVERY;
     this.onSave            = opts.onSave            ?? null;
-    this._state = new Map();   // hexKey -> { count, recent: string[] }
+    this._state = new Map();   // keyId -> { count, recent: string[] }
+    this._sinceSave = 0;
     if (opts.initialState) this._loadState(opts.initialState);
   }
   check(key, nonce) {
-    const keyHex = _hex(key);
+    const keyId = _keyId(key);
     const nonceHex = _hex(nonce);
-    let s = this._state.get(keyHex);
-    if (!s) {
+    let s = this._state.get(keyId);
+    if (s) {
+      // LRU: move to end
+      this._state.delete(keyId);
+      this._state.set(keyId, s);
+    } else {
       if (this._state.size >= this.maxTrackedKeys) {
         const oldest = this._state.keys().next().value;
         this._state.delete(oldest);
       }
       s = { count: 0, recent: [] };
-      this._state.set(keyHex, s);
+      this._state.set(keyId, s);
     }
     if (s.count >= this.maxMessagesPerKey) {
       throw new Error(`Operational limit reached: ${this.maxMessagesPerKey} messages per key`);
@@ -234,10 +276,14 @@ class NonceGuard {
     s.count++;
     s.recent.push(nonceHex);
     if (s.recent.length > this.maxTrackedNonces) s.recent.shift();
-    if (this.onSave) this.onSave(this._exportState());
+    this._sinceSave++;
+    if (this.onSave && this._sinceSave >= this.saveEvery) {
+      this._sinceSave = 0;
+      this.onSave(this._exportState());
+    }
   }
   stats(key) {
-    const s = this._state.get(_hex(key));
+    const s = this._state.get(_keyId(key));
     return s ? { count: s.count, tracked: s.recent.length } : { count: 0, tracked: 0 };
   }
   _exportState() {
@@ -260,9 +306,10 @@ class NonceGuard {
 // =============================================================================
 async function aeadEncrypt(plaintext, key, macKey, opts = {}) {
   const { aad = new Uint8Array(0), nonceGuard, unsafeNoGuard = false } = opts;
-  if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
-  if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
-  // P3: validate size before allocating CTR output buffer.
+  _requireBytes('plaintext', plaintext);
+  _requireBytes('key', key, KEY_BYTES);
+  _requireBytes('macKey', macKey, MAC_KEY_BYTES);
+  _requireBytes('aad', aad);
   if (plaintext.length > CONFIG.MAX_PLAINTEXT_BYTES) {
     throw new Error(`plaintext too long (max ${CONFIG.MAX_PLAINTEXT_BYTES} bytes)`);
   }
@@ -291,8 +338,10 @@ async function aeadEncrypt(plaintext, key, macKey, opts = {}) {
 
 async function aeadDecrypt(packet, key, macKey, opts = {}) {
   const { aad = new Uint8Array(0) } = opts;
-  if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
-  if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
+  _requireBytes('packet', packet);
+  _requireBytes('key', key, KEY_BYTES);
+  _requireBytes('macKey', macKey, MAC_KEY_BYTES);
+  _requireBytes('aad', aad);
   const minLen = 1 + NONCE_BYTES + TAG_BYTES;
   if (packet.length < minLen) throw new Error('Packet too short');
   if (packet[0] !== VERSION)   throw new Error(`Unknown version: ${packet[0]}`);
@@ -315,8 +364,10 @@ async function aeadDecrypt(packet, key, macKey, opts = {}) {
 // Key derivation
 // =============================================================================
 async function deriveAeadKeys(secret, opts = {}) {
+  _requireBytes('secret', secret);
   const context = opts.context ?? 'MYSX-256/512';
   const salt    = opts.salt    ?? new Uint8Array(32);
+  _requireBytes('salt', salt);
 
   const ck = await cryptoNode.subtle.importKey(
     'raw', secret, 'HKDF', false, ['deriveBits']
@@ -337,6 +388,7 @@ async function deriveAeadKeysFromPassword(password, salt, opts = {}) {
   if (!salt || salt.length < 16) {
     throw new Error('salt required (>= 16 bytes, unique per context/file)');
   }
+  _requireBytes('salt', salt);
   let pwBytes;
   if (typeof password === 'string') {
     pwBytes = new TextEncoder().encode(password);
@@ -360,7 +412,7 @@ async function deriveAeadKeysFromPassword(password, salt, opts = {}) {
 }
 
 // =============================================================================
-// Production API
+// Public API
 // =============================================================================
 const PROD = {
   aeadEncrypt,
@@ -372,15 +424,7 @@ const PROD = {
 };
 
 // =============================================================================
-// TEST API — gated by environment variable only (P5)
-// -----------------------------------------------------------------------------
-// Set MYSX_ENABLE_TEST=1 in the process environment before requiring this file.
-// The test API cannot be activated from code (no globalThis toggle).
-//
-// Two KAT digests are documented in README.md:
-//   - KNOWN_KAT_DIGEST (internal): 16 blocks with key[i]=i, fast regression.
-//   - KAT.json public digest: full JSON (block + AEAD + KDF).
-// A third-party implementation should target the PUBLIC digest.
+// TEST API — disabled by default (env var only)
 // =============================================================================
 const ENABLE_TEST =
   (typeof process !== 'undefined' && process.env && process.env.MYSX_ENABLE_TEST === '1');
@@ -389,9 +433,11 @@ if (ENABLE_TEST) {
   const KNOWN_KAT_DIGEST = '3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3';
 
   async function _unsafeAeadEncryptWithNonce(plaintext, key, macKey, nonce, aad = new Uint8Array(0)) {
-    if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
-    if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
-    if (nonce.length !== NONCE_BYTES)    throw new Error(`nonce must be ${NONCE_BYTES} bytes`);
+    _requireBytes('plaintext', plaintext);
+    _requireBytes('key', key, KEY_BYTES);
+    _requireBytes('macKey', macKey, MAC_KEY_BYTES);
+    _requireBytes('nonce', nonce, NONCE_BYTES);
+    _requireBytes('aad', aad);
     if (plaintext.length > CONFIG.MAX_PLAINTEXT_BYTES) {
       throw new Error(`plaintext too long (max ${CONFIG.MAX_PLAINTEXT_BYTES} bytes)`);
     }
