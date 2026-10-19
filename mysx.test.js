@@ -1,24 +1,20 @@
 'use strict';
 
 // =============================================================================
-// MYSX-256/512 — Suite de tests (separada del artefacto de producción)
+// MYSX-256/512 — Test suite (v0.1-draft)
 // =============================================================================
-// Uso:
+// Usage:
 //   MYSX_ENABLE_TEST=1 node mysx.test.js
-// o:
-//   globalThis.__MYSX_ENABLE_TEST__ = true;
-//   require('./mysx.test.js');
 // =============================================================================
 
 if (typeof process !== 'undefined') process.env.MYSX_ENABLE_TEST = '1';
-if (typeof globalThis !== 'undefined') globalThis.__MYSX_ENABLE_TEST__ = true;
 
 const MYSX = require('./mysx.prod.js');
 const { TEST, aeadEncrypt, aeadDecrypt, deriveAeadKeys, deriveAeadKeysFromPassword,
         NonceGuard, CONFIG } = MYSX;
 
 if (!TEST) {
-  throw new Error('TEST no disponible. Asegúrate de cargar con MYSX_ENABLE_TEST=1');
+  throw new Error('TEST not available. Load with MYSX_ENABLE_TEST=1');
 }
 
 const {
@@ -27,7 +23,7 @@ const {
 } = TEST;
 const { BLOCK_BYTES, KEY_BYTES, ROUNDS, NONCE_BYTES, MAC_KEY_BYTES, TAG_BYTES } = CONFIG;
 
-// ---- PRNG reproducible (solo tests) ----
+// ---- Reproducible PRNG (tests only) ----
 function makeRng(seed) {
   let t = seed >>> 0;
   return function() {
@@ -50,7 +46,7 @@ function bitsDiff(a, b) {
   return d;
 }
 
-// ---- Estado del harness ----
+// ---- Harness state ----
 const state = {
   okFunctional: true,
   okRegression: true,
@@ -66,25 +62,24 @@ function fail(section, msg) {
 function pass(msg) { console.log(`  OK   ${msg}`); }
 
 // =============================================================================
-// 1) KAT funcional (digest fijado, falla si no coincide)
+// 1) KAT (regression)
 // =============================================================================
 async function testKAT() {
-  console.log('\n=== 1) KAT (regresión) ===');
+  console.log('\n=== 1) KAT (regression) ===');
   try {
     const ok = await verifyKAT({ strict: true });
-    if (ok === true) pass('KAT coincide con el digest fijado');
-    else fail('okRegression', 'KAT no coincide o no configurado');
+    if (ok === true) pass('KAT matches the fixed digest');
+    else fail('okRegression', 'KAT does not match or not configured');
   } catch (e) {
     fail('okRegression', e.message);
   }
 }
 
 // =============================================================================
-// 2) Round-trip de bloque (necesita acceso a internos, vía TEST)
+// 2) Block round-trip (via CTR)
 // =============================================================================
 async function testBlockRoundTrip() {
-  console.log('\n=== 2) Round-trip de bloque ===');
-  // Round-trip vía CTR (única ruta pública); el bloque puro solo con TEST.
+  console.log('\n=== 2) Block round-trip (via CTR) ===');
   const rng = makeRng(0xB10C);
   const key = new Uint8Array(KEY_BYTES);
   fillRandom(rng, key);
@@ -99,12 +94,12 @@ async function testBlockRoundTrip() {
     const pt2 = _ctrXor(ct, key, nonce);
     if (!pt.every((v, i) => v === pt2[i])) { ok = false; break; }
   }
-  if (ok) pass('CTR round-trip (8 longitudes)');
+  if (ok) pass('CTR round-trip (8 lengths)');
   else fail('okFunctional', 'CTR round-trip');
 }
 
 // =============================================================================
-// 3) AEAD funcional + negativos estrictos
+// 3) AEAD functional + strict negatives
 // =============================================================================
 async function testAEAD() {
   console.log('\n=== 3) AEAD ===');
@@ -123,40 +118,37 @@ async function testAEAD() {
   if (pt.every((v, i) => v === pt2[i])) pass('round-trip 80 bytes + AAD');
   else fail('okFunctional', 'AEAD round-trip');
 
-  // Negativos estrictos: deben fallar con 'MAC inválido'
+  // Negative tests: must fail with 'Invalid MAC'
   async function expectMACFail(label, mutator) {
     const p = new Uint8Array(packet);
     mutator(p);
     try { await aeadDecrypt(p, encKey, macKey, { aad }); }
     catch (e) {
-      if (e.message.startsWith('MAC inválido')) { pass(`rechaza ${label}`); return; }
-      fail('okFunctional', `${label}: excepción inesperada (${e.message})`);
+      if (e.message === 'Invalid MAC') { pass(`rejects ${label}`); return; }
+      fail('okFunctional', `${label}: unexpected error (${e.message})`);
       return;
     }
-    fail('okFunctional', `${label}: no detectó manipulación`);
+    fail('okFunctional', `${label}: did not detect tampering`);
   }
-  await expectMACFail('nonce alterado', p => { p[1] ^= 1; });
-  await expectMACFail('ct alterado',    p => { p[1 + NONCE_BYTES] ^= 1; });
-  await expectMACFail('tag alterado',   p => { p[p.length - 1] ^= 1; });
+  await expectMACFail('altered nonce', p => { p[1] ^= 1; });
+  await expectMACFail('altered ct',    p => { p[1 + NONCE_BYTES] ^= 1; });
+  await expectMACFail('altered tag',   p => { p[p.length - 1] ^= 1; });
 
   try { await aeadDecrypt(packet, encKey, macKey, { aad: new Uint8Array([0xAA, 0xBC]) }); 
-        fail('okFunctional', 'AAD distinto: no detectó manipulación'); }
+        fail('okFunctional', 'different AAD: did not detect tampering'); }
   catch (e) {
-    if (e.message.startsWith('MAC inválido')) pass('rechaza AAD distinto');
-    else fail('okFunctional', `AAD distinto: excepción inesperada (${e.message})`);
+    if (e.message === 'Invalid MAC') pass('rejects different AAD');
+    else fail('okFunctional', `different AAD: unexpected error (${e.message})`);
   }
 
-  // NonceGuard debe detectar reutilización si el mismo nonce se reinyecta
-  // (esto requiere llamar al path unsafe con TEST._unsafe? no existe en PROD;
-  //  verificamos que dos llamadas seguidas generan nonces distintos y ambos
-  //  pasan el guard)
+  // Two encryptions must use different nonces
   const p2 = await aeadEncrypt(pt, encKey, macKey, { aad, nonceGuard: guard });
-  if (p2[1] !== packet[1] || p2[2] !== packet[2]) pass('dos cifrados generan nonces distintos');
-  else fail('okNoncePolicy', 'nonces repetidos');
+  if (p2[1] !== packet[1] || p2[2] !== packet[2]) pass('two encryptions use different nonces');
+  else fail('okNoncePolicy', 'repeated nonces');
 }
 
 // =============================================================================
-// 4) Política de nonces y límites operativos
+// 4) NonceGuard policy and operational limits
 // =============================================================================
 async function testNoncePolicy() {
   console.log('\n=== 4) NonceGuard ===');
@@ -165,103 +157,118 @@ async function testNoncePolicy() {
   fillRandom(rng, master);
   const { encKey, macKey } = await deriveAeadKeys(master, { context: 'test' });
 
-  // a) Sin guard ni unsafe -> debe lanzar
+  // a) Without guard and without unsafe -> must throw
   try {
     await aeadEncrypt(new Uint8Array(8), encKey, macKey);
-    fail('okNoncePolicy', 'aeadEncrypt sin guard no lanzó');
+    fail('okNoncePolicy', 'aeadEncrypt without guard did not throw');
   } catch (e) {
-    if (e.message.includes('nonceGuard')) pass('sin guard: rechazado');
-    else fail('okNoncePolicy', `sin guard: excepción inesperada (${e.message})`);
+    if (e.message.includes('nonceGuard')) pass('without guard: rejected');
+    else fail('okNoncePolicy', `without guard: unexpected error (${e.message})`);
   }
 
-  // b) unsafeNoGuard: true -> debe funcionar
+  // b) unsafeNoGuard: true -> must work
   try {
     await aeadEncrypt(new Uint8Array(8), encKey, macKey, { unsafeNoGuard: true });
-    pass('unsafeNoGuard: aceptado');
+    pass('unsafeNoGuard: accepted');
   } catch (e) {
     fail('okNoncePolicy', `unsafeNoGuard: ${e.message}`);
   }
 
-  // c) Guard con límite bajo: superarlo debe lanzar
+  // c) Guard with low limit: exceeding it must throw
   const guard = new NonceGuard({ maxMessagesPerKey: 3 });
   for (let i = 0; i < 3; i++) {
     await aeadEncrypt(new Uint8Array(8), encKey, macKey, { nonceGuard: guard });
   }
   try {
     await aeadEncrypt(new Uint8Array(8), encKey, macKey, { nonceGuard: guard });
-    fail('okNoncePolicy', 'límite operativo no se aplicó');
+    fail('okNoncePolicy', 'operational limit not enforced');
   } catch (e) {
-    if (e.message.includes('Límite operativo')) pass('límite operativo aplicado');
-    else fail('okNoncePolicy', `límite: excepción inesperada (${e.message})`);
+    if (e.message.includes('Operational limit')) pass('operational limit enforced');
+    else fail('okNoncePolicy', `limit: unexpected error (${e.message})`);
   }
 
-  // d) Stats coherentes
+  // d) Stats coherent
   const s = guard.stats(encKey);
   if (s.count === 3) pass(`stats: count=${s.count}`);
-  else fail('okNoncePolicy', `stats: count=${s.count}, esperado 3`);
+  else fail('okNoncePolicy', `stats: count=${s.count}, expected 3`);
+
+  // e) P2: maxTrackedKeys (LRU eviction)
+  const guard2 = new NonceGuard({ maxTrackedKeys: 2 });
+  const k1 = new Uint8Array(KEY_BYTES); fillRandom(rng, k1);
+  const k2 = new Uint8Array(KEY_BYTES); fillRandom(rng, k2);
+  const k3 = new Uint8Array(KEY_BYTES); fillRandom(rng, k3);
+  await aeadEncrypt(new Uint8Array(4), k1, macKey, { nonceGuard: guard2 });
+  await aeadEncrypt(new Uint8Array(4), k2, macKey, { nonceGuard: guard2 });
+  await aeadEncrypt(new Uint8Array(4), k3, macKey, { nonceGuard: guard2 });
+  const s1 = guard2.stats(k1);
+  const s3 = guard2.stats(k3);
+  if (s1.count === 0 && s3.count === 1) pass('maxTrackedKeys: LRU eviction works');
+  else fail('okNoncePolicy', `maxTrackedKeys: k1=${s1.count}, k3=${s3.count}`);
 }
 
 // =============================================================================
-// 5) Derivación de claves: contraseña vs secreto aleatorio
+// 5) Key derivation: password vs random secret
 // =============================================================================
 async function testKeyDerivation() {
-  console.log('\n=== 5) Derivación de claves ===');
+  console.log('\n=== 5) Key derivation ===');
   const rng = makeRng(0xDEAD);
   const master = new Uint8Array(32);
   fillRandom(rng, master);
   const salt = new Uint8Array(16);
   fillRandom(rng, salt);
 
-  // a) HKDF con secreto aleatorio
+  // a) HKDF with random secret
   try {
     const { encKey, macKey } = await deriveAeadKeys(master, { salt });
-    if (encKey.length === KEY_BYTES && macKey.length === MAC_KEY_BYTES) pass('HKDF: longitudes correctas');
-    else fail('okFunctional', 'HKDF: longitudes');
+    if (encKey.length === KEY_BYTES && macKey.length === MAC_KEY_BYTES)
+      pass('HKDF: correct lengths');
+    else fail('okFunctional', 'HKDF: lengths');
   } catch (e) { fail('okFunctional', `HKDF: ${e.message}`); }
 
-  // b) HKDF con contextos distintos -> claves distintas
+  // b) HKDF with different contexts -> different keys
   try {
     const a = await deriveAeadKeys(master, { context: 'ctx-A', salt });
     const b = await deriveAeadKeys(master, { context: 'ctx-B', salt });
     const diff = !a.encKey.every((v, i) => v === b.encKey[i]);
-    if (diff) pass('HKDF: contextos separan claves');
-    else fail('okFunctional', 'HKDF: contextos no separan');
+    if (diff) pass('HKDF: contexts separate keys');
+    else fail('okFunctional', 'HKDF: contexts do not separate');
   } catch (e) { fail('okFunctional', `HKDF ctx: ${e.message}`); }
 
-  // c) PBKDF2 sin salt -> debe lanzar
+  // c) PBKDF2 without salt -> must throw
   try {
     await deriveAeadKeysFromPassword('correct horse battery staple', null);
-    fail('okPasswordPath', 'PBKDF2 sin salt no lanzó');
+    fail('okPasswordPath', 'PBKDF2 without salt did not throw');
   } catch (e) {
-    if (e.message.includes('salt')) pass('PBKDF2 sin salt: rechazado');
-    else fail('okPasswordPath', `PBKDF2 sin salt: ${e.message}`);
+    if (e.message.includes('salt')) pass('PBKDF2 without salt: rejected');
+    else fail('okPasswordPath', `PBKDF2 without salt: ${e.message}`);
   }
 
-  // d) PBKDF2 con salt -> funciona, y dos llamadas con la misma salt dan lo mismo
+  // d) PBKDF2 with salt -> deterministic
   try {
     const a = await deriveAeadKeysFromPassword('correct horse', salt, { iterations: 1000 });
     const b = await deriveAeadKeysFromPassword('correct horse', salt, { iterations: 1000 });
-    if (a.encKey.every((v, i) => v === b.encKey[i])) pass('PBKDF2: determinista con misma salt');
-    else fail('okPasswordPath', 'PBKDF2: no determinista');
+    if (a.encKey.every((v, i) => v === b.encKey[i]))
+      pass('PBKDF2: deterministic with same salt');
+    else fail('okPasswordPath', 'PBKDF2: not deterministic');
   } catch (e) { fail('okPasswordPath', `PBKDF2: ${e.message}`); }
 
-  // e) PBKDF2 con salts distintas -> claves distintas
+  // e) PBKDF2 with different salts -> different keys
   try {
     const salt2 = new Uint8Array(16);
     fillRandom(rng, salt2);
     const a = await deriveAeadKeysFromPassword('correct horse', salt,  { iterations: 1000 });
     const b = await deriveAeadKeysFromPassword('correct horse', salt2, { iterations: 1000 });
     const diff = !a.encKey.every((v, i) => v === b.encKey[i]);
-    if (diff) pass('PBKDF2: salts distintas → claves distintas');
-    else fail('okPasswordPath', 'PBKDF2: salts no separan');
+    if (diff) pass('PBKDF2: different salts → different keys');
+    else fail('okPasswordPath', 'PBKDF2: salts do not separate');
   } catch (e) { fail('okPasswordPath', `PBKDF2 salt: ${e.message}`); }
 }
 
 // =============================================================================
-// 6) Avalancha (indicador, no prueba)
+// 6) Avalanche (indicator, not proof)
 // =============================================================================
 async function testAvalanche() {
-  console.log('\n=== 6) Avalancha (indicador, no prueba) ===');
+  console.log('\n=== 6) Avalanche (indicator, not proof) ===');
   const rng = makeRng(0xA7A1);
   const key = new Uint8Array(KEY_BYTES);
   fillRandom(rng, key);
@@ -278,17 +285,17 @@ async function testAvalanche() {
     total += bitsDiff(c0, _encryptBlockCore(p2, sch, ROUNDS, sc, true));
   }
   const avg = total / 256;
-  console.log(`  texto plano: ${avg.toFixed(2)}/256 (ideal 128)`);
-  if (Math.abs(avg - 128) < 8) pass('avalancha en rango');
-  else fail('okFunctional', `avalancha fuera de rango: ${avg.toFixed(2)}`);
+  console.log(`  plaintext: ${avg.toFixed(2)}/256 (ideal 128)`);
+  if (Math.abs(avg - 128) < 8) pass('avalanche in range');
+  else fail('okFunctional', `avalanche out of range: ${avg.toFixed(2)}`);
 }
 
 // =============================================================================
 // Main
 // =============================================================================
 (async () => {
-  console.log('\n=== MYSX-256/512 — Suite de tests ===');
-  console.log('ADVERTENCIA: ningún test demuestra seguridad criptográfica.\n');
+  console.log('\n=== MYSX-256/512 — Test suite (v0.1-draft) ===');
+  console.log('WARNING: no test proves cryptographic security.\n');
 
   await testKAT();
   await testBlockRoundTrip();
@@ -297,12 +304,12 @@ async function testAvalanche() {
   await testKeyDerivation();
   await testAvalanche();
 
-  console.log('\n=== RESUMEN ===');
+  console.log('\n=== SUMMARY ===');
   const labels = {
-    okFunctional:  'Funcional (round-trip, AEAD, KAT)',
-    okRegression:  'Regresión (KAT)',
-    okNoncePolicy:'Política de nonces',
-    okPasswordPath:'Ruta de contraseña (PBKDF2)'
+    okFunctional:  'Functional (round-trip, AEAD, KAT)',
+    okRegression:  'Regression (KAT)',
+    okNoncePolicy:'Nonce policy',
+    okPasswordPath:'Password path (PBKDF2)'
   };
   let allOk = true;
   for (const [k, label] of Object.entries(labels)) {
@@ -310,12 +317,12 @@ async function testAvalanche() {
     if (!state[k]) allOk = false;
   }
   if (state.errors.length) {
-    console.log('\n  Errores:');
+    console.log('\n  Errors:');
     for (const e of state.errors) console.log('    - ' + e);
   }
-  console.log(`\n  RESULTADO GLOBAL: ${allOk ? 'PASS' : 'FAIL'}`);
+  console.log(`\n  GLOBAL RESULT: ${allOk ? 'PASS' : 'FAIL'}`);
   console.log('\n  CRYPTANALYSIS_STATUS: NOT_ESTABLISHED');
-  console.log('  Un PASS aquí solo dice que los tests elegidos no detectaron fallos.');
-  console.log('  La seguridad requiere criptoanálisis público independiente.');
+  console.log('  A PASS here only says the chosen tests did not detect failures.');
+  console.log('  Security requires independent public cryptanalysis.');
   process.exit(allOk ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -1,29 +1,29 @@
 'use strict';
 
 // =============================================================================
-// MYSX-256/512 — API de PRODUCCIÓN  (v0.1-experimental)
+// MYSX-256/512 — Production API (v0.1-draft)
 // -----------------------------------------------------------------------------
-// Cifrador propio, NO auditado externamente. NO usar para datos sensibles.
-// Para producción real: AES-256-GCM o XChaCha20-Poly1305.
+// Proprietary cipher. NOT externally audited. DO NOT use for sensitive data.
+// For production: AES-256-GCM or XChaCha20-Poly1305.
 //
-// Este artefacto NO expone:
-//   - CTR crudo
-//   - cifrado con nonce impuesto
-//   - funciones de rondas reducidas
-//   - utilidades de test
-// Solo se exponen AEAD, derivación de claves y NonceGuard.
+// This artifact does NOT expose:
+//   - raw CTR
+//   - encryption with caller-imposed nonce
+//   - reduced-round functions
+//   - test utilities
+// Only AEAD, key derivation and NonceGuard are exposed.
 //
-// El cifrador está CONGELADO. Cualquier cambio de ronda o key schedule
-// requiere una versión nueva (v0.2-...) y volver a evaluar por separado.
+// The cipher is DRAFT. Any change to rounds or key schedule requires a new
+// version (v0.2-...) and full re-evaluation.
 // =============================================================================
 
 const cryptoNode =
   (typeof globalThis !== 'undefined' && globalThis.crypto)
     ? globalThis.crypto
     : (typeof require !== 'undefined' ? require('crypto').webcrypto : null);
-if (!cryptoNode) throw new Error('WebCrypto no disponible');
+if (!cryptoNode) throw new Error('WebCrypto not available');
 
-// ===== Parámetros (congelados) =====
+// ===== Parameters (draft) =====
 const CONFIG = Object.freeze({
   BLOCK_BYTES: 32,
   KEY_BYTES: 64,
@@ -34,8 +34,10 @@ const CONFIG = Object.freeze({
   VERSION: 0x01,
   MAX_AAD_BYTES: 0x7fffffff,
   MAX_CT_BYTES: 0x7fffffff,
+  MAX_PLAINTEXT_BYTES: 2 ** 32,        // P3: validate before allocating
   DEFAULT_MAX_MESSAGES_PER_KEY: 2 ** 32,
   DEFAULT_MAX_TRACKED_NONCES: 1024,
+  DEFAULT_MAX_TRACKED_KEYS: 1024,      // P2: cap Map growth
   PBKDF2_ITERATIONS: 600000
 });
 
@@ -44,7 +46,7 @@ const {
 } = CONFIG;
 
 // =============================================================================
-// Internos del cifrador (NO exportados en PROD)
+// Cipher internals (not exported in PROD)
 // =============================================================================
 const MYZ_PERM = new Uint8Array([
    4,12,20,28,  0, 8,16,24,  5,13,21,29,
@@ -59,7 +61,7 @@ function rotl32(x, n) { n &= 31; return (((x << n) | (x >>> (32 - n))) >>> 0); }
 function simonF(x)   { return ((rotl32(x, 1) & rotl32(x, 8)) ^ rotl32(x, 2)) >>> 0; }
 
 function _keySchedule(keyBytes) {
-  if (keyBytes.length !== KEY_BYTES) throw new Error(`Clave debe ser ${KEY_BYTES} bytes`);
+  if (keyBytes.length !== KEY_BYTES) throw new Error(`Key must be ${KEY_BYTES} bytes`);
   const s = new Uint32Array(16);
   for (let i = 0; i < 16; i++) {
     s[i] = ((keyBytes[i*4] << 24) | (keyBytes[i*4+1] << 16) |
@@ -171,8 +173,8 @@ function _writeU32BE(buf, off, v) {
   buf[off+3] =  v         & 0xff;
 }
 function _buildMacInput(version, nonce, aad, ct) {
-  if (aad.length > CONFIG.MAX_AAD_BYTES) throw new Error('AAD demasiado largo');
-  if (ct.length > CONFIG.MAX_CT_BYTES)  throw new Error('CT demasiado largo');
+  if (aad.length > CONFIG.MAX_AAD_BYTES) throw new Error('AAD too long');
+  if (ct.length > CONFIG.MAX_CT_BYTES)  throw new Error('CT too long');
   const total = 1 + NONCE_BYTES + 4 + aad.length + 4 + ct.length;
   const buf = new Uint8Array(total);
   let off = 0;
@@ -186,7 +188,15 @@ function _buildMacInput(version, nonce, aad, ct) {
 }
 
 // =============================================================================
-// NonceGuard — política operativa de nonces por clave
+// NonceGuard — best-effort nonce policy (P2)
+// -----------------------------------------------------------------------------
+// - Counts messages per key.
+// - Detects recent nonce reuse (configurable window).
+// - Caps the number of tracked keys (LRU eviction) to avoid unbounded growth.
+// - Optional persistence callbacks: onSave(state) / onLoad(state).
+// - Does NOT persist across restarts by itself; does NOT share state across
+//   processes or devices. Callers that need lifecycle guarantees must persist
+//   state via onSave/onLoad AND rotate keys.
 // =============================================================================
 function _hex(buf) {
   let s = '';
@@ -198,38 +208,66 @@ class NonceGuard {
   constructor(opts = {}) {
     this.maxMessagesPerKey = opts.maxMessagesPerKey ?? CONFIG.DEFAULT_MAX_MESSAGES_PER_KEY;
     this.maxTrackedNonces  = opts.maxTrackedNonces  ?? CONFIG.DEFAULT_MAX_TRACKED_NONCES;
-    this._state = new Map();
+    this.maxTrackedKeys    = opts.maxTrackedKeys    ?? CONFIG.DEFAULT_MAX_TRACKED_KEYS;
+    this.onSave            = opts.onSave            ?? null;
+    this._state = new Map();   // hexKey -> { count, recent: string[] }
+    if (opts.initialState) this._loadState(opts.initialState);
   }
   check(key, nonce) {
     const keyHex = _hex(key);
     const nonceHex = _hex(nonce);
     let s = this._state.get(keyHex);
-    if (!s) { s = { count: 0, recent: [] }; this._state.set(keyHex, s); }
+    if (!s) {
+      if (this._state.size >= this.maxTrackedKeys) {
+        const oldest = this._state.keys().next().value;
+        this._state.delete(oldest);
+      }
+      s = { count: 0, recent: [] };
+      this._state.set(keyHex, s);
+    }
     if (s.count >= this.maxMessagesPerKey) {
-      throw new Error(`Límite operativo alcanzado: ${this.maxMessagesPerKey} mensajes por clave`);
+      throw new Error(`Operational limit reached: ${this.maxMessagesPerKey} messages per key`);
     }
     if (s.recent.includes(nonceHex)) {
-      throw new Error('Nonce reutilizado con la misma clave (dentro de la ventana rastreada)');
+      throw new Error('Nonce reused with the same key (within tracked window)');
     }
     s.count++;
     s.recent.push(nonceHex);
     if (s.recent.length > this.maxTrackedNonces) s.recent.shift();
+    if (this.onSave) this.onSave(this._exportState());
   }
   stats(key) {
     const s = this._state.get(_hex(key));
     return s ? { count: s.count, tracked: s.recent.length } : { count: 0, tracked: 0 };
   }
+  _exportState() {
+    const out = {};
+    for (const [k, v] of this._state) out[k] = { count: v.count, recent: v.recent.slice() };
+    return out;
+  }
+  _loadState(state) {
+    this._state.clear();
+    for (const [k, v] of Object.entries(state)) {
+      this._state.set(k, { count: v.count, recent: v.recent.slice() });
+    }
+  }
+  save() { return this._exportState(); }
+  load(state) { this._loadState(state); }
 }
 
 // =============================================================================
-// AEAD — encrypt-then-MAC con HMAC-SHA256
+// AEAD — encrypt-then-MAC with HMAC-SHA256
 // =============================================================================
 async function aeadEncrypt(plaintext, key, macKey, opts = {}) {
   const { aad = new Uint8Array(0), nonceGuard, unsafeNoGuard = false } = opts;
-  if (key.length !== KEY_BYTES)        throw new Error(`key debe ser ${KEY_BYTES} bytes`);
-  if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey debe ser ${MAC_KEY_BYTES} bytes`);
+  if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
+  if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
+  // P3: validate size before allocating CTR output buffer.
+  if (plaintext.length > CONFIG.MAX_PLAINTEXT_BYTES) {
+    throw new Error(`plaintext too long (max ${CONFIG.MAX_PLAINTEXT_BYTES} bytes)`);
+  }
   if (!nonceGuard && !unsafeNoGuard) {
-    throw new Error('aeadEncrypt requiere nonceGuard o unsafeNoGuard: true');
+    throw new Error('aeadEncrypt requires nonceGuard or unsafeNoGuard: true');
   }
 
   const nonce = new Uint8Array(NONCE_BYTES);
@@ -253,9 +291,11 @@ async function aeadEncrypt(plaintext, key, macKey, opts = {}) {
 
 async function aeadDecrypt(packet, key, macKey, opts = {}) {
   const { aad = new Uint8Array(0) } = opts;
+  if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
+  if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
   const minLen = 1 + NONCE_BYTES + TAG_BYTES;
-  if (packet.length < minLen) throw new Error('Paquete demasiado corto');
-  if (packet[0] !== VERSION)   throw new Error(`Versión desconocida: ${packet[0]}`);
+  if (packet.length < minLen) throw new Error('Packet too short');
+  if (packet[0] !== VERSION)   throw new Error(`Unknown version: ${packet[0]}`);
 
   const nonce = packet.slice(1, 1 + NONCE_BYTES);
   const ct    = packet.slice(1 + NONCE_BYTES, packet.length - TAG_BYTES);
@@ -266,13 +306,13 @@ async function aeadDecrypt(packet, key, macKey, opts = {}) {
     'raw', macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
   );
   if (!await cryptoNode.subtle.verify('HMAC', ck, tag, macInput)) {
-    throw new Error('MAC inválido');
+    throw new Error('Invalid MAC');
   }
   return _ctrXor(ct, key, nonce);
 }
 
 // =============================================================================
-// Derivación de claves
+// Key derivation
 // =============================================================================
 async function deriveAeadKeys(secret, opts = {}) {
   const context = opts.context ?? 'MYSX-256/512';
@@ -295,9 +335,8 @@ async function deriveAeadKeys(secret, opts = {}) {
 
 async function deriveAeadKeysFromPassword(password, salt, opts = {}) {
   if (!salt || salt.length < 16) {
-    throw new Error('salt obligatoria (≥16 bytes, única por contexto/archivo)');
+    throw new Error('salt required (>= 16 bytes, unique per context/file)');
   }
-
   let pwBytes;
   if (typeof password === 'string') {
     pwBytes = new TextEncoder().encode(password);
@@ -306,12 +345,10 @@ async function deriveAeadKeysFromPassword(password, salt, opts = {}) {
   } else if (password instanceof ArrayBuffer) {
     pwBytes = new Uint8Array(password);
   } else {
-    throw new Error('password debe ser string, Uint8Array o ArrayBuffer');
+    throw new Error('password must be string, Uint8Array or ArrayBuffer');
   }
-
   const iterations = opts.iterations ?? CONFIG.PBKDF2_ITERATIONS;
   const context    = opts.context    ?? 'MYSX-256/512';
-
   const pwKey = await cryptoNode.subtle.importKey(
     'raw', pwBytes, 'PBKDF2', false, ['deriveBits']
   );
@@ -323,7 +360,7 @@ async function deriveAeadKeysFromPassword(password, salt, opts = {}) {
 }
 
 // =============================================================================
-// API pública de producción
+// Production API
 // =============================================================================
 const PROD = {
   aeadEncrypt,
@@ -335,29 +372,35 @@ const PROD = {
 };
 
 // =============================================================================
-// TEST API — solo si se pide explícitamente al cargar el módulo
+// TEST API — gated by environment variable only (P5)
+// -----------------------------------------------------------------------------
+// Set MYSX_ENABLE_TEST=1 in the process environment before requiring this file.
+// The test API cannot be activated from code (no globalThis toggle).
+//
+// Two KAT digests are documented in README.md:
+//   - KNOWN_KAT_DIGEST (internal): 16 blocks with key[i]=i, fast regression.
+//   - KAT.json public digest: full JSON (block + AEAD + KDF).
+// A third-party implementation should target the PUBLIC digest.
 // =============================================================================
 const ENABLE_TEST =
-  (typeof process !== 'undefined' && process.env && process.env.MYSX_ENABLE_TEST === '1') ||
-  (typeof globalThis !== 'undefined' && globalThis.__MYSX_ENABLE_TEST__ === true);
+  (typeof process !== 'undefined' && process.env && process.env.MYSX_ENABLE_TEST === '1');
 
 if (ENABLE_TEST) {
   const KNOWN_KAT_DIGEST = '3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3';
 
-  // UNSAFE: nonce impuesto por el caller. Solo para tests/KAT.
-  // En producción, usar aeadEncrypt (nonce interno + NonceGuard).
   async function _unsafeAeadEncryptWithNonce(plaintext, key, macKey, nonce, aad = new Uint8Array(0)) {
-    if (key.length !== KEY_BYTES)        throw new Error(`key debe ser ${KEY_BYTES} bytes`);
-    if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey debe ser ${MAC_KEY_BYTES} bytes`);
-    if (nonce.length !== NONCE_BYTES)    throw new Error(`nonce debe ser ${NONCE_BYTES} bytes`);
-
+    if (key.length !== KEY_BYTES)        throw new Error(`key must be ${KEY_BYTES} bytes`);
+    if (macKey.length !== MAC_KEY_BYTES) throw new Error(`macKey must be ${MAC_KEY_BYTES} bytes`);
+    if (nonce.length !== NONCE_BYTES)    throw new Error(`nonce must be ${NONCE_BYTES} bytes`);
+    if (plaintext.length > CONFIG.MAX_PLAINTEXT_BYTES) {
+      throw new Error(`plaintext too long (max ${CONFIG.MAX_PLAINTEXT_BYTES} bytes)`);
+    }
     const ct = _ctrXor(plaintext, key, nonce);
     const macInput = _buildMacInput(VERSION, nonce, aad, ct);
     const ck = await cryptoNode.subtle.importKey(
       'raw', macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
     );
     const tag = new Uint8Array(await cryptoNode.subtle.sign('HMAC', ck, macInput));
-
     const out = new Uint8Array(1 + NONCE_BYTES + ct.length + TAG_BYTES);
     out[0] = VERSION;
     out.set(nonce, 1);
@@ -386,12 +429,12 @@ if (ENABLE_TEST) {
   async function verifyKAT({ strict = true } = {}) {
     const digest = await generateKAT();
     if (KNOWN_KAT_DIGEST === null) {
-      if (strict) throw new Error(`KAT no configurado. Digest calculado: ${digest}`);
-      console.log(`KAT: NOT_CONFIGURED. Digest calculado: ${digest}`);
+      if (strict) throw new Error(`KAT not configured. Computed digest: ${digest}`);
+      console.log(`KAT: NOT_CONFIGURED. Computed digest: ${digest}`);
       return null;
     }
     const ok = digest === KNOWN_KAT_DIGEST;
-    if (!ok && strict) throw new Error(`KAT FAIL. esperado=${KNOWN_KAT_DIGEST} obtenido=${digest}`);
+    if (!ok && strict) throw new Error(`KAT FAIL. expected=${KNOWN_KAT_DIGEST} got=${digest}`);
     return ok;
   }
 
