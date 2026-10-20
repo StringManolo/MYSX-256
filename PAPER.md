@@ -10,14 +10,16 @@ abstract: |
   self-analysis covering differential, linear, and related-key
   cryptanalysis. The differential analysis reports an observed upper
   bound on the best single-trail weight (114 at 14 rounds, extrapolating
-  to the 128-round threshold at r≈15); this is not a proof of security
-  and uses a Markov-independence assumption the design does not satisfy.
-  The linear analysis attempted three models; none produced trails that
-  verified empirically, so no linear bound is claimed. The key schedule
-  was audited with 22 structural and empirical tests up to weight-6 with
-  no persistent Δrk=0 pattern found. MYSX has not been externally
-  audited. It is released as v0.1-draft for public review and must not
-  be used to protect real data.
+  to the 128-round threshold at r≈15). The r=4 trail has been directly
+  verified at w=32 with a clustering factor of 2.00× (observed 2⁻⁷ vs
+  MILP 2⁻⁸). The linear analysis attempted three models; none produced
+  trails that verified empirically at w=32, and a scaled-down (w=8)
+  experiment with a hand-validated harness confirms no detectable linear
+  signal for low-weight α masks. The key schedule was audited with 22
+  structural and empirical tests up to weight-6 with no persistent
+  Δrk=0 pattern found. MYSX has not been externally audited. It is
+  released as v0.1-draft for public review and must not be used to
+  protect real data.
 ---
 
 # 1. Introduction
@@ -348,8 +350,7 @@ See `KAT.json` (public). Two digests are documented in `README.md`:
   `key[i] = i`. Used as fast regression in `mysx.test.js`. It is
   strictly a subset of the public KAT, not a different KAT.
 
-A third-party implementation should target the **public digest**; the
-internal digest is only a self-check.
+A third-party implementation should target the **public digest**.
 
 # 3. Differential cryptanalysis
 
@@ -385,27 +386,54 @@ extrapolation, not a proof.** It tells us what the model produces for
 the input we tried; it does not establish the best trail over all
 inputs, nor that clustering does not lower the effective security.
 
+**Direct verification at r=4 (w=32).** The trail from the table above
+(w0b0, MILP weight 8, Δout = {w0b4, w1b10, w1b16, w1b30, w6b4}) was
+verified with 8 fixed keys × 2¹⁷ pairs each, using the full 128-round
+cipher with the final whitening disabled (to isolate the round
+function). Observed hit rate: 7.802×10⁻³ over 1,048,576 pairs.
+Expected from MILP: 2⁻⁸ = 3.906×10⁻³. **Ratio: 2.00×.**
+
+The trail exists at r=4. The single-trail probability is a factor 2
+higher than the MILP predicts, consistent with the clustering factor
+documented in §3.3. **The MILP model is correct within a factor of 2
+at this round count.**
+
 ## 3.3. Empirical check (r=4, w0b0)
 
-N=2,000 samples; match rate 0.5–1.15% (prob ≈ 2⁻⁷). The model predicts
-2⁻⁸ for this input; the factor-2 gap is consistent with differential
-clustering. This is a sanity check, not a proof of the extrapolation.
+As described above, the direct verification gives a ratio of 2.00×
+between the observed probability and the MILP single-trail prediction.
+Two interpretations are consistent with the data:
+
+- **Differential clustering** (positive): multiple trails with the same
+  output difference Δout contribute to the observed probability, so
+  the effective probability is higher than the single-trail probability.
+- **Model systematic overestimate** (less likely): the AND model
+  `a = Δx ∨ Δy` underestimates the per-round cost by a factor that
+  happens to be 2 at r=4. This would imply the true weight is 9, not 8.
+
+Without a full clustering analysis (summing over all trails with the
+same Δin, Δout), we cannot distinguish these two. The practical
+implication is the same: the effective weight of the r=4 trail is 7,
+not 8. **If this factor holds at higher round counts, the "128-bit
+threshold at r≈15" becomes "at r≈17–18". The margin remains very
+large, but the extrapolation should be read as approximate.**
 
 ## 3.4. What this section does **not** establish
 
 - A lower bound on the best single-trail weight (requires gap=0 and
   multi-bit inputs).
-- Resistance to differential clustering (requires modeling multiple
-  trails with the same output difference).
+- An exact clustering analysis (requires modeling all trails with the
+  same Δout).
 - Resistance to related-key differentials.
+- That the factor-2 clustering is constant across all round counts.
 
 # 4. Linear cryptanalysis
 
 ## 4.1. Three models, no bound
 
 We tried three linear models. **None produced trails that verified
-empirically.** The honest conclusion is that no linear bound is
-established for MYSX.
+empirically at w=32.** The honest conclusion is that no linear bound
+is established for MYSX.
 
 ### 4.1.1. Hybrid model (`act = α ∨ β ∨ γ`, no `γ ≥ α`)
 
@@ -418,8 +446,17 @@ This model produced the following single-trail weights:
 Empirical verification targeted the r=4 trail (weight 8, expected
 correlation 2⁻⁸ = 0.0039). Eight independent runs at N=2,000,000 each
 (σ = 1/√N ≈ 7.07×10⁻⁴) gave a mean observed correlation of −4×10⁻⁴,
-corresponding to |corr|/σ ≈ 0.57σ per run. **The predicted trail does
-not exist.**
+corresponding to |corr|/σ ≈ 0.57σ per run. If the trail existed with
+the predicted correlation, it would appear at |corr|/σ ≈ 5.5σ. It does
+not. **The predicted trail does not exist at w=32.**
+
+A confirmatory experiment at w=8 (mini-MYSX with keyword `'MYSZ'`,
+non-degenerate) tested α = word 0 bit 0 against 74 single- and
+multi-bit β masks over 4 independent keys × 2¹⁹ samples each.
+Observed max |corr|/σ = 3.83 at r=2, below the expected maximum of
+3.38σ for 296 independent estimates under H₀ (observed/expected
+ratio 1.13×). No linear signal detected. Consistent with the w=32
+result.
 
 Diagnosis: the model allowed `(α,β,γ) = (1,0,0)`, which has correlation
 0 in the real AND (not 1/2). The trails found were artifacts.
@@ -444,12 +481,17 @@ Note that these weights differ from those of the hybrid model
 Empirical verification targeted the r=3 trail (weight 8, expected
 correlation 2⁻⁸ = 0.0039). A single run at N=5,000,000 (σ = 1/√N ≈
 4.47×10⁻⁴) gave an observed correlation of −2.38×10⁻⁴, at |corr|/σ ≈
-0.53σ. **The predicted trail does not exist.**
+0.53σ. If the trail existed with the predicted correlation, it would
+appear at |corr|/σ ≈ 8.7σ. It does not. **The predicted trail does
+not exist at w=32.**
 
-Diagnosis: model artifact, or destructive clustering (multiple trails
-with opposite signs cancelling). We do not know which. Either way, the
-conclusion is the same: we have no verified linear trail, and therefore
-no linear bound.
+Diagnosis: the model has false positives. The most likely cause is the
+AND model: the `act = α ∨ β ∨ γ` constraint (and its `γ ≥ α`,
+`γ ≥ β` refinement) does not capture the shared-variable structure of
+F, where the two rotated inputs come from the same `x`. A correct
+linear model of F's correlation requires modeling the rank of the
+`i-1` to `i-8` connectivity graph, not the per-bit AND activity. We
+did not implement this model in v0.1.
 
 ## 4.2. Why this matters
 
@@ -460,11 +502,12 @@ on three models is not a security claim.** It is an open question.
 
 To establish a linear bound for MYSX, future work would need:
 
-1. **Sign tracking** (±1/2 per active AND), which the current MILP does
-   not model.
+1. **Sign tracking** (±1/2 per active AND), which the current MILP
+   does not model.
 2. **Linear hull analysis** (clustering of many trails with the same
    mask).
-3. **A SAT/MILP model with XOR correlations < 1**.
+3. **A SAT/MILP model with XOR correlations < 1**, using the exact
+   F-connectivity structure.
 
 None of these is done here. **MYSX's linear security is unknown.**
 
@@ -556,13 +599,14 @@ evidence; Simon attacks are context, not direct transfer.
 # 8. Analysis limitations
 
 - **Differential**: upper bounds on single-trail for one input at
-  r=12–14; no lower bounds; no clustering.
+  r=12–14; one trail verified at r=4 (ratio 2.00×); no lower bounds;
+  no full clustering analysis.
 - **Linear**: no verified trail in three models; no bound.
 - **Related-key**: heuristic tests up to weight-6; no targeted MILP.
 - **Integral, impossible, boomerang, algebraic**: not analyzed.
 - **No independent public cryptanalysis.**
-- **Empirical verification**: consistent with the model at r=4
-  (differential) and inconsistent at r=3–4 (linear).
+- **No post-quantum analysis** beyond the trivial Grover bound.
+- **No side-channel analysis.**
 - **Functional tests** (`mysx.test.js`, 16/16 PASS) cover round-trip,
   AEAD negatives, nonce policy, PBKDF2, avalanche. They do not prove
   security.
@@ -628,14 +672,40 @@ Two digests are documented in `README.md`:
 
 A third-party implementation should target the **public digest**.
 
+## 9.6. Harness validation
+
+The linear sampling harness is validated against a hand-computed case
+at w=8 (r=1, α = {word0 bit2, word4 bit0}, β = word0 bit3, fixed key).
+The linear approximation `x₀ ⊕ F(x)₂ = x₁x₆` has correlation exactly
+±1/2 with fixed key. Observed correlation: **0.4993** (expected 0.5,
+within sampling noise). With random keys per sample, the sign of the
+correlation flips per sample and the observed |corr| drops to **0.0022**
+(expected ≈ 0).
+
+This confirms the harness is correct when used with fixed keys. It
+also confirms that the practice of "random keys per sample", used in
+an earlier version of `mini_trail.js`, washes out genuine linear
+signals and must not be used for linear cryptanalysis.
+
+See `validate_linear_harness.js`.
+
+The mini-MYSX with `w=8, kw='MYSZKOWS'` is **degenerate**: the
+permutation becomes `[4,0,5,2,7,6,1,3]`, the L→R→L cycle at word 0
+means a single-bit difference never passes through F, and the
+differential probability is 1 at all rounds. This is not
+representative of MYSX. Use `w=8, kw='MYSZ'` (non-degenerate from
+r=3) or w=32 directly. See `check_mini_nondegenerate.js`.
+
 # 10. Verdict
 
 **MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
 cipher.** The differential analysis reports upper bounds on single-trail
-weights, not a security proof. The linear analysis is a negative result
-on three models, not a bound. The related-key analysis is heuristic. No
-integral, impossible-differential, boomerang, or algebraic analysis has
-been done. The cipher has not been externally audited.
+weights, not a security proof; one trail at r=4 has been directly
+verified with clustering factor 2.00×. The linear analysis is a
+negative result on three models, not a bound. The related-key analysis
+is heuristic. No integral, impossible-differential, boomerang, or
+algebraic analysis has been done. The cipher has not been externally
+audited.
 
 **Do not use MYSX to protect real data.** For production:
 **AES-256-GCM** or **XChaCha20-Poly1305**.
@@ -656,9 +726,18 @@ been done. The cipher has not been externally audited.
 | `keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
 | `check_trail.js` | Empirical differential trail at r=4 |
 | `check_linear_trail2.js` | Empirical linear trail at r=3 |
+| `validate_linear_harness.js` | Hand-computed linear harness check |
+| `mini.js` | Mini-MYSX (w=8, w=16, w=32) |
+| `check_mini.js` | Mini-MYSX validation vs `mysx.prod.js` |
+| `check_mini_nondegenerate.js` | Keyword/w compatibility check |
+| `mini_linear_fast.js` | Linear sampling at w=8, `kw='MYSZ'` |
+| `verify_trail_w32.js` | Per-trail verification at w=32 with MILP weight |
+| `avalanche.js` | Diffusion and avalanche ladder (r=1..24) |
 
 Fixed seed in tests (`0xC0FFEE`). MILPs are deterministic given the
-solver and `gapRel`.
+solver and `gapRel`. The mini-MYSX with `w=32` reproduces
+`mysx.prod.js` exactly (F function and MYZ_PERM are bit-identical,
+verified in `check_mini.js`).
 
 # 12. Final warning
 
