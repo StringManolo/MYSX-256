@@ -14,8 +14,8 @@ methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 
 | Attack family | Status | What this means |
 |---|---|---|
-| Differential (MILP) | **Upper bounds observed** | Weight 114 at r=14, extrapolating to 128 at r≈15. Not a proof: single-trail, one input, `gapRel=0.2`, Markov-independence not satisfied. |
-| Linear (MILP) | **No bound established** | Three models tried; none produced trails that verified empirically. Linear security is unknown. |
+| Differential (MILP) | **Upper bounds observed + r=4 trail verified** | Weight 114 at r=14, extrapolating to 128 at r≈15. r=4 trail verified at w=32: observed 2⁻⁷ vs MILP 2⁻⁸, clustering factor **2.00×**. Not a proof: single-trail, one input, `gapRel=0.2`, Markov-independence not satisfied. |
+| Linear (MILP) | **No bound established** | Three models tried; none produced trails that verified empirically. Harness validated (0.5 fixed key, 0.0022 random key). w=8 mini experiment with `kw='MYSZ'` confirms no signal for α=word0 bit0 up to r=5. Linear security is unknown. |
 | Related-key | **Heuristic coverage** | 22 tests up to weight-6 with no persistent `Δrk=0`. No targeted MILP; security unknown. |
 | Integral | **Not analyzed** | — |
 | Impossible differential | **Not analyzed** | — |
@@ -26,17 +26,24 @@ methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 | Block collisions | **Infeasible** | 2¹²⁸ blocks (256-bit block). |
 
 **Short verdict.** Differential resistance is reported as an *observed
-upper bound*, not a proof. Linear security is *unknown* (all three
-models produced trails that failed empirical verification). Related-key
-security is *unknown* (heuristic only). The cipher is a
-`v0.1-draft` awaiting external review. Do not use in production.
+upper bound* with **one trail verified at r=4** (clustering factor 2×),
+not a proof. Linear security is *unknown* (all three models produced
+trails that failed empirical verification; the harness is now
+validated, and no signal was detected in the w=8 mini with
+`kw='MYSZ'`). Related-key security is *unknown* (heuristic only). The
+cipher is a `v0.1-draft` awaiting external review. Do not use in
+production.
 
 ---
 
-## 1. Differential cryptanalysis (summary)
+## 1. Differential cryptanalysis
 
-Model: `mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
+### 1.1. Model
+
+Tool: `mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
 `timeLimit=300`. Single-bit input at r=12–14 (w2b30).
+
+### 1.2. Observed upper bounds
 
 | Rounds | Input | Weight (upper bound) | Single-trail prob. |
 |---|---|---|---|
@@ -47,33 +54,102 @@ Model: `mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
 | 12 | w2b30 | 68 | 2⁻⁶⁸ |
 | 14 | w2b30 | 114 | 2⁻¹¹⁴ |
 
-Empirical check at r=4, w0b0, N=2,000: match rate 0.5–1.15%
-(prob ≈ 2⁻⁷). Consistent with the model and differential clustering.
+Extrapolation: the 128-bit threshold is reached at r≈15.
 
-**What this does not establish**: no lower bounds, no multi-bit input
-search, no differential clustering analysis, no related-key
-differentials. See PAPER.md §3.4.
+### 1.3. Direct verification of the r=4 trail at w=32
+
+Trail: Δin = {w0b0}, Δout = {w0b4, w1b10, w1b16, w1b30, w6b4},
+MILP weight 8 (8 active ANDs; Hamming weight of Δout is 5).
+
+- **Sample size**: 8 fixed keys × 2¹⁷ pairs each = 1,048,576 pairs.
+- **Observed hit rate**: 7.802×10⁻³ (8181 hits).
+- **Expected from MILP**: 2⁻⁸ = 3.906×10⁻³.
+- **Ratio**: **2.00×**.
+
+The trail exists. The single-trail probability is a factor 2 higher
+than the MILP predicts, consistent with **differential clustering**
+(multiple trails with the same Δout contributing to the effective
+probability). The MILP model is correct within a factor of 2 at r=4.
+
+**If this factor holds at higher round counts**, the "128-bit
+threshold at r≈15" becomes "at r≈17–18". The margin remains very
+large, but the extrapolation should be read as approximate.
+
+### 1.4. What this does not establish
+
+- No lower bounds (requires gap=0 and multi-bit input search).
+- No full clustering analysis (sum over all trails with the same
+  Δin, Δout).
+- No related-key differentials.
 
 ---
 
-## 2. Linear cryptanalysis (summary)
+## 2. Linear cryptanalysis
 
-Three models tried. **None produced trails that verified empirically.**
+### 2.1. Three models tried, none verified
 
 | Model | Observed weights (r=1..10) | Empirical check |
 |---|---|---|
-| Hybrid (`α ∨ β ∨ γ`, no `γ ≥ α`) | 0, 2, 6, 8, 10, 18, 32, 48, 72, 109 | r=4, weight 8, 8 runs × N=2M, mean corr −4×10⁻⁴ (0.57σ). Trail does not exist. |
+| Hybrid (`α ∨ β ∨ γ`, no `γ ≥ α`) | 0, 2, 6, 8, 10, 18, 32, 48, 72, 109 | r=4, weight 8, 8 runs × N=2M, mean corr −4×10⁻⁴ (0.57σ). Trail does not exist at w=32. |
 | Strict (`x = y = z = w` in XOR) | INFEASIBLE in r=1..10 | Model too restrictive. |
-| Relaxed + correct AND | 0, 2, 8, 18, 35, 86, 157, 244, 338, 434 | r=3, weight 8, N=5M, corr −2.38×10⁻⁴ (0.53σ). Trail does not exist. |
+| Relaxed + correct AND | 0, 2, 8, 18, 35, 86, 157, 244, 338, 434 | r=3, weight 8, N=5M, corr −2.38×10⁻⁴ (0.53σ). Trail does not exist at w=32. |
 
-**Conclusion.** No linear bound is established. The linear security of
-MYSX is *unknown*. This is the most important open question, because
-the best published attacks against Simon128/128 are linear (hull
-attacks covering ~49/68 rounds). See PAPER.md §4.
+**Diagnosis**: the models have false positives. The likely cause is
+the AND model: `act = α ∨ β ∨ γ` does not capture the shared-variable
+structure of F, where the two rotated inputs come from the same `x`.
+A correct linear model of F's correlation requires modeling the rank
+of the `i-1` to `i-8` connectivity graph, not the per-bit AND
+activity. We did not implement this model in v0.1.
+
+### 2.2. Harness validation
+
+The linear sampling harness was validated against a hand-computed case
+at w=8 (r=1, α = {word0 bit2, word4 bit0}, β = word0 bit3, fixed key).
+The linear approximation `x₀ ⊕ F(x)₂ = x₁x₆` has correlation exactly
+±1/2 with fixed key.
+
+- **Fixed key**: observed correlation **0.4993** (expected 0.5, within
+  sampling noise).
+- **Random keys per sample**: observed |corr| **0.0022** (expected ≈ 0,
+  because the sign averages out).
+
+This confirms the harness is correct when used with fixed keys. It
+also confirms that "random keys per sample" (used in an earlier
+version of `mini_trail.js`) washes out genuine linear signals and must
+not be used for linear cryptanalysis.
+
+See `validate_linear_harness.js`.
+
+### 2.3. Mini-MYSX at w=8
+
+The mini-MYSX (`mini.js`) at w=8 with keyword `'MYSZ'` (non-degenerate;
+see Section 5) was used to sample linear correlations for
+α = word 0 bit 0 against 74 single- and multi-bit β masks, over 4
+independent keys × 2¹⁹ samples each.
+
+- **σ (per-key)**: 1.38×10⁻³.
+- **Expected max |corr|** under H₀ (296 estimates): 4.66×10⁻³.
+- **Observed max |corr|**: 4.87×10⁻³ (max/σ = 3.53) at r=1.
+- **Observed max/σ** across r=1..5 and α ∈ {bit0, bit5}: **3.83** at
+  r=2, consistent with H₀ (expected max/σ ≈ 3.38).
+
+**No linear signal detected** for these α masks up to r=5.
+
+Note: the mini-MYSX with `w=8, kw='MYSZKOWS'` is **degenerate** (L→R→L
+cycle at word 0, differential probability 1 at all rounds) and must
+not be used for analysis. Use `w=8, kw='MYSZ'` or w=32 directly. See
+`check_mini_nondegenerate.js`.
+
+### 2.4. Conclusion
+
+**No linear bound is established.** The linear security of MYSX is
+*unknown*. This is the most important open question, because the best
+published attacks against Simon128/128 are linear (hull attacks
+covering ~49/68 rounds, complexity ~2¹²⁷).
 
 ---
 
-## 3. Related-key cryptanalysis (summary)
+## 3. Related-key cryptanalysis
 
 Tool: `keyschedule_test.js` + `keyschedule_test_extended.js` (22 tests).
 
@@ -95,11 +171,52 @@ keys, influence matrix.
 **Limitations.** Heuristic, not a proof. No targeted MILP/SAT
 related-key model (~650k variables). Adaptive related keys, biclique,
 and algebraic attacks on the key schedule not covered. **Related-key
-security is unknown.** See PAPER.md §5.
+security is unknown.**
 
 ---
 
-## 4. Generic attacks
+## 4. Diffusion / avalanche ladder
+
+Tool: `avalanche.js`. N=2000 keys, r=1..24. Matrix: 256 input bits ×
+256 output bits per round.
+
+| Metric | Value | Interpretation |
+|---|---|---|
+| `r_dif` (worst bit reaches all 256 output bits) | **15** | 12% of total rounds; slower than AES (~2), comparable ratio to ChaCha20 |
+| `r_sac` (SAC matrix indistinguishable from uniform) | **≈22** | With N=2000, `maxAbsZ` converges to 4–10 (expected ~4.5), `zChi` ∈ ±4 |
+| Worst input bit | **33** (word 1, bit 1) | Structural, consistent from r=5 |
+| Fastest diffusion | bit 0 (word 0, bit 0) | Reaches 256 output bits at r=15 |
+
+The worst bit is structural, not noise. The diffusion is slower than
+AES but the ratio to total rounds (12%) is in line with established
+ciphers. With 128 rounds, 15 of "warm-up" are acceptable.
+
+---
+
+## 5. Mini-MYSX validation and non-degeneracy
+
+Tool: `mini.js`, `check_mini.js`, `check_mini_nondegenerate.js`.
+
+**w=32 reproduces `mysx.prod.js` exactly**: F and MYZ_PERM are
+bit-identical (tested against 16 fixed inputs, all OK).
+
+**Keyword / w compatibility:**
+
+| w | Keyword | Permutation length | Status |
+|---|---|---|---|
+| 32 | `MYSZKOWS` | 32 | OK (real MYSX) |
+| 16 | `MYSZKOWS` | 16 | OK (L→R→L cycle at word 0, non-degenerate) |
+| 16 | `MYSZ` | 16 | OK (no L→R→L cycle at word 0) |
+| 8 | `MYSZKOWS` | 8 | **DEGENERATE** (L→R→L cycle at word 0; differential probability 1 at all rounds) |
+| 8 | `MYSZ` | 8 | OK (non-degenerate from r=3) |
+
+The w=8 + `MYSZKOWS` degeneracy is a design artifact of the 1-row
+Myszkowski grid at w=8, not a property of MYSX. Use `kw='MYSZ'` for
+w=8, or w=32 directly.
+
+---
+
+## 6. Generic attacks
 
 | Attack | Complexity | Verdict |
 |---|---|---|
@@ -117,7 +234,7 @@ effective security is 256 bits, not 512.
 
 ---
 
-## 5. Structural / Simon attacks
+## 7. Structural / Simon attacks
 
 MYSX uses Simon's `F`. It is not Simon. Differences:
 
@@ -146,6 +263,8 @@ schedule does not apply to MYSX's non-linear schedule.
   ~2¹²⁵·⁷ (Biryukov–Roy–Velichkov, CRYPTO 2015).
 - SAT-based algebraic distinguishers covering ~12–14 rounds.
 - Integral distinguishers covering ~26 rounds.
+- Structural observations on the SIMON family
+  (Kölbl–Leander–Tiessen, CRYPTO 2015).
 
 **None of these results is transferred to MYSX in this paper.** The
 MYSX-specific MILP analysis (Sections 1–3 above) is what provides the
@@ -153,7 +272,7 @@ evidence.
 
 ---
 
-## 6. Functional tests
+## 8. Functional tests
 
 `MYSX_ENABLE_TEST=1 node mysx.test.js` → **GLOBAL RESULT: PASS**.
 
@@ -176,11 +295,13 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 
 ---
 
-## 7. Analysis limitations
+## 9. Analysis limitations
 
 - **Differential**: upper bounds on single-trail for one input at
-  r=12–14; no lower bounds; no clustering.
-- **Linear**: no verified trail in three models; no bound.
+  r=12–14; one trail verified at r=4 (clustering factor 2.00×); no
+  lower bounds; no full clustering analysis.
+- **Linear**: no verified trail in three models; no bound. Harness
+  validated; w=8 mini experiment confirms no signal for low-weight α.
 - **Related-key**: heuristic up to weight-6; no targeted MILP.
 - **Integral, impossible, boomerang, algebraic**: not analyzed.
 - **No independent public cryptanalysis.**
@@ -191,14 +312,16 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 
 ---
 
-## 8. Verdict
+## 10. Verdict
 
 **MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
 cipher.** The differential analysis reports upper bounds on
-single-trail weights, not a security proof. The linear analysis is a
-negative result on three models, not a bound. The related-key analysis
-is heuristic. No integral, impossible-differential, boomerang, or
-algebraic analysis has been done. The cipher has not been externally
+single-trail weights with one trail verified at r=4 (clustering factor
+2.00×), not a security proof. The linear analysis is a negative result
+on three models, not a bound; the harness is now validated and a w=8
+mini experiment confirms no signal for low-weight α. The related-key
+analysis is heuristic. No integral, impossible-differential, boomerang,
+or algebraic analysis has been done. The cipher has not been externally
 audited.
 
 ### What to do
@@ -207,7 +330,9 @@ audited.
   XChaCha20-Poly1305.
 - **If reviewing**, focus on: linear hull analysis (the most likely
   attack surface, by analogy with Simon), related-key MILP, and
-  integral distinguishers.
+  integral distinguishers. The r=4 differential trail with clustering
+  factor 2× is a concrete starting point for a full clustering
+  analysis.
 - **If extending**, the priorities are documented in PAPER.md §1.1
   and §8.
 
@@ -222,22 +347,29 @@ audited.
 
 ---
 
-## 9. Reproducibility
+## 11. Reproducibility
 
 | File | Purpose |
 |---|---|
-| `PAPER.md` | Full paper (spec + analysis) |
+| `PAPER.md` | Full paper (spec + analysis + mini-MYSX) |
 | `SPEC.md` | Formal specification |
 | `KAT.json` | Test vectors (block, AEAD, KDF) |
 | `generate_kat.py` | KAT generator |
 | `mysx.prod.js` | Public API |
-| `mysx.test.js` | Functional tests |
+| `mysx.test.js` | Functional tests (17 tests) |
 | `mysx_milp.py` | Differential MILP |
 | `mysx_linear_milp.py` | Linear MILP |
 | `keyschedule_test.js` | Basic key schedule audit |
 | `keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
 | `check_trail.js` | Empirical differential trail at r=4 |
 | `check_linear_trail2.js` | Empirical linear trail at r=3 |
+| `avalanche.js` | Diffusion / avalanche ladder |
+| `mini.js` | Mini-MYSX (w=8, w=16, w=32) |
+| `check_mini.js` | Mini-MYSX validation vs `mysx.prod.js` |
+| `check_mini_nondegenerate.js` | Keyword/w compatibility |
+| `validate_linear_harness.js` | Hand-computed linear harness check |
+| `mini_linear_fast.js` | Linear sampling at w=8, `kw='MYSZ'` |
+| `verify_trail_w32.js` | Per-trail verification at w=32 |
 
 Fixed seed in tests (`0xC0FFEE`). MILPs are deterministic given the
 solver and `gapRel`.
@@ -252,7 +384,7 @@ A third-party implementation should target the **public digest**.
 
 ---
 
-## 10. References
+## 12. References
 
 - Simon (NSA, 2013): `F` function used in the round.
 - Myszkowski (1902): transposition with repeated-letter keyword.
@@ -268,7 +400,7 @@ A third-party implementation should target the **public digest**.
 
 ---
 
-## 11. Final warning
+## 13. Final warning
 
 **MYSX has not been externally audited.** This document is a summary
 of the author's self-analysis; the full analysis with methodology is

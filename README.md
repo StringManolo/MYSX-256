@@ -14,11 +14,12 @@ Version: `v0.1-draft` (2026)
 | Specification | [SPEC.md](SPEC.md), [PAPER.md](PAPER.md) §2 |
 | Test vectors | [KAT.json](KAT.json) |
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
-| Differential cryptanalysis | Upper bounds observed (not a proof) |
-| Linear cryptanalysis | No bound established |
+| Differential cryptanalysis | Upper bounds observed; r=4 trail directly verified with clustering factor 2.00× |
+| Linear cryptanalysis | No bound established; harness validated; w=8 experiment confirms no signal for low-weight α |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
 | Integral / boomerang / algebraic | Not analyzed |
 | External review | None |
+| Downstream implementation | [`mysx-256-cli`](https://github.com/stringmanolo/mysx-256-cli) (Rust, file encryptor) — verified against this `KAT.json`, not audited |
 | Frozen | No — awaiting external review |
 
 **`CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`**
@@ -42,12 +43,25 @@ performed.
 - ARX key schedule (bijective Feistel 8+8 update).
 - Final whitening with 8 words derived from the key schedule.
 
+## Downstream implementations
+
+Implementations of MYSX-256/512 that are **not** part of this repository,
+are **not** audited, and do **not** change the `CRYPTANALYSIS_STATUS` of
+the cipher:
+
+- [`mysx-256-cli`](https://github.com/stringmanolo/mysx-256-cli) — Rust
+  command-line file encryptor. Streams chunks, authenticates header and
+  each chunk, uses Argon2id or PBKDF2 for password derivation. Verified
+  against `KAT.json` (16/16 vector groups) and `KNOWN_KAT_DIGEST`. Defines
+  its own on-disk container format; this repository does not specify a
+  file format.
+
 ## Repository structure
 
 ```
 .
 ├── README.md
-├── PAPER.md                     # Full paper (spec + analysis)
+├── PAPER.md                     # Full paper (spec + analysis + mini-MYSX)
 ├── SPEC.md                      # Specification (identical to §2 of PAPER.md)
 ├── SECURITY.md                  # Standalone security summary
 ├── CHANGELOG.md                 # Changes between versions
@@ -55,13 +69,20 @@ performed.
 ├── KAT.json                     # Test vectors (block, AEAD, KDF)
 ├── generate_kat.py              # KAT generator
 ├── mysx.prod.js                 # Public API (AEAD, KDF, NonceGuard)
-├── mysx.test.js                 # Functional test suite (16 tests)
+├── mysx.test.js                 # Functional test suite (17 tests)
 ├── mysx_milp.py                 # Differential MILP model
 ├── mysx_linear_milp.py          # Linear MILP model (three variants)
 ├── keyschedule_test.js          # Basic key schedule audit
 ├── keyschedule_test_extended.js # Exhaustive key schedule audit (22 tests)
 ├── check_trail.js               # Empirical differential trail at r=4
-└── check_linear_trail2.js       # Empirical linear trail at r=3
+├── check_linear_trail2.js       # Empirical linear trail at r=3
+├── avalanche.js                 # Diffusion / avalanche ladder (r=1..24)
+├── mini.js                      # Mini-MYSX (w=8, w=16, w=32)
+├── check_mini.js                # Mini-MYSX validation vs mysx.prod.js
+├── check_mini_nondegenerate.js  # Keyword/w compatibility check
+├── validate_linear_harness.js   # Hand-computed linear harness check
+├── mini_linear_fast.js          # Linear sampling at w=8, kw='MYSZ'
+└── verify_trail_w32.js          # Per-trail verification at w=32
 ```
 
 ## Usage (research only)
@@ -88,6 +109,8 @@ Notes on the public API:
 - The test API is disabled by default. Set `MYSX_ENABLE_TEST=1` in the
   process environment before `require('./mysx.prod.js')` to enable it.
 - All public inputs are type-checked (`Uint8Array` with exact lengths).
+- `MAX_PLAINTEXT_BYTES` is validated **before** allocating the CTR
+  output buffer (aligned with `MAX_CT_BYTES`, 2³¹−1).
 
 ## KAT digests
 
@@ -107,8 +130,26 @@ digest**.
 ## Reproducing the results
 
 ```bash
-# Functional tests (16 tests)
+# Functional tests (17 tests)
 MYSX_ENABLE_TEST=1 node mysx.test.js
+
+# Diffusion / avalanche ladder (r = 1..24)
+node avalanche.js
+
+# Mini-MYSX validation (F and permutation identical to mysx.prod.js)
+node check_mini.js
+
+# Keyword / w compatibility (which keyword works at which word size)
+node check_mini_nondegenerate.js
+
+# Linear harness validation (hand-computed case, expected |corr| = 0.5)
+node validate_linear_harness.js
+
+# Linear sampling at w=8 (kw='MYSZ', non-degenerate)
+node mini_linear_fast.js
+
+# Per-trail verification at w=32 (MILP trail vs observed probability)
+node verify_trail_w32.js
 
 # Differential MILP (observed upper bounds)
 python3 mysx_milp.py --rounds 1-14 --input-bit 0
@@ -131,23 +172,59 @@ node check_linear_trail2.js
 
 ## What this paper establishes
 
-- An observed upper bound on the best single-trail differential weight
-  for one input at r=12–14 (weight 114 at r=14, extrapolating to 128 at
-  r≈15). **Not a proof of security.**
-- A negative result on three linear-trail models. **No linear bound.**
-- Heuristic related-key coverage up to weight-6. **No proof.**
+- **Observed upper bounds** on the best single-trail differential
+  weight for one input at r=12–14 (weight 114 at r=14, extrapolating
+  to 128 at r≈15). **Not a proof of security.**
+- **Direct verification of the r=4 differential trail at w=32**: the
+  trail exists with observed probability 2⁻⁷ vs MILP prediction 2⁻⁸,
+  giving a clustering factor of **2.00×**.
+- **Diffusion / avalanche ladder**: `r_dif = 15` (worst bit reaches
+  all 256 output bits at r=15), `r_sac ≈ 22` (SAC matrix is
+  indistinguishable from random with N=2000 at r≈22). Slow diffusion
+  by design (12% of total rounds), comparable to ChaCha20's ratio.
+- **Mini-MYSX with w=32 reproduces `mysx.prod.js` exactly**: F and
+  MYZ_PERM are bit-identical (verified in `check_mini.js`).
+- **Linear harness validated**: hand-computed case gives |corr| = 0.5
+  with fixed key, drops to ~0 with random keys per sample. This
+  validates the sampling methodology and confirms that the earlier
+  "no signal" result was not an artifact.
+- **No detectable linear signal** for α = word 0 bit 0 in the mini
+  (w=8) experiment, up to r=5.
+- **Heuristic related-key coverage** up to weight-6: no persistent
+  `Δrk[r]=0`, no weak keys, no cycles, no fixed points.
 - A clean specification, reproducible test vectors, and a functional
-  test suite.
+  test suite (17 tests).
 
 ## What this paper does **not** establish
 
-- No lower bounds on differential trail weights.
-- No linear bound.
-- No related-key bound.
+- No lower bounds on differential trail weights (requires gap=0 and
+  multi-bit input search).
+- No full clustering analysis (sum over all trails with the same Δin,
+  Δout).
+- No linear bound (the three MILP models produced trails that do not
+  verify empirically; the correct linear model of F requires
+  modeling shared-variable structure).
+- No related-key bound (heuristic only).
 - No integral, impossible-differential, boomerang, or algebraic
   analysis.
 - No external review.
 - No proof of post-quantum security beyond the trivial Grover bound.
+
+## Design weaknesses acknowledged
+
+- **Slow diffusion**: 15 rounds until the worst input bit reaches all
+  output bits. This is longer than AES (~2 rounds) or ChaCha20
+  (~4–5 rounds), but the ratio to total rounds (12%) is in line with
+  established ciphers.
+- **Myszkowski permutation is not cryptographically optimized**: it
+  is a didactic choice. A structured permutation over the byte grid
+  would strictly improve diffusion per round. See PAPER.md §2.3.1.
+- **Key schedule has structural asymmetries**: bit 160 of the key is
+  the slowest to diffuse in the subkeys (1-bit difference at r=1).
+  Not exploitable with current techniques but worth noting. See
+  PAPER.md §5.
+- **Linear analysis is inconclusive**: not a break, but the absence
+  of a bound means the linear security of MYSX is unknown.
 
 ## Citation
 
