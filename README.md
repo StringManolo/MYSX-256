@@ -15,7 +15,7 @@ Version: `v0.1-draft` (2026)
 | Test vectors | [KAT.json](KAT.json) |
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
 | Differential cryptanalysis | Upper bounds observed; r=4 trail directly verified with clustering factor 2.00× |
-| Linear cryptanalysis | No bound established; harness validated; w=8 experiment confirms no signal for low-weight α |
+| Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; **no 128-round bound** |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
 | Integral / boomerang / algebraic | Not analyzed |
 | External review | None |
@@ -64,25 +64,39 @@ the cipher:
 ├── PAPER.md                     # Full paper (spec + analysis + mini-MYSX)
 ├── SPEC.md                      # Specification (identical to §2 of PAPER.md)
 ├── SECURITY.md                  # Standalone security summary
-├── CHANGELOG.md                 # Changes between versions
-├── LICENSE                      # MIT
+├── TODO.md                      # Open items
 ├── KAT.json                     # Test vectors (block, AEAD, KDF)
+├── MYSX-paper.pdf               # Rendered paper
 ├── generate_kat.py              # KAT generator
 ├── mysx.prod.js                 # Public API (AEAD, KDF, NonceGuard)
 ├── mysx.test.js                 # Functional test suite (17 tests)
-├── mysx_milp.py                 # Differential MILP model
-├── mysx_linear_milp.py          # Linear MILP model (three variants)
-├── keyschedule_test.js          # Basic key schedule audit
-├── keyschedule_test_extended.js # Exhaustive key schedule audit (22 tests)
-├── check_trail.js               # Empirical differential trail at r=4
-├── check_linear_trail2.js       # Empirical linear trail at r=3
-├── avalanche.js                 # Diffusion / avalanche ladder (r=1..24)
-├── mini.js                      # Mini-MYSX (w=8, w=16, w=32)
-├── check_mini.js                # Mini-MYSX validation vs mysx.prod.js
-├── check_mini_nondegenerate.js  # Keyword/w compatibility check
-├── validate_linear_harness.js   # Hand-computed linear harness check
-├── mini_linear_fast.js          # Linear sampling at w=8, kw='MYSZ'
-└── verify_trail_w32.js          # Per-trail verification at w=32
+├── cryptanalysis/
+│   └── models/
+│       └── linear/
+│           ├── mysx_linear_model.py   # EXACT linear model of F + round
+│           ├── LINEAR_MODEL.md        # Detailed model documentation
+│           └── linear_model_data.json # All numbers from PAPER.md §4 as JSON
+└── misc/
+    ├── mysx_milp.py                   # Differential MILP
+    ├── mysx_linear_milp.py            # Previous approximate linear MILPs (superseded)
+    ├── keyschedule_test.js            # Basic key schedule audit
+    ├── keyschedule_test_extended.js   # Exhaustive key schedule audit (22 tests)
+    ├── check_trail.js                 # Empirical differential trail at r=4
+    ├── check_linear_trail.js          # Empirical linear trail (superseded model)
+    ├── check_linear_trail2.js         # Empirical linear trail (superseded model)
+    ├── validate_diff_w32.js           # Differential verification at w=32
+    ├── validate_lineal_harness.js     # Hand-computed linear harness check
+    ├── verify_trail_w32.js            # Per-trail verification at w=32
+    ├── avalanche.js                   # Diffusion / avalanche ladder (r=1..24)
+    ├── avalanche.csv                  # Raw avalanche data
+    ├── ddt_lat.js                     # DDT / LAT dumps
+    ├── mini.js                        # Mini-MYSX (w=8, w=16, w=32)
+    ├── mini_linear_fast.js            # Linear sampling at w=8, kw='MYSZ'
+    ├── mini_linear_fixed.js           # Linear sampling with fixed keys
+    ├── mini_trail.js                  # Trail sampler (historical)
+    ├── check_mini.js                  # Mini-MYSX validation vs mysx.prod.js
+    ├── check_mini_nondegenerate.js    # Keyword/w compatibility check
+    └── lab.js                         # Scratch / experiments
 ```
 
 ## Usage (research only)
@@ -129,45 +143,68 @@ digest**.
 
 ## Reproducing the results
 
+### Functional and structural
+
 ```bash
 # Functional tests (17 tests)
 MYSX_ENABLE_TEST=1 node mysx.test.js
 
 # Diffusion / avalanche ladder (r = 1..24)
-node avalanche.js
+node misc/avalanche.js
 
 # Mini-MYSX validation (F and permutation identical to mysx.prod.js)
-node check_mini.js
+node misc/check_mini.js
 
 # Keyword / w compatibility (which keyword works at which word size)
-node check_mini_nondegenerate.js
+node misc/check_mini_nondegenerate.js
+```
+
+### Differential
+
+```bash
+# Differential MILP (observed upper bounds)
+python3 misc/mysx_milp.py --rounds 1-14 --input-bit 0
+
+# Empirical differential trail check (r=4, clustering factor 2.00×)
+node misc/check_trail.js
+
+# Differential verification at w=32
+node misc/validate_diff_w32.js
+```
+
+### Linear
+
+```bash
+# Exact linear model: self-check against the real cipher
+python3 cryptanalysis/models/linear/mysx_linear_model.py selftest
+
+# Regenerate LINEAR_MODEL.md and linear_model_data.json
+python3 cryptanalysis/models/linear/mysx_linear_model.py report
 
 # Linear harness validation (hand-computed case, expected |corr| = 0.5)
-node validate_linear_harness.js
+node misc/validate_lineal_harness.js
 
 # Linear sampling at w=8 (kw='MYSZ', non-degenerate)
-node mini_linear_fast.js
+node misc/mini_linear_fast.js
 
-# Per-trail verification at w=32 (MILP trail vs observed probability)
-node verify_trail_w32.js
+# Per-trail verification at w=32 (exact model trail vs observed probability)
+node misc/verify_trail_w32.js
+```
 
-# Differential MILP (observed upper bounds)
-python3 mysx_milp.py --rounds 1-14 --input-bit 0
+The old approximate linear MILPs (`misc/mysx_linear_milp.py`, three
+variants) are kept for historical reference but are **superseded**.
+Their trails do not verify empirically because they used a per-cell
+AND-activity proxy for F's correlation, which is incorrect. The exact
+model is `cryptanalysis/models/linear/mysx_linear_model.py`.
 
-# Linear MILP (three models; none verify empirically)
-python3 mysx_linear_milp.py --rounds 1-10
+### Related-key
 
+```bash
 # Key schedule audit (basic)
-node keyschedule_test.js
+node misc/keyschedule_test.js
 
 # Key schedule audit (exhaustive, 22 tests)
-node keyschedule_test_extended.js --thorough
-
-# Empirical differential trail check
-node check_trail.js
-
-# Empirical linear trail check
-node check_linear_trail2.js
+node misc/keyschedule_test_extended.js --thorough
 ```
 
 ## What this paper establishes
@@ -183,13 +220,32 @@ node check_linear_trail2.js
   indistinguishable from random with N=2000 at r≈22). Slow diffusion
   by design (12% of total rounds), comparable to ChaCha20's ratio.
 - **Mini-MYSX with w=32 reproduces `mysx.prod.js` exactly**: F and
-  MYZ_PERM are bit-identical (verified in `check_mini.js`).
-- **Linear harness validated**: hand-computed case gives |corr| = 0.5
-  with fixed key, drops to ~0 with random keys per sample. This
-  validates the sampling methodology and confirms that the earlier
-  "no signal" result was not an artifact.
-- **No detectable linear signal** for α = word 0 bit 0 in the mini
-  (w=8) experiment, up to r=5.
+  MYZ_PERM are bit-identical (verified in `misc/check_mini.js`).
+- **Exact LAT of F**: for output mask `b` and input mask `g`,
+  `corr(b,g) = ±2^{−h(b)}` where `h(b) = rank(A_b)/2` and `A_b` is the
+  adjacency matrix of a subgraph of the 32-cycle `j ↔ j−7`; the valid
+  set of `g` and the sign are given in closed form. Machine-checked
+  against brute-force LAT in `selftest`.
+- **Exact mask propagation with key-dependent sign tracking**: every
+  trail carries its exact `(−1)^{Σ m_r·rk[r]}` factor. Free-chain
+  structure: a round has weight 0 iff words 0..3 of its input mask are
+  zero; the rotation schedule has period 31, so there are 31 distinct
+  windows.
+- **`|corr| = 1` single-bit linear relations over up to 9 consecutive
+  rounds**, at windows `r ≡ 12 (mod 31)` and `r ≡ 27 (mod 31)`.
+  Verified against the real cipher with three independent keys
+  (magnitude = 1, sign predicted exactly by the model).
+- **Exact signed linear hulls match the real cipher** at r=10, 11, 12
+  (window r0=12) with |z| < 0.4 over 2²² plaintexts. Three independent
+  predictions, three matches within sampling error.
+- **Beam-search upper bounds on single-trail weight** from single-bit
+  starts, up to r=14: weight 12 (window r0=12) and 11 (window r0=27)
+  at r=14. Each value is an achievable weight, i.e. an upper bound on
+  the best weight, not a minimum.
+- **The linear sampling harness is validated**: the hand-computed
+  `w=8` case gives |corr| = 0.5 with fixed key, drops to ~0 with
+  random keys per sample. Confirms that the earlier "no signal"
+  result was a model artifact, not a property of the cipher.
 - **Heuristic related-key coverage** up to weight-6: no persistent
   `Δrk[r]=0`, no weak keys, no cycles, no fixed points.
 - A clean specification, reproducible test vectors, and a functional
@@ -197,13 +253,16 @@ node check_linear_trail2.js
 
 ## What this paper does **not** establish
 
-- No lower bounds on differential trail weights (requires gap=0 and
+- No lower bound on differential trail weights (requires gap=0 and
   multi-bit input search).
-- No full clustering analysis (sum over all trails with the same Δin,
-  Δout).
-- No linear bound (the three MILP models produced trails that do not
-  verify empirically; the correct linear model of F requires
-  modeling shared-variable structure).
+- No full differential clustering analysis (sum over all trails with
+  the same Δin, Δout).
+- **No linear bound over 128 rounds.** Beam values are upper bounds
+  from single-bit starts only; multi-bit starts are unexplored; the
+  exact hull at 128 rounds would need a SAT/MILP encoding (proposed in
+  `cryptanalysis/models/linear/LINEAR_MODEL.md` §7, not implemented).
+- No key-recovery cost estimate from any trail (differential or
+  linear).
 - No related-key bound (heuristic only).
 - No integral, impossible-differential, boomerang, or algebraic
   analysis.
@@ -223,8 +282,13 @@ node check_linear_trail2.js
   the slowest to diffuse in the subkeys (1-bit difference at r=1).
   Not exploitable with current techniques but worth noting. See
   PAPER.md §5.
-- **Linear analysis is inconclusive**: not a break, but the absence
-  of a bound means the linear security of MYSX is unknown.
+- **Linear structure at short range is exact and verified**: 9-round
+  `|corr| = 1` chains reduce the effective "hard" round count to
+  ~119 in the best window. This is a structural property of the
+  rotation schedule, not a key-dependent artifact. It is **not** an
+  attack on the full cipher (no lower bound over 128 rounds, no key
+  recovery), but it is real cryptanalytic material. See PAPER.md §4
+  and `cryptanalysis/models/linear/LINEAR_MODEL.md`.
 
 ## Citation
 

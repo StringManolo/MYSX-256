@@ -12,14 +12,22 @@ abstract: |
   bound on the best single-trail weight (114 at 14 rounds, extrapolating
   to the 128-round threshold at r≈15). The r=4 trail has been directly
   verified at w=32 with a clustering factor of 2.00× (observed 2⁻⁷ vs
-  MILP 2⁻⁸). The linear analysis attempted three models; none produced
-  trails that verified empirically at w=32, and a scaled-down (w=8)
-  experiment with a hand-validated harness confirms no detectable linear
-  signal for low-weight α masks. The key schedule was audited with 22
-  structural and empirical tests up to weight-6 with no persistent
-  Δrk=0 pattern found. MYSX has not been externally audited. It is
-  released as v0.1-draft for public review and must not be used to
-  protect real data.
+  MILP 2⁻⁸). For the linear side, an earlier version of this paper
+  reported only negative results. The present version replaces that
+  section with an exact linear model: the LAT of F admits a closed form
+  (`|corr(b,g)| = 2^{−h(b)}`, `h(b) = rank(A_b)/2` on a 32-cycle),
+  mask propagation is bit-exact, and every trail carries an exact
+  key-dependent sign. Within this model we verify `|corr|=1` chains over
+  up to 9 consecutive rounds (three independent keys), and exact linear
+  hulls at r=10,11,12 match the real cipher within sampling error
+  (|z| < 0.4). Beam search over single-bit starts gives upper bounds on
+  the best single-trail weight up to 14 rounds (weight 12 at r=14,
+  window r=12). No lower bound over 128 rounds is established; the
+  weight-0 windows are a property of 5–9 round windows, not an attack
+  on the full cipher. The key schedule was audited with 22 structural
+  and empirical tests up to weight-6 with no persistent Δrk=0 pattern
+  found. MYSX has not been externally audited. It is released as
+  v0.1-draft for public review and must not be used to protect real data.
 ---
 
 # 1. Introduction
@@ -38,9 +46,9 @@ related-key, chosen-ciphertext, or side-channel models; see Section 5
 for related-key coverage and Section 9 for engineering notes.
 
 **Claimed security level.** None formally. The paper reports observed
-upper bounds on single-trail weights (Section 3) and negative results
-on three linear-trail models (Section 4). These are inputs to
-cryptanalysis, not proofs.
+upper bounds on single-trail weights (Section 3) and a verified exact
+linear model up to a small number of rounds (Section 4). These are
+inputs to cryptanalysis, not proofs.
 
 **Non-objectives.** MYSX does not claim:
 
@@ -356,7 +364,7 @@ A third-party implementation should target the **public digest**.
 
 ## 3.1. Model
 
-Tool: `mysx_milp.py` (PuLP + CBC/HiGHS). AND model: `a = Δx ∨ Δy`,
+Tool: `misc/mysx_milp.py` (PuLP + CBC/HiGHS). AND model: `a = Δx ∨ Δy`,
 which counts a cost-1 event whenever at least one input is active.
 For an AND with independent inputs, this is the exact per-bit cost.
 The real approximations in the model are:
@@ -429,95 +437,218 @@ large, but the extrapolation should be read as approximate.**
 
 # 4. Linear cryptanalysis
 
-## 4.1. Three models, no bound
+## 4.1. Overview
 
-We tried three linear models. **None produced trails that verified
-empirically at w=32.** The honest conclusion is that no linear bound
-is established for MYSX.
+An earlier version of this paper (§4 of the previous draft) reported
+only negative results: three approximate linear MILP models
+(`misc/mysx_linear_milp.py`) all produced trails that failed empirical
+verification at w=32. That negative result has now been explained. The
+models used per-cell AND activity (`act = α ∨ β ∨ γ`) as a proxy for
+correlation, which is not the correct structure of F's LAT. A correct
+model exists in closed form and is implemented in
+`cryptanalysis/models/linear/mysx_linear_model.py` (with detailed
+documentation in `cryptanalysis/models/linear/LINEAR_MODEL.md` and raw
+data in `cryptanalysis/models/linear/linear_model_data.json`). The
+model is machine-checked against the real cipher by
+`python3 mysx_linear_model.py selftest`.
 
-### 4.1.1. Hybrid model (`act = α ∨ β ∨ γ`, no `γ ≥ α`)
+**Result in one line.** The LAT of F is exactly
+`corr(b,g) = ±2^{−h(b)}`, where `h(b)` is half the GF(2)-rank of a
+32-cycle subgraph determined by `b`; there is a free choice of
+`g` among `4^{h(b)}` values with sign determined by a quadratic form.
+Mask propagation is bit-exact; every trail carries an exact key-
+dependent sign. Verified consequences: `|corr|=1` chains over up to
+9 consecutive rounds (three keys), and exact linear-hull predictions
+at r=10,11,12 that match the real cipher within sampling error
+(|z| < 0.4).
 
-This model produced the following single-trail weights:
+## 4.2. Exact LAT of F
 
-| r | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| weight | 0 | 2 | 6 | 8 | 10 | 18 | 32 | 48 | 72 | 109 |
+For output mask `b` and input mask `g`,
 
-Empirical verification targeted the r=4 trail (weight 8, expected
-correlation 2⁻⁸ = 0.0039). Eight independent runs at N=2,000,000 each
-(σ = 1/√N ≈ 7.07×10⁻⁴) gave a mean observed correlation of −4×10⁻⁴,
-corresponding to |corr|/σ ≈ 0.57σ per run. If the trail existed with
-the predicted correlation, it would appear at |corr|/σ ≈ 5.5σ. It does
-not. **The predicted trail does not exist at w=32.**
+```
+b.F(x) ⊕ g.x  =  Q_b(x) ⊕ l.x ,   l = rotr(b,2) ⊕ g ,
+Q_b(x) = ⊕_j b_{j+1} x_j x_{j−7} .
+```
 
-A confirmatory experiment at w=8 (mini-MYSX with keyword `'MYSZ'`,
-non-degenerate) tested α = word 0 bit 0 against 74 single- and
-multi-bit β masks over 4 independent keys × 2¹⁹ samples each.
-Observed max |corr|/σ = 3.83 at r=2, below the expected maximum of
-3.38σ for 296 independent estimates under H₀ (observed/expected
-ratio 1.13×). No linear signal detected. Consistent with the w=32
-result.
+`Q_b` is a quadratic form whose graph `G_b` is a subgraph of the
+32-cycle `j —— j−7` (edge `(j, j−7)` present iff `b_{j+1}=1`; a single
+cycle because `gcd(7,32)=1`). Let `A_b` be the GF(2) adjacency matrix
+of `G_b`. Then:
 
-Diagnosis: the model allowed `(α,β,γ) = (1,0,0)`, which has correlation
-0 in the real AND (not 1/2). The trails found were artifacts.
+- `corr(b,g) ≠ 0` iff `l = A_b y` for some `y`. There are exactly
+  `2^{rank(A_b)} = 4^{h(b)}` valid `g`.
+- For each valid `g`, `corr(b,g) = (−1)^{Q_b(y)} · c_0(b)` with
+  `|c_0(b)| = 2^{−h(b)}`, where `h(b) = rank(A_b)/2`.
+- `h(b)` equals the maximum matching = minimum vertex cover of `G_b`
+  (König). The only graph that is not a forest is `b = 0xFFFFFFFF`
+  (full cycle), where `rank = 30` and `h = 15`.
+- Parseval holds: `Σ_g corr(b,g)² = 1`.
 
-### 4.1.2. Strict model (`x = y = z = w` in XOR)
+This is **exact** and **machine-checked** against brute-force LAT of F
+for random `b` of Hamming weight up to 8 (`selftest`).
 
-This model returned INFEASIBLE in all rounds 1–10 for mask w0b0. The
-model is too restrictive: it forbids valid trails with correlation 1
-(e.g., the trivial r=1 trail with weight 0).
+**Cost data.**
 
-### 4.1.3. Relaxed model with correct AND (`x+y+z-w=2u`, `γ = α OR β`)
+- Single-bit `b`: `h = 1`, four valid `g`, `|corr| = 1/2`.
+- Two-bit `b` (496 masks): histogram `{2: 464, 1: 32}` (the 32 pairs
+  at bit distance 7 are adjacent edges).
+- Uniform random 32-bit `b` (16384 samples): histogram of `h` peaks at
+  `h = 11` (4130 samples); full histogram in
+  `linear_model_data.json`.
+- Densest masks per unit of weight (bits `(1−7t) mod 32`, `t < 2m`):
+  every extra 2 consecutive edges costs 1; cost per active mask bit
+  approaches 1/2 in the best case, never below 15/32.
 
-This model produced the following single-trail weights:
+## 4.3. Exact mask propagation
 
-| r | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| weight | 0 | 2 | 8 | 18 | 35 | 86 | 157 | 244 | 338 | 434 |
+For a round `r`, with input mask `m` on `s[r]` and cells `p = 0..3`
+(`L = s[r][p]`, `R = s[r][p+4]`):
 
-Note that these weights differ from those of the hybrid model
-(§4.1.1), confirming that the two models are not equivalent.
+```
+b_p     = m[p]                          (only words 0..3 decide the cost)
+g_p     ∈ valid_gammas(b_p)             (4^{h(b_p)} choices, each |corr| = 2^{−h(b_p)})
+n[p+4]  = m[p] ;  n[p]  = m[p+4] ⊕ g_p
+m_next  = lin_fwd(n, r)                 (byte transposition, then rotl by (r mod 31)+1)
+w_r     = Σ_p h(m[p])
+sign    = (Π_p sign_p) · (−1)^{m · rk[r]}
+```
 
-Empirical verification targeted the r=3 trail (weight 8, expected
-correlation 2⁻⁸ = 0.0039). A single run at N=5,000,000 (σ = 1/√N ≈
-4.47×10⁻⁴) gave an observed correlation of −2.38×10⁻⁴, at |corr|/σ ≈
-0.53σ. If the trail existed with the predicted correlation, it would
-appear at |corr|/σ ≈ 8.7σ. It does not. **The predicted trail does
-not exist at w=32.**
+Correlation of a trail: `Π_r 2^{−w_r} · (−1)^{Σ_r m_r·rk[r]} · Π_p sign_p`.
+The linear hull at fixed key is the exact sum over all trails with the
+same `(m_0, m_R)`; `propagate()` computes it by correlation-vector
+propagation (pruned by weight). ELP mode
+(`propagate(..., elp=True)`) gives the key-independent potential under
+the (incorrect for a deterministic schedule) independent-round-key
+assumption.
 
-Diagnosis: the model has false positives. The most likely cause is the
-AND model: the `act = α ∨ β ∨ γ` constraint (and its `γ ≥ α`,
-`γ ≥ β` refinement) does not capture the shared-variable structure of
-F, where the two rotated inputs come from the same `x`. A correct
-linear model of F's correlation requires modeling the rank of the
-`i-1` to `i-8` connectivity graph, not the per-bit AND activity. We
-did not implement this model in v0.1.
+**Free-chain structure.** A round has weight 0 iff words 0..3 of its
+input mask are zero; the round then acts as a pure bit permutation and
+the tracked bit never meets `F`. Since the rotation schedule has
+period 31, there are only 31 distinct windows. The exact free-chain
+table (all 128 single-bit masks in words 4..7, 31 windows) is in
+`LINEAR_MODEL.md` §4 and `linear_model_data.json`. Headline: the
+longest weight-0 chain is **9 consecutive rounds**, at windows
+`r ≡ 12 (mod 31)` and `r ≡ 27 (mod 31)`.
 
-## 4.2. Why this matters
+## 4.4. Verified `|corr| = 1` chains
 
-The best published attacks against Simon128/128 are linear (hull
-attacks covering ~49/68 rounds, complexity ~2¹²⁷). The linear side is
-therefore the most likely attack surface for MYSX. **A negative result
-on three models is not a security claim.** It is an open question.
+Each of the 9-round chains has been checked against the real cipher
+(fixed random keys, 2²¹ plaintexts, reduced rounds, final whitening
+disabled to isolate the round function). Representative results:
 
-To establish a linear bound for MYSX, future work would need:
+| window r0 | rounds | start bit | end bit | key seed | predicted sign | empirical corr | σ |
+|---|---|---|---|---|---|---|---|
+| 12 | 9 | s[12].174 | s[21].79 | 1 | +1 | +1.00000 | 6.9e-04 |
+| 12 | 9 | s[12].174 | s[21].79 | 2 | −1 | −1.00000 | 6.9e-04 |
+| 12 | 9 | s[12].174 | s[21].79 | 3 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 1 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 2 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 3 | +1 | +1.00000 | 6.9e-04 |
+| 0 | 5 | s[0].208 | s[5].55 | 1 | −1 | −1.00000 | 6.9e-04 |
+| 0 | 5 | s[0].208 | s[5].55 | 2 | −1 | −1.00000 | 6.9e-04 |
+| 0 | 5 | s[0].208 | s[5].55 | 3 | −1 | −1.00000 | 6.9e-04 |
 
-1. **Sign tracking** (±1/2 per active AND), which the current MILP
-   does not model.
-2. **Linear hull analysis** (clustering of many trails with the same
-   mask).
-3. **A SAT/MILP model with XOR correlations < 1**, using the exact
-   F-connectivity structure.
+The magnitude is 1 for every key. Only the sign depends on the key,
+through `Σ_r m_r · rk[r]`. The model predicts that sign exactly. Per-
+round masks and complete details are in `linear_model_data.json`
+(`verified_chains`).
 
-None of these is done here. **MYSX's linear security is unknown.**
+## 4.5. Best single trails beyond the free chain (upper bounds)
+
+Layered beam search with the exact rules, starts = all 256 single-bit
+masks, beam 1200, cells with `h ≤ 2` expanded. Each reported weight is
+an **achievable single-trail weight**, i.e. an upper bound on the best
+weight, not a minimum.
+
+| rounds R | 1–9 | 10 | 11 | 12 | 13 | 14 |
+|---|---|---|---|---|---|---|
+| best weight, window r0=12 | 0 | 1 | 2 | 3 | 7 | 12 |
+| best weight, window r0=27 | 0 | 1 | 3 | 3 | 6 | 11 |
+
+Note that this is *the opposite* of a linear-distinguisher risk at low
+rounds: at the 9-round mark we still have weight 0 (correlation ±1 in
+absolute value). The reader should not confuse this with an attack on
+the full cipher — see §4.7.
+
+## 4.6. Hull verification
+
+The single-trail numbers above are inputs to a hull computation. For
+three trails at r0 = 12 with weights 1, 2, 3, the model produces an
+exact signed prediction (fixed key, sum over all trails of weight ≤
+w+4 with the same end masks) and the real cipher produces an empirical
+correlation over 2²² plaintexts.
+
+| window r0 | R | best-trail w | hull masks kept | predicted corr | empirical corr | σ | z |
+|---|---|---|---|---|---|---|---|
+| 12 | 10 | 1 | 4 | +0.500000 | +0.499997 | 4.9e-04 | −0.01 |
+| 12 | 11 | 2 | 40 | −0.250000 | −0.250008 | 4.9e-04 | −0.02 |
+| 12 | 12 | 3 | 3152 | −0.125000 | −0.124813 | 4.9e-04 | +0.38 |
+
+Three independent predictions, three matches, |z| < 0.4 in every case.
+The hull sum is not an approximation here; it is the exact polynomial
+expansion of the trail system in the model, and it is what the real
+cipher produces within sampling error.
+
+## 4.7. What this establishes and what it does not
+
+**Established (machine-checked by `selftest`):**
+
+- Exact LAT of F (valid set, magnitude, sign) against brute force.
+- Exact per-round mask rule and key-sign tracking.
+- Existence of key-independent-magnitude `|corr| = 1` single-bit
+  relations over up to 9 consecutive rounds.
+- Exact signed linear-hull predictions (not approximations) at r=10,
+  11, 12 against the real cipher.
+- The `mysx.prod.js` Python port reproduces `KNOWN_KAT_DIGEST`, so all
+  claims are made against the actual reference implementation.
+
+**Not established:**
+
+- A **lower bound** on the best trail weight over 128 rounds. Beam
+  search gives upper bounds from a specific start distribution.
+- An exact 128-round hull. Even the pruned `propagate()` will not
+  scale; a certified bound would need a SAT/MILP encoding.
+- The cost of a key-recovery attack.
+- Behaviour of multi-bit starts at larger R (only single-bit starts
+  were explored in the beam search).
+- Anything about the last-round / whitening structure, related-key
+  linear behaviour, or side channels.
+
+**The weight-0 chains are not an attack.** A 9-round `|corr| = 1`
+relation sits in a 128-round cipher. Standard linear cryptanalysis
+extrapolates a weight over the full length; here the trail weight over
+rounds 0..8 is 0 and the weight over rounds 9..127 is unknown. The
+result is best read as: *the exact machinery is in place and it agrees
+with the real cipher on small round counts*, not as *MYSX is broken*.
+The 128-round picture remains open.
+
+## 4.8. Previous incorrect models and why they failed
+
+For the record, the previous §4 of this paper reported three
+approximate models, all with negative empirical verification. They
+used per-cell AND activity as a proxy for correlation, which is not
+the correct structure of F. The correct structure is the rank of the
+graph `A_b` above. The previous models produced trails with predicted
+`|corr| ≈ 2^{−8}` at r=4 but no detectable signal — consistent with
+the fact that those trails have zero true correlation in the exact
+model.
+
+An instructive detail from the old work remains relevant to *any*
+future linear work on MYSX: the empirical verification harness must
+use **fixed keys** per sample. With random keys per plaintext, the
+sign of every linear trail is key-dependent and the observed
+correlation of a genuinely nonzero trail collapses to zero. See
+`misc/validate_lineal_harness.js`, which validates the harness against
+a hand-computed `w=8` case (observed correlation 0.4993 vs 0.5).
 
 # 5. Related-key cryptanalysis
 
-Tool: `keyschedule_test.js` (basic) + `keyschedule_test_extended.js`
-(22 tests). Coverage: exhaustive weight-1 (512 bits), exhaustive
-weight-2 (130,816 pairs), weight-3 "same Δ" (1,680 trials), beam search
-up to weight-6 (beam 50), 5 base keys, structured patterns, cycles,
-weak keys.
+Tools: `misc/keyschedule_test.js` (basic) +
+`misc/keyschedule_test_extended.js` (22 tests). Coverage: exhaustive
+weight-1 (512 bits), exhaustive weight-2 (130,816 pairs), weight-3
+"same Δ" (1,680 trials), beam search up to weight-6 (beam 50), 5 base
+keys, structured patterns, cycles, weak keys.
 
 **Results (summary):**
 
@@ -565,16 +696,20 @@ MYSX uses Simon's `F`. It is **not** Simon. The differences:
 - Non-linear ARX key schedule (Simon's is linear).
 - 128 rounds vs 68.
 
-**What transfers.** The linear and differential distinguishers on
-Simon's `F` are properties of the function, not of the key schedule.
-Any distinguisher on F may in principle be embedded in MYSX's structure.
-The Simon-specific attacks on round-reduced Simon do not transfer
-directly because the surrounding state, diffusion, and round count are
-different, but the F-level biases are the natural starting point for
-attacking MYSX.
+**What transfers.** The exact LAT of `F` — its closed form
+`|corr| = 2^{−h(b)}`, its validity condition `l ∈ colspace(A_b)`, and
+its sign structure — is a property of the function and therefore
+applies to MYSX regardless of the surrounding structure (Section 4.2
+is the transfer). That is the correct starting point for MYSX-specific
+linear cryptanalysis; the failed models of the previous draft used a
+different (incorrect) F model.
 
 **What does not transfer.** Key recovery from Simon's linear key
-schedule does not transfer: MYSX's key schedule is non-linear.
+schedule does not transfer: MYSX's key schedule is non-linear. Linear
+hull attacks against Simon are highly structured around Simon's
+Feistel-branch and its round-reduced behaviour; the MYSX hull is a
+different object and must be computed from the MYSX round model
+(Section 4.6).
 
 **Relevant literature and published attacks on Simon128/128** (68
 rounds):
@@ -593,7 +728,7 @@ rounds):
   family", CRYPTO 2015).
 
 None of these results is transferred to MYSX in this paper. The
-MYSX-specific MILP analysis (Sections 3, 4, 5) is what provides the
+MYSX-specific analysis (Sections 3, 4, 5) is what provides the
 evidence; Simon attacks are context, not direct transfer.
 
 # 8. Analysis limitations
@@ -601,7 +736,11 @@ evidence; Simon attacks are context, not direct transfer.
 - **Differential**: upper bounds on single-trail for one input at
   r=12–14; one trail verified at r=4 (ratio 2.00×); no lower bounds;
   no full clustering analysis.
-- **Linear**: no verified trail in three models; no bound.
+- **Linear**: an exact model of `F` is established and matches the
+  real cipher on small round counts, including exact signed hulls at
+  r=10, 11, 12. No lower bound over 128 rounds; only upper bounds from
+  single-bit starts in the beam search; no key-recovery cost estimate;
+  multi-bit starts unexplored.
 - **Related-key**: heuristic tests up to weight-6; no targeted MILP.
 - **Integral, impossible, boomerang, algebraic**: not analyzed.
 - **No independent public cryptanalysis.**
@@ -684,28 +823,33 @@ correlation flips per sample and the observed |corr| drops to **0.0022**
 
 This confirms the harness is correct when used with fixed keys. It
 also confirms that the practice of "random keys per sample", used in
-an earlier version of `mini_trail.js`, washes out genuine linear
+an earlier version of `misc/mini_trail.js`, washes out genuine linear
 signals and must not be used for linear cryptanalysis.
 
-See `validate_linear_harness.js`.
+See `misc/validate_lineal_harness.js`.
 
 The mini-MYSX with `w=8, kw='MYSZKOWS'` is **degenerate**: the
 permutation becomes `[4,0,5,2,7,6,1,3]`, the L→R→L cycle at word 0
 means a single-bit difference never passes through F, and the
 differential probability is 1 at all rounds. This is not
 representative of MYSX. Use `w=8, kw='MYSZ'` (non-degenerate from
-r=3) or w=32 directly. See `check_mini_nondegenerate.js`.
+r=3) or w=32 directly. See `misc/check_mini_nondegenerate.js`.
 
 # 10. Verdict
 
 **MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
 cipher.** The differential analysis reports upper bounds on single-trail
 weights, not a security proof; one trail at r=4 has been directly
-verified with clustering factor 2.00×. The linear analysis is a
-negative result on three models, not a bound. The related-key analysis
-is heuristic. No integral, impossible-differential, boomerang, or
-algebraic analysis has been done. The cipher has not been externally
-audited.
+verified with clustering factor 2.00×. The linear analysis now has a
+correct, exact model of `F` and of the round; it reproduces the real
+cipher's linear behaviour on the small round counts where it has been
+checked (verified `|corr| = 1` chains at 5 and 9 rounds; exact signed
+hulls at r = 10, 11, 12). That is an input to cryptanalysis, not a
+bound. No lower bound over 128 rounds has been established, no key-
+recovery attack has been attempted, and multi-bit starts at high round
+counts are unexplored. The related-key analysis is heuristic. No
+integral, impossible-differential, boomerang, or algebraic analysis has
+been done. The cipher has not been externally audited.
 
 **Do not use MYSX to protect real data.** For production:
 **AES-256-GCM** or **XChaCha20-Poly1305**.
@@ -720,24 +864,30 @@ audited.
 | `generate_kat.py` | KAT generator |
 | `mysx.prod.js` | Implementation (public API) |
 | `mysx.test.js` | Functional tests |
-| `mysx_milp.py` | Differential MILP |
-| `mysx_linear_milp.py` | Linear MILP (three models) |
-| `keyschedule_test.js` | Basic key schedule audit |
-| `keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
-| `check_trail.js` | Empirical differential trail at r=4 |
-| `check_linear_trail2.js` | Empirical linear trail at r=3 |
-| `validate_linear_harness.js` | Hand-computed linear harness check |
-| `mini.js` | Mini-MYSX (w=8, w=16, w=32) |
-| `check_mini.js` | Mini-MYSX validation vs `mysx.prod.js` |
-| `check_mini_nondegenerate.js` | Keyword/w compatibility check |
-| `mini_linear_fast.js` | Linear sampling at w=8, `kw='MYSZ'` |
-| `verify_trail_w32.js` | Per-trail verification at w=32 with MILP weight |
-| `avalanche.js` | Diffusion and avalanche ladder (r=1..24) |
+| `cryptanalysis/models/linear/mysx_linear_model.py` | Exact linear model of F + round; `selftest` / `report` commands |
+| `cryptanalysis/models/linear/LINEAR_MODEL.md` | Detailed documentation of the exact linear model |
+| `cryptanalysis/models/linear/linear_model_data.json` | All numbers in Section 4 as JSON |
+| `misc/mysx_milp.py` | Differential MILP |
+| `misc/mysx_linear_milp.py` | Previous approximate linear MILPs (historical, superseded by `mysx_linear_model.py`) |
+| `misc/keyschedule_test.js` | Basic key schedule audit |
+| `misc/keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
+| `misc/check_trail.js` | Empirical differential trail at r=4 |
+| `misc/check_linear_trail2.js` | Empirical check of the superseded linear model (negative result) |
+| `misc/validate_lineal_harness.js` | Hand-computed linear harness check |
+| `misc/mini.js` | Mini-MYSX (w=8, w=16, w=32) |
+| `misc/check_mini.js` | Mini-MYSX validation vs `mysx.prod.js` |
+| `misc/check_mini_nondegenerate.js` | Keyword/w compatibility check |
+| `misc/mini_linear_fast.js` | Linear sampling at w=8, `kw='MYSZ'` |
+| `misc/verify_trail_w32.js` | Per-trail verification at w=32 with MILP weight |
+| `misc/avalanche.js` | Diffusion and avalanche ladder (r=1..24) |
 
 Fixed seed in tests (`0xC0FFEE`). MILPs are deterministic given the
 solver and `gapRel`. The mini-MYSX with `w=32` reproduces
 `mysx.prod.js` exactly (F function and MYZ_PERM are bit-identical,
-verified in `check_mini.js`).
+verified in `misc/check_mini.js`). The exact linear model's `selftest`
+additionally verifies the Python port against `KNOWN_KAT_DIGEST` of
+`mysx.prod.js`, so the linear results are stated relative to the
+reference implementation.
 
 # 12. Final warning
 

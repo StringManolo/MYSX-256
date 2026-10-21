@@ -10,11 +10,18 @@ Status: frozen. Any change requires a new version.
 | Block size | 256 bits (8 words of 32 bits) |
 | Key size | 512 bits (16 words of 32 bits) |
 | Rounds | 128 |
-| Structure | Feistel of 2 branches (128 + 128 bits) |
+| Structure | SPN-like: 4 parallel Feistel cells + byte transposition |
 | Non-linearity | `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)` |
 | Diffusion | Myszkowski transposition (keyword `MYSZKOWS`) |
 | Rotation | `rotl(word, (r mod 31) + 1)` per word and round |
 | Final whitening | XOR with 8 words from the key schedule |
+
+**Structural note.** MYSX is sometimes described as a "2-branch
+Feistel" by analogy with Simon. Strictly, each round applies four
+independent Feistel cells over 32-bit word pairs (§5.2), then a byte
+transposition over the full 32-byte state (§5.3), then word rotations
+(§5.4). It is more accurately classified as an SPN with Feistel cells.
+The "Feistel" label is a convenience.
 
 ## 2. Notation
 
@@ -167,7 +174,7 @@ for i in 0..7:
 s[0] = plaintext  (as 8 big-endian words)
 for r = 0..127:
     apply round r (section 5)
-for i = 0..7:
+for i in 0..7:
     s[128][i] = s[128][i] ⊕ rkFinal[i]
 ciphertext = s[128]  (as 32 big-endian bytes)
 ```
@@ -178,7 +185,7 @@ Inverse of encryption:
 
 ```
 s[128] = ciphertext
-for i = 0..7:
+for i in 0..7:
     s[128][i] = s[128][i] ⊕ rkFinal[i]
 for r = 127..0:
     apply inverse round r (inverse of section 5, in reverse order)
@@ -240,6 +247,16 @@ macKey = HKDF-SHA256(prk, salt, info = context ‖ ":mac", L = 32)
 
 See [KAT.json](KAT.json).
 
+The public KAT digest is
+`5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`
+(SHA-256 over the full `KAT.json`). A third-party implementation should
+target this digest. The internal regression digest
+`3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`
+(SHA-256 over 16 blocks with `key[i] = i`) is a strict subset of the
+public KAT.
+
+**The test vectors were not changed in 0.1.1.**
+
 ## 12. References
 
 - Simon (NSA, 2013): function `F`.
@@ -251,4 +268,11 @@ See [KAT.json](KAT.json).
 
 MYSX **has not been externally audited**. The security analysis in
 [SECURITY.md](SECURITY.md) documents what has been tested and what has
-not. **Do not use in production.**
+not. The exact linear analysis of `F` and of the round is documented
+in [`cryptanalysis/models/linear/LINEAR_MODEL.md`](cryptanalysis/models/linear/LINEAR_MODEL.md)
+and summarized in [SECURITY.md](SECURITY.md) §2. It establishes a
+closed-form LAT, exact mask propagation with key-dependent sign, and
+verified short-range structure, but **no bound over 128 rounds**. See
+[PAPER.md](PAPER.md) §4 for the full discussion.
+
+**Do not use in production.**
