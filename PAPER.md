@@ -7,27 +7,31 @@ abstract: |
   128 rounds. The design combines Feistel cells with Simon's round
   function, a Myszkowski byte transposition, word rotations, and an ARX
   key schedule. We provide the full specification, test vectors, and a
-  self-analysis covering differential, linear, and related-key
+  self-analysis covering differential, linear, integral, and related-key
   cryptanalysis. The differential analysis reports an observed upper
   bound on the best single-trail weight (114 at 14 rounds, extrapolating
   to the 128-round threshold at r≈15). The r=4 trail has been directly
   verified at w=32 with a clustering factor of 2.00× (observed 2⁻⁷ vs
-  MILP 2⁻⁸). For the linear side, an earlier version of this paper
-  reported only negative results. The present version replaces that
-  section with an exact linear model: the LAT of F admits a closed form
-  (`|corr(b,g)| = 2^{−h(b)}`, `h(b) = rank(A_b)/2` on a 32-cycle),
-  mask propagation is bit-exact, and every trail carries an exact
-  key-dependent sign. Within this model we verify `|corr|=1` chains over
-  up to 9 consecutive rounds (three independent keys), and exact linear
-  hulls at r=10,11,12 match the real cipher within sampling error
-  (|z| < 0.4). Beam search over single-bit starts gives upper bounds on
-  the best single-trail weight up to 14 rounds (weight 12 at r=14,
-  window r=12). No lower bound over 128 rounds is established; the
-  weight-0 windows are a property of 5–9 round windows, not an attack
-  on the full cipher. The key schedule was audited with 22 structural
-  and empirical tests up to weight-6 with no persistent Δrk=0 pattern
-  found. MYSX has not been externally audited. It is released as
-  v0.1-draft for public review and must not be used to protect real data.
+  MILP 2⁻⁸). The linear analysis is built on an exact model of F: the
+  LAT admits a closed form (`|corr(b,g)| = 2^{−h(b)}`,
+  `h(b) = rank(A_b)/2` on a 32-cycle), mask propagation is bit-exact,
+  and every trail carries an exact key-dependent sign. Within this model
+  we verify `|corr|=1` chains over up to 9 consecutive rounds (three
+  independent keys), and exact linear hulls at r=10,11,12 match the real
+  cipher within sampling error (|z| < 0.4). Beam search over single-bit
+  starts gives upper bounds on the best single-trail weight up to 14
+  rounds (weight 12 at r=14, window r=12). No lower bound over 128
+  rounds is established; the weight-0 windows are a property of 5–9
+  round windows, not an attack on the full cipher. A preliminary
+  integral analysis with standard division-property rules finds integral
+  distinguishers covering 6 rounds with a 2³²-text integral (word 0
+  active) and 5 rounds with a 2⁶⁴-text integral (words 0 and 4 active);
+  a 10-round single-bit dependency propagation is also reported but is
+  not an integral distinguisher (2 texts). Only r0=0 was tested. The key
+  schedule was audited with 22 structural and empirical tests up to
+  weight-6 with no persistent Δrk=0 pattern found. MYSX has not been
+  externally audited. It is released as v0.1-draft for public review and
+  must not be used to protect real data.
 ---
 
 # 1. Introduction
@@ -46,9 +50,10 @@ related-key, chosen-ciphertext, or side-channel models; see Section 5
 for related-key coverage and Section 9 for engineering notes.
 
 **Claimed security level.** None formally. The paper reports observed
-upper bounds on single-trail weights (Section 3) and a verified exact
-linear model up to a small number of rounds (Section 4). These are
-inputs to cryptanalysis, not proofs.
+upper bounds on single-trail weights (Section 3), a verified exact
+linear model up to a small number of rounds (Section 4), and preliminary
+integral distinguishers at 5–6 rounds for multi-bit inputs (§4.9). These
+are inputs to cryptanalysis, not proofs.
 
 **Non-objectives.** MYSX does not claim:
 
@@ -56,8 +61,9 @@ inputs to cryptanalysis, not proofs.
   iterations for a 512-bit key);
 - resistance to related-key attacks beyond the heuristic coverage in
   Section 5;
-- resistance to integral, impossible-differential, boomerang, or
-  algebraic attacks (none analyzed);
+- resistance to integral attacks beyond the preliminary 5–6 round
+  distinguishers reported in §4.9, nor resistance to impossible-
+  differential, boomerang, or algebraic attacks (none analyzed);
 - constant-time execution in JavaScript (side channels out of scope).
 
 ## 1.2. Design rationale
@@ -642,6 +648,88 @@ correlation of a genuinely nonzero trail collapses to zero. See
 `misc/validate_lineal_harness.js`, which validates the harness against
 a hand-computed `w=8` case (observed correlation 0.4993 vs 0.5).
 
+## 4.9. Integral / division property (preliminary, limited)
+
+Tool: `misc/mysx_division_property_v2.py` with standard division-
+property rules (COPY: `k_a = Σ k_copies`; XOR: `k_c = k_a + k_b` with
+`(1,1)` invalid; AND: `k_c = k_a OR k_b`). The XOR and OR variants
+were found to be equivalent for all input patterns tested (the `(1,1)`
+constraint never fired), so the reported results do not depend on the
+choice between them.
+
+**Results.**
+
+| Input | Active bits | Integral size | Rounds with balanced bits | Saturation |
+|---|---|---|---|---|
+| bit 0 of word 0 | 1 | 2 | 10 | R = 11 |
+| word 0 | 32 | 2³² | 6 | R = 7 |
+| words 0 and 4 | 64 | 2⁶⁴ | 5 | R = 6 |
+
+The **integral distinguishers** are the last two rows: 6 rounds with a
+2³²-text integral, 5 rounds with a 2⁶⁴-text integral. These cover 4.7%
+and 3.9% of the 128 rounds, leaving 122 and 123 rounds without an
+integral distinguisher in the tested pattern.
+
+The first row (1 active bit, 2-text integral) is **not** a meaningful
+integral distinguisher: with 2 texts, "balanced output bit" is
+equivalent to "output bit independent of the input bit". It is
+reported as a **single-bit dependency propagation** result — it
+measures how many rounds are needed for the active bit to reach all
+256 output bits (10) — but no integral security conclusion is drawn
+from it.
+
+**Empirical verification.** The 6-round distinguisher (word 0 active)
+and the 10-round single-bit dependency were verified against the real
+cipher (fixed random key, all non-active input bits random) over
+20,000 samples each. The balanced bits predicted by the model never
+flipped; control bits (predicted not balanced) flipped with
+probabilities 6.5%–87%. The 5-round distinguisher (words 0,4 active)
+was not verified empirically (its integral has 2⁶⁴ texts; a random-
+sample approximation with 20,000 samples is not meaningful).
+
+**Comparison with Simon (with care).** Simon32/64 has an 11-round
+integral distinguisher with 31 active bits (34% of its 32 rounds;
+Todo–Morii, FSE 2016). In **relative terms** MYSX resists integral
+distinguishers better (4.7% vs 34% coverage), which is consistent with
+MYSX's more aggressive diffusion (4 parallel Feistel cells +
+transposition). In **absolute terms** Simon's distinguisher reaches
+further (11 vs 6 rounds) because MYSX has 4× more rounds. The two are
+not directly comparable without normalizing by total rounds.
+
+**What this establishes and what it does not.**
+
+Established:
+
+- MYSX has integral distinguishers covering 5–6 rounds with multi-bit
+  inputs (2³² and 2⁶⁴ texts).
+- A single active input bit stops influencing all 256 output bits
+  after 10 rounds.
+- The standard division-property rules with the `(1,1)`-invalid XOR
+  constraint produce the same results as the OR-conservative rule for
+  the tested inputs.
+
+Not established:
+
+- Integral distinguishers beyond 6 rounds for multi-bit inputs.
+- Behaviour for r0 ≠ 0. Only r0 = 0 (the first round window) was
+  tested. The rotation schedule has period 31, and windows r0 = 12 and
+  r0 = 27 are where the linear chains are longest; they may also give
+  longer integral distinguishers, or shorter. Not explored.
+- Full-block inputs (255 active bits).
+- Three-subset DP (Hu et al. 2021) or traceability-enhanced DP
+  (Wang et al. 2023), which may extend the distinguishers.
+- Any key-recovery attack based on these distinguishers.
+
+**Historical note.** The XOR rule of Todo–Morii as commonly written
+in the literature (`k_c = k_a XOR k_b`) is not sound when the two XOR
+operands share variables. In MYSX's `F = C ⊕ D`, both `C` and `D`
+depend on `R`, so that rule overestimates balanced bits via spurious
+cancellations. The first implementation of this analysis used that
+rule and produced oscillating, non-converging numbers (127 → 117 →
+152 → …). Those numbers are an artifact and are not reported here.
+The results above use the standard `(1,1)`-invalid rule, which is
+sound.
+
 # 5. Related-key cryptanalysis
 
 Tools: `misc/keyschedule_test.js` (basic) +
@@ -709,7 +797,11 @@ schedule does not transfer: MYSX's key schedule is non-linear. Linear
 hull attacks against Simon are highly structured around Simon's
 Feistel-branch and its round-reduced behaviour; the MYSX hull is a
 different object and must be computed from the MYSX round model
-(Section 4.6).
+(Section 4.6). Integral distinguishers against Simon rely on Simon's
+particular 2-branch Feistel structure and its key schedule; the
+preliminary MYSX integral distinguishers in §4.9 are considerably
+shorter, and their relationship to Simon's is one of normalized
+coverage, not direct transfer.
 
 **Relevant literature and published attacks on Simon128/128** (68
 rounds):
@@ -722,7 +814,9 @@ rounds):
   ciphers SIMON and SPECK", CRYPTO 2015).
 - SAT-based algebraic distinguishers covering ~12–14 rounds
   (practical on a PC).
-- Integral distinguishers covering ~26 rounds.
+- Integral distinguishers covering ~26 rounds for Simon128/128 with
+  multi-bit inputs, and ~11 rounds for Simon32/64 with 31 active bits
+  (Todo–Morii, FSE 2016).
 - Structural observations on the SIMON family
   (Kölbl–Leander–Tiessen, "Observations on the SIMON block cipher
   family", CRYPTO 2015).
@@ -741,8 +835,15 @@ evidence; Simon attacks are context, not direct transfer.
   r=10, 11, 12. No lower bound over 128 rounds; only upper bounds from
   single-bit starts in the beam search; no key-recovery cost estimate;
   multi-bit starts unexplored.
+- **Integral**: preliminary. 6-round distinguisher with 2³² texts
+  (word 0 active) and 5-round distinguisher with 2⁶⁴ texts (words 0,4
+  active), both with the sound `(1,1)`-invalid division-property rule.
+  A 10-round single-bit dependency propagation is reported for context
+  but is not an integral distinguisher. Only r0 = 0 tested; other
+  round windows, full-block inputs, and three-subset / traceability-
+  enhanced DP are not explored. No key-recovery attack was attempted.
 - **Related-key**: heuristic tests up to weight-6; no targeted MILP.
-- **Integral, impossible, boomerang, algebraic**: not analyzed.
+- **Impossible differential, boomerang, algebraic**: not analyzed.
 - **No independent public cryptanalysis.**
 - **No post-quantum analysis** beyond the trivial Grover bound.
 - **No side-channel analysis.**
@@ -835,6 +936,13 @@ differential probability is 1 at all rounds. This is not
 representative of MYSX. Use `w=8, kw='MYSZ'` (non-degenerate from
 r=3) or w=32 directly. See `misc/check_mini_nondegenerate.js`.
 
+The integral division-property harness (`misc/verify_division.py`) is
+validated against the R=10 single-bit dependency: the two bits the
+model predicts as balanced (word 0 bit 31, word 3 bit 6) are
+confirmed balanced over 20,000 random samples, and the other 62 bits
+of words 0 and 3 are confirmed not balanced. See `misc/verify_division.py`
+and §4.9.
+
 # 10. Verdict
 
 **MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
@@ -847,9 +955,12 @@ checked (verified `|corr| = 1` chains at 5 and 9 rounds; exact signed
 hulls at r = 10, 11, 12). That is an input to cryptanalysis, not a
 bound. No lower bound over 128 rounds has been established, no key-
 recovery attack has been attempted, and multi-bit starts at high round
-counts are unexplored. The related-key analysis is heuristic. No
-integral, impossible-differential, boomerang, or algebraic analysis has
-been done. The cipher has not been externally audited.
+counts are unexplored. The integral analysis is preliminary: it
+establishes 5–6 round integral distinguishers with multi-bit inputs
+(2³² and 2⁶⁴ texts) and a 10-round single-bit dependency propagation,
+but only for the first round window (r0 = 0). The related-key analysis
+is heuristic. No impossible-differential, boomerang, or algebraic
+analysis has been done. The cipher has not been externally audited.
 
 **Do not use MYSX to protect real data.** For production:
 **AES-256-GCM** or **XChaCha20-Poly1305**.
@@ -869,6 +980,9 @@ been done. The cipher has not been externally audited.
 | `cryptanalysis/models/linear/linear_model_data.json` | All numbers in Section 4 as JSON |
 | `misc/mysx_milp.py` | Differential MILP |
 | `misc/mysx_linear_milp.py` | Previous approximate linear MILPs (historical, superseded by `mysx_linear_model.py`) |
+| `misc/mysx_division_property.py` | Bit-based division-property MILP (v1; `--xor-rule` selects XOR or OR) |
+| `misc/mysx_division_property_v2.py` | Bit-based division-property MILP (standard `(1,1)`-invalid XOR rule) |
+| `misc/verify_division.py` | Empirical verification of integral distinguishers |
 | `misc/keyschedule_test.js` | Basic key schedule audit |
 | `misc/keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
 | `misc/check_trail.js` | Empirical differential trail at r=4 |
@@ -888,6 +1002,18 @@ verified in `misc/check_mini.js`). The exact linear model's `selftest`
 additionally verifies the Python port against `KNOWN_KAT_DIGEST` of
 `mysx.prod.js`, so the linear results are stated relative to the
 reference implementation.
+
+**Division-property results (`§4.9`).** All three input patterns
+(single bit, word 0, words 0+4) were run with `--r0 0`. The
+`(1,1)`-invalid XOR rule and the OR-conservative rule were checked to
+agree on the tested patterns. Per-round balanced-bit counts are in
+the terminal logs of the runs; the runtimes were 0.4 s to 4.8 ks with
+SCIP. The R=10 single-bit dependency was verified against the real
+cipher (20,000 random samples per bit). The R=6 word-0 integral was
+verified against the real cipher at the last round (R=6, balanced
+bits confirmed; R=7 saturated). The R=5 words-0,4 integral was not
+verified empirically because its 2⁶⁴-text integral cannot be
+approximated by 20,000 random samples.
 
 # 12. Final warning
 

@@ -16,8 +16,8 @@ methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 |---|---|---|
 | Differential (MILP) | **Upper bounds observed + r=4 trail verified** | Weight 114 at r=14, extrapolating to 128 at r≈15. r=4 trail verified at w=32: observed 2⁻⁷ vs MILP 2⁻⁸, clustering factor **2.00×**. Not a proof: single-trail, one input, `gapRel=0.2`, Markov-independence not satisfied. |
 | Linear (exact model) | **Exact F model established; short-range relations verified; no 128-round bound** | LAT of F in closed form (`|corr|=2^{-h}`, `h=rank(A_b)/2`). `|corr|=1` chains verified up to 9 rounds (3 keys). Exact signed hulls match the real cipher at r=10,11,12 (|z|<0.4). Beam search gives upper bounds on single-trail weight up to r=14 (weight 12). **No lower bound over 128 rounds.** |
+| Integral (DP) | **Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency** | Standard (1,1)-invalid DP rules. 6-round distinguisher with 2³² texts (word 0 active), 5-round with 2⁶⁴ texts (words 0,4 active). A 10-round single-bit dependency propagation is reported but is **not** an integral distinguisher (2 texts). Only r0=0 tested. No key-recovery attack attempted. |
 | Related-key | **Heuristic coverage** | 22 tests up to weight-6 with no persistent `Δrk=0`. No targeted MILP; security unknown. |
-| Integral | **Not analyzed** | — |
 | Impossible differential | **Not analyzed** | — |
 | Boomerang | **Not analyzed** | — |
 | Algebraic (SAT) | **Not analyzed** | — |
@@ -33,9 +33,12 @@ is bit-exact, every trail carries an exact key-dependent sign, `|corr|=1`
 chains are verified up to 9 rounds, and exact signed hulls match the real
 cipher at r=10–12. That is real cryptanalytic structure, not noise. It is
 **not** an attack on the 128-round cipher: no lower bound over 128
-rounds, no key-recovery estimate, multi-bit starts unexplored. Related-key
-security is *unknown* (heuristic only). The cipher is a `v0.1-draft`
-awaiting external review. Do not use in production.
+rounds, no key-recovery estimate, multi-bit starts unexplored. The
+integral side is preliminary: 5–6 round distinguishers with multi-bit
+inputs (2³² and 2⁶⁴ texts), a 10-round single-bit dependency
+propagation, and only r0=0 tested; no key-recovery attack is proposed.
+Related-key security is *unknown* (heuristic only). The cipher is a
+`v0.1-draft` awaiting external review. Do not use in production.
 
 ---
 
@@ -272,7 +275,70 @@ linear security over 128 rounds is unknown.**
 
 ---
 
-## 3. Related-key cryptanalysis
+## 3. Integral cryptanalysis (division property, preliminary)
+
+Tools: `misc/mysx_division_property_v2.py`, `misc/verify_division.py`.
+
+**Model.** Standard bit-based division property (Todo–Morii FSE 2016
+formulation): COPY is modelled as `k_a = Σ k_copies` (each copy may
+carry the trace or not); XOR is modelled as `k_c = k_a + k_b` with
+`(1,1)` invalid; AND is modelled as `k_c = k_a OR k_b`. The naive
+`k_c = k_a ⊕ k_b` rule that appears in some references is **not
+sound** when the XOR operands share input variables; MYSX's
+`F = C ⊕ D` has both `C` and `D` depending on `R`, so the naive rule
+overestimates balanced bits via spurious cancellations (oscillating,
+non-converging counts in our experiments — those numbers are an
+artifact and are not reported here). The `(1,1)`-invalid rule and the
+OR-conservative rule were checked to agree on the tested input
+patterns.
+
+**Results** (r0 = 0 only).
+
+| Input | Active bits | Integral size | Rounds with balanced bits | Saturation |
+|---|---|---|---|---|
+| bit 0 of word 0 | 1 | 2 | 10 | R = 11 |
+| word 0 | 32 | 2³² | 6 | R = 7 |
+| words 0 and 4 | 64 | 2⁶⁴ | 5 | R = 6 |
+
+The **integral distinguishers** are the last two rows: 6 rounds with
+a 2³²-text integral, and 5 rounds with a 2⁶⁴-text integral. They
+cover 4.7% and 3.9% of the 128 rounds.
+
+The first row (1 active bit, 2-text integral) is **not** a
+meaningful integral distinguisher: with 2 texts, "balanced output
+bit" means "output bit independent of the input bit". It is a
+**single-bit dependency propagation** result — 10 rounds for the
+active bit to reach all 256 output bits — and no integral security
+conclusion is drawn from it.
+
+**Empirical verification.** The 6-round distinguisher (word 0
+active) and the 10-round single-bit dependency were verified against
+the real cipher (fixed random key, all non-active input bits random,
+20,000 samples): the predicted balanced bits never flipped, while
+control bits (predicted not balanced) flipped with probabilities
+6.5%–87%. The 5-round distinguisher (words 0,4 active) was not
+verified empirically, because a 2⁶⁴-text integral cannot be
+approximated by 20,000 random samples.
+
+**Comparison with Simon (normalized).** Simon32/64 has an 11-round
+integral distinguisher with 31 active bits (34% of its 32 rounds;
+Todo–Morii FSE 2016). MYSX's 6-round / 2³²-text distinguisher covers
+4.7% of its 128 rounds. In relative coverage MYSX is stronger; in
+absolute rounds Simon reaches further (11 vs 6) because MYSX has 4×
+more rounds. The two are not directly comparable without normalizing
+by total rounds.
+
+**What this does not establish.** Integral distinguishers beyond 6
+rounds for multi-bit inputs; behaviour for r0 ≠ 0 (rotation has
+period 31; windows 12 and 27 are where linear chains are longest);
+full-block inputs (255 active bits); three-subset DP (Hu et al.
+2021) and traceability-enhanced DP (Wang et al. 2023), which may
+extend the distinguishers; and any key-recovery attack based on
+these distinguishers.
+
+---
+
+## 4. Related-key cryptanalysis
 
 Tools: `misc/keyschedule_test.js` + `misc/keyschedule_test_extended.js`
 (22 tests).
@@ -299,7 +365,7 @@ security is unknown.**
 
 ---
 
-## 4. Diffusion / avalanche ladder
+## 5. Diffusion / avalanche ladder
 
 Tool: `misc/avalanche.js`. N=2000 keys, r=1..24. Matrix: 256 input bits
 × 256 output bits per round.
@@ -317,7 +383,7 @@ ciphers. With 128 rounds, 15 of "warm-up" are acceptable.
 
 ---
 
-## 5. Mini-MYSX validation and non-degeneracy
+## 6. Mini-MYSX validation and non-degeneracy
 
 Tool: `misc/mini.js`, `misc/check_mini.js`,
 `misc/check_mini_nondegenerate.js`.
@@ -341,7 +407,7 @@ w=8, or w=32 directly.
 
 ---
 
-## 6. Generic attacks
+## 7. Generic attacks
 
 | Attack | Complexity | Verdict |
 |---|---|---|
@@ -359,7 +425,7 @@ effective security is 256 bits, not 512.
 
 ---
 
-## 7. Structural / Simon attacks
+## 8. Structural / Simon attacks
 
 MYSX uses Simon's `F`. It is not Simon. Differences:
 
@@ -385,6 +451,10 @@ schedule does not apply to MYSX's non-linear schedule. Linear hull
 attacks against Simon are highly structured around Simon's
 Feistel-branch and its round-reduced behaviour; the MYSX hull is a
 different object and must be computed from the MYSX round model.
+Integral distinguishers against Simon rely on its 2-branch Feistel
+structure and its key schedule; the preliminary MYSX results in
+Section 3 are considerably shorter, and their relationship to Simon's
+is one of normalized coverage, not direct transfer.
 
 **Published Simon128/128 attacks** (68 rounds):
 
@@ -393,17 +463,19 @@ different object and must be computed from the MYSX round model.
 - Differential distinguishers covering ~46–50 rounds, complexity
   ~2¹²⁵·⁷ (Biryukov–Roy–Velichkov, CRYPTO 2015).
 - SAT-based algebraic distinguishers covering ~12–14 rounds.
-- Integral distinguishers covering ~26 rounds.
+- Integral distinguishers covering ~26 rounds for Simon128/128 with
+  multi-bit inputs, and ~11 rounds for Simon32/64 with 31 active bits
+  (Todo–Morii, FSE 2016).
 - Structural observations on the SIMON family
   (Kölbl–Leander–Tiessen, CRYPTO 2015).
 
 **None of these results is transferred to MYSX in this paper.** The
-MYSX-specific analysis (Sections 1–3 above, plus
+MYSX-specific analysis (Sections 1–4 above, plus
 `cryptanalysis/models/linear/`) is what provides the evidence.
 
 ---
 
-## 8. Functional tests
+## 9. Functional tests
 
 `MYSX_ENABLE_TEST=1 node mysx.test.js` → **GLOBAL RESULT: PASS**.
 
@@ -426,7 +498,7 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 
 ---
 
-## 9. Analysis limitations
+## 10. Analysis limitations
 
 - **Differential**: upper bounds on single-trail for one input at
   r=12–14; one trail verified at r=4 (clustering factor 2.00×); no
@@ -436,8 +508,15 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
   rounds; exact signed hulls at r=10,11,12). **No lower bound over
   128 rounds; only upper bounds from single-bit starts in the beam
   search; multi-bit starts unexplored; no key-recovery cost estimate.**
+- **Integral**: preliminary. 6-round distinguisher with 2³² texts
+  (word 0 active) and 5-round distinguisher with 2⁶⁴ texts (words 0,4
+  active), using the sound `(1,1)`-invalid division-property rule.
+  A 10-round single-bit dependency propagation is reported for context
+  but is not an integral distinguisher. Only r0 = 0 tested; other
+  round windows, full-block inputs, and three-subset / traceability-
+  enhanced DP are not explored. No key-recovery attack was attempted.
 - **Related-key**: heuristic up to weight-6; no targeted MILP.
-- **Integral, impossible, boomerang, algebraic**: not analyzed.
+- **Impossible differential, boomerang, algebraic**: not analyzed.
 - **No independent public cryptanalysis.**
 - **No post-quantum analysis** beyond the trivial Grover bound.
 - **No side-channel analysis.** JavaScript execution is not
@@ -446,7 +525,7 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 
 ---
 
-## 10. Verdict
+## 11. Verdict
 
 **MYSX-256/512 v0.1-draft is an experimental proposal, not a secure
 cipher.** The differential analysis reports upper bounds on
@@ -458,7 +537,10 @@ establishes `|corr|=1` chains at 5 and 9 rounds plus exact signed
 hulls at r=10–12. That is an input to cryptanalysis, not a bound. No
 lower bound over 128 rounds has been established, no key-recovery
 attack has been attempted, and multi-bit starts at high round counts
-are unexplored. The related-key analysis is heuristic. No integral,
+are unexplored. The integral analysis is preliminary: it establishes
+5–6 round distinguishers with multi-bit inputs (2³² and 2⁶⁴ texts) and
+a 10-round single-bit dependency propagation, but only for the first
+round window (r0 = 0). The related-key analysis is heuristic. No
 impossible-differential, boomerang, or algebraic analysis has been
 done. The cipher has not been externally audited.
 
@@ -469,26 +551,31 @@ done. The cipher has not been externally audited.
 - **If reviewing**, focus on: a certified lower bound on the linear
   single-trail weight over 128 rounds (the MILP/SAT encoding in
   `LINEAR_MODEL.md` §7 is the natural starting point), multi-bit
-  starts, related-key MILP, and integral distinguishers. The verified
-  9-round `|corr|=1` chains and the exact signed hulls at r=10–12 are
-  concrete points the new analysis must reproduce.
-- **If extending**, the priorities are documented in PAPER.md §4.7
-  and §8.
+  starts, related-key MILP, and integral distinguishers beyond the
+  preliminary 5–6 round results in Section 3 (r0 ≠ 0, full-block
+  inputs, and three-subset DP are unexplored). The verified 9-round
+  `|corr|=1` chains and the exact signed hulls at r=10–12 are concrete
+  points the new analysis must reproduce.
+- **If extending**, the priorities are documented in PAPER.md §4.7,
+  §4.9, and §8.
 
 ### What **not** to do
 
 - Do not add rounds on intuition: it does not eliminate short trails,
   only lengthens them.
-- Do not declare MYSX "secure": differential, linear, related-key, and
-  integral are attack families, not all of them.
+- Do not declare MYSX "secure": differential, linear, integral,
+  related-key, and others are attack families, not all of them.
 - Do not present as "post-quantum": the key size is large, but the
   post-quantum analysis has not been done beyond Grover.
 - Do not use the old approximate linear MILP (`misc/mysx_linear_milp.py`)
   as evidence: it is superseded and its trails do not verify.
+- Do not report the 10-round single-bit dependency propagation as an
+  "integral distinguisher": with 2 texts it is not one. Use the
+  6-round / 2³²-text or 5-round / 2⁶⁴-text results instead.
 
 ---
 
-## 11. Reproducibility
+## 12. Reproducibility
 
 | File | Purpose |
 |---|---|
@@ -504,6 +591,9 @@ done. The cipher has not been externally audited.
 | `cryptanalysis/models/linear/linear_model_data.json` | All numbers in Section 2 as JSON |
 | `misc/mysx_milp.py` | Differential MILP |
 | `misc/mysx_linear_milp.py` | Previous approximate linear MILPs (historical, superseded) |
+| `misc/mysx_division_property.py` | Bit-based division-property MILP (v1; `--xor-rule` selects XOR or OR) |
+| `misc/mysx_division_property_v2.py` | Bit-based division-property MILP (standard `(1,1)`-invalid XOR rule) |
+| `misc/verify_division.py` | Empirical verification of integral distinguishers |
 | `misc/keyschedule_test.js` | Basic key schedule audit |
 | `misc/keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
 | `misc/check_trail.js` | Empirical differential trail at r=4 |
@@ -539,7 +629,7 @@ A third-party implementation should target the **public digest**.
 
 ---
 
-## 12. References
+## 13. References
 
 - Simon (NSA, 2013): `F` function used in the round.
 - Myszkowski (1902): transposition with repeated-letter keyword.
@@ -548,6 +638,13 @@ A third-party implementation should target the **public digest**.
   (NIST SP 800-38D).
 - König's theorem (bipartite matching / vertex cover) for the
   rank/matching identity in §2.2.
+- Todo–Morii (FSE 2016): bit-based division property and integral
+  distinguishers, including the standard `(1,1)`-invalid XOR rule
+  and the COPY / AND rules used in Section 3.
+- Hu et al. (2021): three-subset division property (not implemented
+  here; may extend the integral distinguishers).
+- Wang et al. (2023): traceability-enhanced division property (not
+  implemented here).
 - Chen–Wang (ePrint 2014/973): linear hull cryptanalysis of
   round-reduced Simon.
 - Biryukov–Roy–Velichkov (CRYPTO 2015): differential analysis of
@@ -557,7 +654,7 @@ A third-party implementation should target the **public digest**.
 
 ---
 
-## 13. Final warning
+## 14. Final warning
 
 **MYSX has not been externally audited.** This document is a summary
 of the author's self-analysis; the full analysis with methodology is

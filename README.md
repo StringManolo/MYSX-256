@@ -16,8 +16,9 @@ Version: `v0.1-draft` (2026)
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
 | Differential cryptanalysis | Upper bounds observed; r=4 trail directly verified with clustering factor 2.00× |
 | Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; **no 128-round bound** |
+| Integral cryptanalysis | Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency (not an integral); only r0=0 tested |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
-| Integral / boomerang / algebraic | Not analyzed |
+| Impossible differential / boomerang / algebraic | Not analyzed |
 | External review | None |
 | Downstream implementation | [`mysx-256-cli`](https://github.com/stringmanolo/mysx-256-cli) (Rust, file encryptor) — verified against this `KAT.json`, not audited |
 | Frozen | No — awaiting external review |
@@ -79,6 +80,9 @@ the cipher:
 └── misc/
     ├── mysx_milp.py                   # Differential MILP
     ├── mysx_linear_milp.py            # Previous approximate linear MILPs (superseded)
+    ├── mysx_division_property.py      # Bit-based division property MILP (v1)
+    ├── mysx_division_property_v2.py   # Bit-based DP MILP, standard (1,1)-invalid XOR rule
+    ├── verify_division.py             # Empirical verification of integral distinguishers
     ├── keyschedule_test.js            # Basic key schedule audit
     ├── keyschedule_test_extended.js   # Exhaustive key schedule audit (22 tests)
     ├── check_trail.js                 # Empirical differential trail at r=4
@@ -197,6 +201,37 @@ Their trails do not verify empirically because they used a per-cell
 AND-activity proxy for F's correlation, which is incorrect. The exact
 model is `cryptanalysis/models/linear/mysx_linear_model.py`.
 
+### Integral (division property, preliminary)
+
+```bash
+# 32-bit active input (word 0): 6-round distinguisher, saturates at R=7
+python3 misc/mysx_division_property_v2.py \
+  --rounds 1-10 --active word0 --solver scip --stop-when-zero
+
+# 64-bit active input (words 0 and 4): 5-round distinguisher, saturates at R=6
+python3 misc/mysx_division_property_v2.py \
+  --rounds 1-10 --active word0,word4 --solver scip --stop-when-zero
+
+# Single active bit (word 0, bit 0): 10-round dependency propagation
+# NOTE: with 2 texts this is NOT an integral distinguisher.
+python3 misc/mysx_division_property_v2.py \
+  --rounds 1-15 --active bit0 --solver scip --stop-when-zero
+
+# Empirical verification of the 6-round distinguisher (word 0 active)
+python3 misc/verify_division.py --rounds 6 --balanced-bits "<w:b,...>" --samples 20000
+```
+
+Requirements: `pip install pulp` and one of `pyscipopt` (recommended,
+`--solver scip`), `highspy` (`--solver highs`), or the bundled CBC
+(`--solver cbc`, slower for R ≥ 5). Gurobi (`--solver gurobi`) is
+size-limited in the free trial and does **not** fit R ≥ 5 for this
+cipher. The `(1,1)`-invalid XOR rule implemented in
+`mysx_division_property_v2.py` is the sound one; the naive
+`k_c = k_a ⊕ k_b` rule overestimates balanced bits when the XOR
+operands share variables (which they do in `F = C ⊕ D`). Only r0 = 0
+was tested; other round windows (notably r0 = 12 and r0 = 27) are
+unexplored.
+
 ### Related-key
 
 ```bash
@@ -246,6 +281,15 @@ node misc/keyschedule_test_extended.js --thorough
   `w=8` case gives |corr| = 0.5 with fixed key, drops to ~0 with
   random keys per sample. Confirms that the earlier "no signal"
   result was a model artifact, not a property of the cipher.
+- **Preliminary integral distinguishers (division property)**:
+  with standard `(1,1)`-invalid rules, 6 rounds with a 2³²-text
+  integral (word 0 active) and 5 rounds with a 2⁶⁴-text integral
+  (words 0,4 active), saturating at R=7 and R=6 respectively. The
+  6-round distinguisher was verified against the real cipher over
+  20,000 samples (predicted balanced bits never flipped; control bits
+  flipped with probabilities 6.5%–87%). A 10-round single-bit
+  dependency propagation is also reported but is **not** an integral
+  distinguisher (2 texts). Only r0 = 0 was tested.
 - **Heuristic related-key coverage** up to weight-6: no persistent
   `Δrk[r]=0`, no weak keys, no cycles, no fixed points.
 - A clean specification, reproducible test vectors, and a functional
@@ -261,11 +305,16 @@ node misc/keyschedule_test_extended.js --thorough
   from single-bit starts only; multi-bit starts are unexplored; the
   exact hull at 128 rounds would need a SAT/MILP encoding (proposed in
   `cryptanalysis/models/linear/LINEAR_MODEL.md` §7, not implemented).
-- No key-recovery cost estimate from any trail (differential or
-  linear).
+- **No integral bound.** The 5–6 round distinguishers reported above
+  are preliminary: only r0 = 0 was tested; full-block inputs (255
+  active bits), other round windows (notably r0 = 12 and r0 = 27),
+  three-subset division property (Hu et al. 2021), and traceability-
+  enhanced DP (Wang et al. 2023) are not explored. The 5-round /
+  2⁶⁴-text distinguisher was not verified empirically.
+- No key-recovery cost estimate from any trail (differential, linear,
+  or integral).
 - No related-key bound (heuristic only).
-- No integral, impossible-differential, boomerang, or algebraic
-  analysis.
+- No impossible-differential, boomerang, or algebraic analysis.
 - No external review.
 - No proof of post-quantum security beyond the trivial Grover bound.
 
@@ -289,6 +338,12 @@ node misc/keyschedule_test_extended.js --thorough
   attack on the full cipher (no lower bound over 128 rounds, no key
   recovery), but it is real cryptanalytic material. See PAPER.md §4
   and `cryptanalysis/models/linear/LINEAR_MODEL.md`.
+- **Integral distinguishers are short but present**: 6 rounds with
+  2³² texts and 5 rounds with 2⁶⁴ texts. In relative coverage (4–5%
+  of 128 rounds) this is stronger than Simon32/64 (34% of its 32
+  rounds, 11-round integral distinguisher with 31 active bits,
+  Todo–Morii FSE 2016), but only r0 = 0 was tested and the analysis
+  is preliminary. See PAPER.md §4.9.
 
 ## Citation
 
