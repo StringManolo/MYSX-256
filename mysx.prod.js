@@ -16,7 +16,6 @@
 // The cipher is DRAFT. Any change to rounds or key schedule requires a new
 // version (v0.2-...) and full re-evaluation.
 //
-// License: MIT (see LICENSE).
 // =============================================================================
 
 const cryptoNode =
@@ -210,7 +209,8 @@ function _buildMacInput(version, nonce, aad, ct) {
 // -----------------------------------------------------------------------------
 // - Counts messages per key.
 // - Detects recent nonce reuse (configurable window).
-// - Caps the number of tracked keys (FIFO eviction) to avoid unbounded growth.
+// - Caps the number of tracked keys (LRU eviction: the least-recently-used
+//   key is evicted when the cap is reached) to avoid unbounded growth.
 // - Identifies keys by a non-cryptographic 64-bit hash of the key, NOT by
 //   the raw key bytes. onSave(state) therefore does not leak the secret key.
 // - onSave is throttled (default: once every 100 check() calls) to avoid
@@ -220,8 +220,13 @@ function _buildMacInput(version, nonce, aad, ct) {
 //   persist state via onSave/initialState (or save()/load()).
 // =============================================================================
 function _keyId(key) {
-  // FNV-1a 64-bit over the key. Non-cryptographic; used only as an opaque
-  // identifier. Collision probability per pair is ~2^-64.
+  // Key identifier: a 64-bit value built from two 32-bit lanes (h1, h2),
+  // because JavaScript bitwise operators are 32-bit. Lane h1 is FNV-1a
+  // 32-bit (offset 0x811c9dc5, prime 0x01000193); lane h2 uses a distinct
+  // multiplier (0x85ebca6b) and mixes in the byte position i, so the two
+  // lanes are not just a concatenation of the same hash. The two lanes are
+  // concatenated into a 64-bit hex string. Non-cryptographic; used only as
+  // an opaque identifier. Collision probability per pair is ~2^-64.
   let h1 = 0x811c9dc5 >>> 0;
   let h2 = 0x84222325 >>> 0;
   for (let i = 0; i < key.length; i++) {
