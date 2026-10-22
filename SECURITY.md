@@ -1,10 +1,13 @@
-# MYSX-256/512 — Security Status (v0.2-draft)
+# MYSX-256/512 — Security Status (v0.1-draft2)
 
 **Proprietary cipher. NOT externally audited. DO NOT use for sensitive data.**
 For production: AES-256-GCM or XChaCha20-Poly1305.
 
 Author: StringManolo
-Version: `v0.2-draft` (2026)
+Version: `v0.1-draft2` (2026). The reference implementation
+(`mysx.prod.js`) is `v0.1-draft` and has not changed; `v0.1-draft2` is
+the second documentation draft of the same design. (An earlier revision
+of this text was labelled `v0.2-draft`; that label is withdrawn.)
 This document is a standalone summary. The full analysis (with
 methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 
@@ -14,42 +17,44 @@ methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 
 | Attack family | Status | What this means |
 |---|---|---|
-| Differential (MILP) | **Upper bounds observed + r=4 trail verified** | Weight 114 at r=14, extrapolating to the 128-bit threshold at r≈15. r=4 trail verified at w=32: observed 2⁻⁷ vs MILP 2⁻⁸, clustering factor **2.00×**. Not a proof: single-trail, one input, `gapRel=0.2`, Markov-independence not satisfied. |
-| Linear (exact model) | **Exact F model; beam search both directions on all 31 offsets; verified distinguisher at R=14; hull effects observed; no bound** | LAT of F in closed form (`|corr|=2^{-h}`, `h=rank(A_b)/2`). `|corr|=1` chains verified up to 9 rounds (3 keys). Exact signed hulls match the real cipher at r=10,11,12 (|z|<0.4). Combined forward+backward achievable single-trail weight: 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 (63, tie with threshold), 2248 at R=128 (offset 3 backward). The offset-20 backward trail at R=14 (weight 5) is **isolated in its hull** (`hull_count` = 1 trail) and its empirical correlation matches 2⁻⁵ on the real cipher: this is a **verified linear distinguisher at 14 rounds**. Other trails are ≈2× larger or exactly cancelled, so single-trail weight is not universally a distinguisher length. **No lower bound over 128 rounds.** |
+| Differential (MILP) | **Upper bounds observed + r=4 trail verified** | Weight 114 at r=14, extrapolating to the 128-bit threshold at r≈15. r=4 trail verified at w=32: observed 2⁻⁷ vs MILP 2⁻⁸, clustering factor **2.00×**. Not a proof: single-trail, one input, rotation offset not varied (the linear analysis shows the offset changes weights by an order of magnitude, so the extrapolation is likely optimistic), `gapRel=0.2`, Markov-independence not satisfied. |
+| Linear (exact model) | **Exact F model; beam search both directions on all 31 offsets; verified distinguisher on a 14-round window; hull effects observed; no bound** | LAT of F in closed form (`|corr|=2^{-h}`, `h=rank(A_b)/2`). `|corr|=1` chains verified up to 9 rounds (3 keys). Exact signed hulls match the real cipher at r=10,11,12 (|z|<0.4). Combined forward+backward achievable single-trail weight: 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 (63, tie with threshold), 2248 at R=128 (offset 3 backward). The offset-20 backward trail at R=14 (weight 5, rounds 100–113) is **isolated in its hull** (`hull_count` = 1 trail) and its empirical correlation matches 2⁻⁵ on the real cipher: this is a **verified linear distinguisher on a 14-round window** (five cheap rounds followed by a 9-round weight-0 chain), not an attack on the full cipher. Other trails are ≈2× larger or exactly cancelled, so single-trail weight is not universally a distinguisher length. **No lower bound over 128 rounds.** |
 | Integral (DP) | **Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency** | Standard (1,1)-invalid DP rules. 6-round distinguisher with 2³² texts (word 0 active), 5-round with 2⁶⁴ texts (words 0,4 active). A 10-round single-bit dependency propagation is reported but is **not** an integral distinguisher (2 texts). Only r0=0 tested. No key-recovery attack attempted. |
 | Related-key | **Heuristic coverage** | 22 tests up to weight-6 with no persistent `Δrk=0`. No targeted MILP; security unknown. |
 | Impossible differential | **Not analyzed** | — |
 | Boomerang | **Not analyzed** | — |
 | Algebraic (SAT) | **Not analyzed** | — |
-| Grover (quantum) | **Infeasible (trivial estimate)** | 2²⁵⁶ iterations for a 512-bit key. No post-quantum analysis beyond Grover. |
-| Classical brute force | **Infeasible** | 2⁵¹² operations. |
+| Grover (quantum) | **Infeasible (trivial estimate)** | 2²⁵⁶ iterations for a *uniformly random* 512-bit key; 2¹²⁸ for keys derived with the HKDF-based API from a 256-bit secret. No post-quantum analysis beyond Grover. |
+| Classical brute force | **Infeasible** | 2⁵¹² operations for a uniformly random 512-bit key (2²⁵⁶ for HKDF-derived keys). |
 | Block collisions | **Infeasible** | 2¹²⁸ blocks (256-bit block). |
 
 **Short verdict.** Differential resistance is reported as an *observed
 upper bound* with **one trail verified at r=4** (clustering factor 2×),
-not a proof. The linear side has an **exact model of F**: the LAT has a
-closed form, mask propagation is bit-exact, every trail carries an exact
-key-dependent sign, `|corr|=1` chains are verified up to 9 rounds, and
-exact signed hulls match the real cipher at r=10–12. A beam search over
-that model — now run in **both directions** (forward and backward) across
-all 31 rotation offsets, up to 128 rounds, and merged — finds that cheap
-single trails end at roughly 20 rounds: weight 38 at R=20, below 64 only
-up to R=22 (63, a tie with the threshold), then about 15–25 more per
-round. The offset-20 backward trail at R=14 (weight 5) is **isolated in
-its hull** and its empirical correlation matches the prediction: that is
-a verified linear distinguisher at 14 rounds. For other trails, a check
-against the real cipher shows that single-trail weight can be exact, ≈2×
-too low, or exactly cancelled (r0=23 was observed to cancel from R=8),
-so these numbers say where cheap trails end, not universally how long a
-distinguisher is. It is **not** an attack on the 128-round cipher: no
-lower bound over 128 rounds, no hull-aware bound beyond R≈14, no
-key-recovery estimate. Multi-bit starts (pairs47, rand:5000:4) were
-explored and did not improve on single-bit starts; the random sample is
-too small to be conclusive for structured multi-bit masks. The integral
-side is preliminary: 5–6 round distinguishers with multi-bit inputs (2³²
-and 2⁶⁴ texts), a 10-round single-bit dependency propagation, and only
-r0=0 tested; no key-recovery attack is proposed. Related-key security is
-*unknown* (heuristic only). The cipher is a `v0.2-draft` awaiting
+not a proof, for one input and without varying the rotation offset. The
+linear side has an **exact model of F**: the LAT has a closed form, mask
+propagation is bit-exact, every trail carries an exact key-dependent
+sign, `|corr|=1` chains are verified up to 9 rounds, and exact signed
+hulls match the real cipher at r=10–12. A beam search over that model —
+run in **both directions** (forward and backward) across all 31 rotation
+offsets, up to 128 rounds, and merged — finds that cheap single trails
+end at roughly 20 rounds: weight 38 at R=20, below 64 only up to R=22
+(63, a tie with the threshold), then roughly 12–21 more per round up to
+R=112. The offset-20 backward trail at R=14 (weight 5, rounds 100–113)
+is **isolated in its hull** and its empirical correlation matches the
+prediction: that is a verified linear distinguisher on a 14-round
+window. For other trails, a check against the real cipher shows that
+single-trail weight can be exact, ≈2× too low, or exactly cancelled
+(r0=23 was observed to cancel from R=8), so these numbers say where
+cheap trails end, not universally how long a distinguisher is. It is
+**not** an attack on the 128-round cipher: no lower bound over 128
+rounds, no hull-aware bound beyond R≈14, no key-recovery estimate.
+Multi-bit starts (pairs47, rand:5000:4) were explored and did not
+improve on single-bit starts; the random sample is too small to be
+conclusive for structured multi-bit masks. The integral side is
+preliminary: 5–6 round distinguishers with multi-bit inputs (2³² and
+2⁶⁴ texts), a 10-round single-bit dependency propagation, and only r0=0
+tested; no key-recovery attack is proposed. Related-key security is
+*unknown* (heuristic only). The cipher is a `v0.1-draft2` awaiting
 external review. Do not use in production.
 
 **Reading thresholds.** A differential trail of weight `w` needs about
@@ -64,7 +69,8 @@ external review. Do not use in production.
 ### 1.1. Model
 
 Tool: `misc/mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
-`timeLimit=300`. Single-bit input at r=12–14 (w2b30).
+`timeLimit=300`. Single-bit input at r=12–14 (w2b30). No run varying the
+rotation offset (first round mod 31) is reported.
 
 ### 1.2. Observed upper bounds
 
@@ -78,19 +84,23 @@ Tool: `misc/mysx_milp.py` (PuLP + CBC/HiGHS), `a = Δx ∨ Δy`, `gapRel=0.2`,
 | 14 | w2b30 | 114 | 2⁻¹¹⁴ |
 
 Extrapolation: the 128-bit threshold is reached at r≈15. This is an
-extrapolation, not a proof.
+extrapolation, not a proof, and it is specific to the input and offset
+tried.
 
-At 14 rounds the linear side now has a **verified distinguisher** (offset
-20 backward, weight 5, ≈2¹⁰ texts, isolated hull; §2.9) which is far
-below the differential bound (≈2¹¹⁴ pairs). Even allowing for the single
-input difference and the 20% solver gap of the differential run, the
-linear direction is the weaker one. A differential analysis with inputs
-placed in the free windows has not been done.
+At 14 rounds the linear side now has a **verified distinguisher on a
+14-round window** (offset 20 backward, rounds 100–113, weight 5,
+≈2¹⁰ texts, isolated hull; §2.9) which is far below the differential
+bound (≈2¹¹⁴ pairs). Part of that gap is probably not intrinsic: the
+linear figure is the minimum over all 31 offsets, the differential
+figure is for one input at one position. A differential analysis with
+inputs placed in the free windows and over all offsets has not been
+done.
 
 ### 1.3. Direct verification of the r=4 trail at w=32
 
-Trail: Δin = {w0b0}, Δout = {w0b4, w1b10, w1b16, w1b30, w6b4},
-MILP weight 8 (8 active ANDs; Hamming weight of Δout is 5).
+Trail (not a row of the table above): Δin = {w0b0}, Δout = {w0b4,
+w1b10, w1b16, w1b30, w6b4}, MILP weight 8 (8 active ANDs; Hamming
+weight of Δout is 5).
 
 - **Sample size**: 8 fixed keys × 2¹⁷ pairs each = 1,048,576 pairs.
 - **Observed hit rate**: 7.802×10⁻³ (8181 hits).
@@ -98,16 +108,18 @@ MILP weight 8 (8 active ANDs; Hamming weight of Δout is 5).
 - **Ratio**: **2.00×**.
 
 The trail exists. The single-trail probability is a factor 2 higher
-than the MILP predicts, consistent with **differential clustering**
-(multiple trails with the same Δout contributing to the effective
-probability). The MILP model is correct within a factor of 2 at r=4.
+than the MILP predicts. Either differential **clustering** (multiple
+trails with the same Δout) or a one-bit overestimate of the cost by the
+AND model (true weight 7, not 8) explains it; without a full clustering
+analysis the two cannot be told apart, and in both cases the MILP weight
+is the pessimistic side. The MILP model is correct within a factor of 2
+at this round count.
 
 A *constant* factor 2 is one bit of weight; at the observed 8–23 bits
 per round it moves the "128-bit threshold at r≈15" by a small fraction
 of a round. Only a factor that grows with the weight (for example 7/8
 applied to the whole trail) would matter, moving the crossing to roughly
-r≈16–17. The margin remains very large, but the extrapolation should be
-read as approximate.
+r≈16–17. The extrapolation should be read as approximate.
 
 ### 1.4. What this does not establish
 
@@ -116,6 +128,7 @@ read as approximate.
   Δin, Δout).
 - No related-key differentials.
 - No differential inputs placed in the free windows.
+- No variation of the rotation offset.
 
 ---
 
@@ -140,8 +153,8 @@ machine-checked against the real cipher by
 The beam search of §2.8 (`misc/mysx_linear_beam.py`) is a second,
 self-contained implementation of the same exact rules. It reproduces the
 beam table of §2.6 exactly and passes its own `selftest` against the real
-cipher in both directions (forward and backward). Since `v0.2-draft` it
-also supports `--direction backward` and a `merge` command that combines
+cipher in both directions (forward and backward). In this draft it also
+supports `--direction backward` and a `merge` command that combines
 results from both directions; the merged minimum is what §2.8 reports.
 
 ### 2.2. Exact LAT of F
@@ -348,11 +361,14 @@ forward and to the backward end round fitting in the cipher):
   (forward offset 23). This is a **tie with the threshold**: at beam
   1000 the same cell gives 64/71, so the defensible statement is
   "≈20–22 rounds", not "22".
-- After R≈20 the best weight grows by roughly 15–25 per round
-  (≈22 per round on average between R=48 and R=128).
-- The cheapest trails alternate direction: backward at R≤14 and at
-  R≥24, forward at R=16, 22, 56, 64, 80. Each direction aligns best
-  with a different set of rotation windows.
+- Between R=22 and R=112 the best weight grows by roughly 12–21 per
+  round (≈22 on average between R=48 and R=128, because the last step,
+  112→128, is ≈36 per round: only offset 3 backward fits a full
+  128-round trail).
+- The cheapest trails alternate direction. Among the tabulated R values:
+  backward at R=9, 10, 12, 14 (tied with offset 23 forward), 18, 20, 24,
+  32, 40, 48, 96, 112, 128; forward at R=16, 22, 56, 64, 80. Each
+  direction aligns best with a different set of rotation windows.
 - The R=128 best (offset 3 backward) covers exactly rounds 0..127
   (`end_round(3) = 127`, `realizable_R = 128`). It is a real trail
   inside the cipher, not a virtual extension. Offsets whose
@@ -380,7 +396,10 @@ prediction:
 minimum weight for every R from 1 to 14 (layer sizes 4, 64, 84, 10, 4,
 2, 1, 1, …, 1; the layer collapses to a single trail from R=7). The
 predicted and empirical magnitudes agree within σ at every R. There is
-**no cancellation** for this end mask.
+**no cancellation** for this end mask. The weight is flat from R=5 to
+R=14: the trail is five cheap rounds followed by a 9-round weight-0
+chain, so the rows R=5–14 are the same signal, not independent
+confirmations.
 
 **Offset 23 forward, R=14, w=5** (start bit 197 of `s[23]`). This
 trail is **not** isolated and cancels from R=8:
@@ -411,25 +430,27 @@ Hull effects are not a uniform correction, and they are not always
 destructive: some trails survive intact.
 
 **The offset-20 backward trail at R=14 (weight 5) is therefore a
-verified linear distinguisher at 14 rounds**: it is isolated in its
-hull and its empirical correlation matches the prediction on the real
-cipher. It is the only end mask for which a hull check at this weight
-has been completed.
+verified linear distinguisher on a 14-round window (rounds 100–113)**:
+it is isolated in its hull and its empirical correlation matches the
+prediction on the real cipher. It is the only end mask for which a hull
+check at this weight has been completed. It is a property of that window
+of the cipher, not a distinguisher for a 14-round version starting at
+round 0 and not an attack on the 128-round cipher.
 
 ### 2.10. Conclusion
 
 **No linear bound is established over 128 rounds.** What is established
 is an exact model of `F` and of the round, verified short-range linear
-structure, a **verified distinguisher at 14 rounds** (offset 20
+structure, a **verified distinguisher on a 14-round window** (offset 20
 backward, weight 5, isolated hull), and an empirical picture of where
 cheap single trails end (≈20 rounds in the family searched). What is
 not:
 
 1. **A distinguisher length beyond R=14.** R=14 is established for the
    offset-20 backward trail. R≥16 requires a hull-aware correlation for
-   the chosen end masks; the trails of §2.8 at R=16–22 were not checked.
-   The next step is the exact signed hull (`propagate()`) for the best
-   end-mask pairs at R=16–22.
+   the chosen end masks; the trails of §2.8 at R=16–22 were not
+   checked. The next step is the exact signed hull (`propagate()`) for
+   the best end-mask pairs at R=16–22.
 2. **A certified lower bound** on the best trail weight over 128
    rounds. Beam search only gives upper bounds; the truncations
    (`g-keep 3`, beam, single-bit starts, exclusion of `b=0xFFFFFFFF`)
@@ -448,12 +469,13 @@ not:
 
 The 9-round free chain is a structural property of the rotation
 schedule. It is not an attack: beyond it, the best single-trail weight
-grows by 15–25 per round, so the count of "free" rounds is not a
-reduction of the 128 by 9 in any useful sense.
+grows by roughly 12–21 per round, so the count of "free" rounds is not
+a reduction of the 128 by 9 in any useful sense.
 
 The most likely attack surface remains linear, by analogy with Simon
-(hull attacks covering ~49/68 rounds, complexity ~2¹²⁷). **MYSX's
-linear security over 128 rounds is unknown.**
+(linear-hull key-recovery attacks reach 49 of Simon128/128's 68 rounds;
+Chen–Wang, FSE 2016). **MYSX's linear security over 128 rounds is
+unknown.**
 
 ---
 
@@ -502,21 +524,23 @@ control bits (predicted not balanced) flipped with probabilities
 verified empirically, because a 2⁶⁴-text integral cannot be
 approximated by 20,000 random samples.
 
-**Comparison with Simon (normalized).** Simon32/64 has an 11-round
-integral distinguisher with 31 active bits (34% of its 32 rounds;
-Todo–Morii FSE 2016). MYSX's 6-round / 2³²-text distinguisher covers
-4.7% of its 128 rounds. In relative coverage MYSX is stronger; in
-absolute rounds Simon reaches further (11 vs 6) because MYSX has 4×
-more rounds. The two are not directly comparable without normalizing
-by total rounds.
+**Comparison with Simon (normalized).** Simon32/64 has a 14-round
+integral distinguisher with 31 active bits under the conventional
+bit-based division property, and a 15-round one using three subsets
+(Todo–Morii FSE 2016): 44% of its 32 rounds. MYSX's 6-round /
+2³²-text distinguisher covers 4.7% of its 128 rounds. In relative
+coverage MYSX is stronger; in absolute rounds Simon reaches further
+(14 vs 6) even though MYSX has 4× more rounds. The two are not directly
+comparable without normalizing by total rounds.
 
 **What this does not establish.** Integral distinguishers beyond 6
 rounds for multi-bit inputs; behaviour for r0 ≠ 0 (rotation has
 period 31; windows 12 and 27 are where linear chains are longest);
-full-block inputs (255 active bits); three-subset DP (Hu et al.
-2021) and traceability-enhanced DP (Wang et al. 2023), which may
-extend the distinguishers; and any key-recovery attack based on
-these distinguishers.
+full-block inputs (255 active bits); three-subset division property
+(Todo–Morii FSE 2016; variant without unknown subset: Hao et al.,
+EUROCRYPT 2020) and traceability-enhanced variants (Wang et al., 2023;
+citation to be verified), which may extend the distinguishers; and any
+key-recovery attack based on these distinguishers.
 
 ---
 
@@ -599,17 +623,22 @@ w=8, or w=32 directly.
 
 | Attack | Complexity | Verdict |
 |---|---|---|
-| Classical brute force | 2⁵¹² operations | Infeasible |
-| Grover (quantum) | 2²⁵⁶ iterations | Infeasible with foreseeable technology |
+| Classical brute force | 2⁵¹² operations (uniformly random 512-bit key) | Infeasible |
+| Grover (quantum) | 2²⁵⁶ iterations (uniformly random 512-bit key) | Infeasible with foreseeable technology |
 | Block collisions (birthday) | 2¹²⁸ blocks | Infeasible |
 
-**Note on Grover.** With a 512-bit key, Grover leaves 256 bits of
-effective security. Theoretical estimate only; no other post-quantum
-analysis has been done.
+**Note on Grover.** With a uniformly random 512-bit key, Grover leaves
+256 bits of effective security. Theoretical estimate only; no other
+post-quantum analysis has been done.
 
-**Note on the 512-bit key.** HKDF-SHA256 produces at most a 256-bit
-pseudorandom key. If the master secret has 256 bits of entropy, the
-effective security is 256 bits, not 512.
+**Note on the 512-bit key.** The API's key-derivation functions start
+from HKDF-Extract (a 256-bit pseudorandom key). HKDF-Expand can output
+64 bytes, but they are a deterministic function of that 256-bit value,
+so a derived `encKey` carries at most 256 bits of entropy. If the master
+secret has 256 bits of entropy, the effective classical security is 256
+bits (not 512) and the Grover figure is 2¹²⁸ (not 2²⁵⁶). The 2⁵¹² and
+2²⁵⁶ figures apply only to a uniformly random 64-byte key supplied
+directly to `aeadEncrypt`.
 
 ---
 
@@ -644,16 +673,20 @@ structure and its key schedule; the preliminary MYSX results in
 Section 3 are considerably shorter, and their relationship to Simon's
 is one of normalized coverage, not direct transfer.
 
-**Published Simon128/128 attacks** (68 rounds):
+**Published Simon results** (context only; figures checked against the
+papers' abstracts, unverified round counts from earlier drafts were
+removed):
 
-- Linear-hull distinguishers covering ~49 rounds, complexity ~2¹²⁷
-  (Chen–Wang, ePrint 2014/973).
-- Differential distinguishers covering ~46–50 rounds, complexity
-  ~2¹²⁵·⁷ (Biryukov–Roy–Velichkov, CRYPTO 2015).
-- SAT-based algebraic distinguishers covering ~12–14 rounds.
-- Integral distinguishers covering ~26 rounds for Simon128/128 with
-  multi-bit inputs, and ~11 rounds for Simon32/64 with 31 active bits
-  (Todo–Morii, FSE 2016).
+- Linear-hull key-recovery attacks with dynamic key-guessing reaching
+  49 rounds of Simon128/128 (Chen–Wang, FSE 2016, ePrint 2015/666).
+- A 34-round linear characteristic with correlation 2⁻⁶¹ for Simon128
+  and improved linear hulls (Shi et al., ePrint 2014/973).
+- Differential analysis of Simon and Speck (Biryukov–Roy–Velichkov,
+  FSE 2014).
+- Integral distinguishers: 14 rounds for Simon32 (conventional
+  bit-based division property) and 15 with three subsets (Todo–Morii,
+  FSE 2016); 14/16/18/22/26 rounds for Simon32/48/64/96/128
+  (Xiang–Zhang–Bao–Lin, ASIACRYPT 2016).
 - Structural observations on the SIMON family
   (Kölbl–Leander–Tiessen, CRYPTO 2015).
 
@@ -689,9 +722,9 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 ## 10. Analysis limitations
 
 - **Differential**: upper bounds on single-trail for one input at
-  r=12–14; one trail verified at r=4 (clustering factor 2.00×); no
-  lower bounds; no full clustering analysis; no inputs in the free
-  windows.
+  r=12–14, rotation offset not varied; one trail verified at r=4
+  (clustering factor 2.00×); no lower bounds; no full clustering
+  analysis; no inputs in the free windows.
 - **Linear**: exact model of F established and verified against the
   real cipher at small round counts (|corr|=1 chains at 5 and 9
   rounds; exact signed hulls at r=10,11,12). Beam search over the
@@ -699,15 +732,15 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
   128 rounds, gives achievable single-trail weights: 2 at R=12, 5 at
   R=14, 38 at R=20, below 64 up to R=22 (63, a tie with the
   threshold), 2248 at R=128 (offset 3 backward). The offset-20
-  backward trail at R=14 is **isolated in its hull** (`hull_count` =
-  1) and its empirical correlation matches 2⁻⁵: that is a verified
-  linear distinguisher at 14 rounds. Other trails cancel or are ≈2×
-  larger, so these are not universally distinguisher lengths.
-  **No lower bound over 128 rounds; no hull-aware bound beyond
+  backward trail at R=14 (rounds 100–113) is **isolated in its hull**
+  (`hull_count` = 1) and its empirical correlation matches 2⁻⁵: that is
+  a verified linear distinguisher on a 14-round window. Other trails
+  cancel or are ≈2× larger, so these are not universally distinguisher
+  lengths. **No lower bound over 128 rounds; no hull-aware bound beyond
   R≈14; no key-recovery cost estimate. Multi-bit starts (pairs47,
-  rand:5000:4) were explored and did not improve on single-bit
-  starts, but the random sample is too small to be conclusive for
-  structured multi-bit masks.**
+  rand:5000:4) were explored and did not improve on single-bit starts,
+  but the random sample is too small to be conclusive for structured
+  multi-bit masks.**
 - **Integral**: preliminary. 6-round distinguisher with 2³² texts
   (word 0 active) and 5-round distinguisher with 2⁶⁴ texts (words 0,4
   active), using the sound `(1,1)`-invalid division-property rule.
@@ -728,21 +761,22 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
 
 ## 11. Verdict
 
-**MYSX-256/512 v0.2-draft is an experimental proposal, not a secure
+**MYSX-256/512 v0.1-draft2 is an experimental proposal, not a secure
 cipher.** The differential analysis reports upper bounds on
-single-trail weights with one trail verified at r=4 (clustering factor
-2.00×), not a security proof. The linear side has an exact model of `F`
-and of the round; it reproduces the real cipher's linear behaviour on
-the small round counts where it has been checked, and it establishes
-`|corr|=1` chains at 5 and 9 rounds plus exact signed hulls at r=10–12.
-A beam search over that model, run in **both directions** across all 31
-rotation offsets and merged, finds that cheap single trails end at
-roughly 20 rounds (weight 38 at R=20, below 64 only up to R=22 with 63
-— a tie with the threshold — then about 15–25 more per round; 2248 at
-R=128, offset 3 backward). The offset-20 backward trail at R=14 (weight
-5) is isolated in its hull and its empirical correlation matches the
-prediction: **that is a verified linear distinguisher at 14 rounds**.
-For other trails, a check against the real cipher shows that a
+single-trail weights (one input, rotation offset not varied) with one
+trail verified at r=4 (clustering factor 2.00×), not a security proof.
+The linear side has an exact model of `F` and of the round; it
+reproduces the real cipher's linear behaviour on the small round counts
+where it has been checked, and it establishes `|corr|=1` chains at 5 and
+9 rounds plus exact signed hulls at r=10–12. A beam search over that
+model, run in **both directions** across all 31 rotation offsets and
+merged, finds that cheap single trails end at roughly 20 rounds (weight
+38 at R=20, below 64 only up to R=22 with 63 — a tie with the threshold
+— then roughly 12–21 more per round up to R=112; 2248 at R=128, offset 3
+backward). The offset-20 backward trail at R=14 (weight 5, rounds
+100–113) is isolated in its hull and its empirical correlation matches
+the prediction: **that is a verified linear distinguisher on a 14-round
+window**. For other trails, a check against the real cipher shows that a
 single-trail weight can be exact, ≈2× too low, or exactly cancelled, so
 these numbers say where cheap trails end, not universally how long a
 distinguisher is. No lower bound over 128 rounds has been established,
@@ -762,16 +796,16 @@ The cipher has not been externally audited.
   XChaCha20-Poly1305.
 - **If reviewing**, focus on: the exact signed hull for the best
   end-mask pairs of §2.8 at R=16–22 (the step that turns a weight into
-  a distinguisher length beyond R=14), multi-bit starts with larger
-  structured samples, a certified lower bound on the linear single-trail
-  weight (the MILP/SAT encoding in `LINEAR_MODEL.md` §7), related-key
-  MILP, differential inputs in the free windows, and integral
-  distinguishers beyond the preliminary 5–6 round results in Section 3
-  (r0 ≠ 0, full-block inputs, and three-subset DP). The verified
-  9-round `|corr|=1` chains, the exact signed hulls at r=10–12, the
-  isolation of the offset-20 backward trail at R=14, and the
-  cancellation of the r0=23 trail from R=8 are concrete points the new
-  analysis must reproduce.
+  a distinguisher length beyond R=14), differential analysis over all
+  rotation offsets and with inputs in the free windows, multi-bit starts
+  with larger structured samples, a certified lower bound on the linear
+  single-trail weight (the MILP/SAT encoding in `LINEAR_MODEL.md` §7),
+  related-key MILP, and integral distinguishers beyond the preliminary
+  5–6 round results in Section 3 (r0 ≠ 0, full-block inputs, and
+  three-subset DP). The verified 9-round `|corr|=1` chains, the exact
+  signed hulls at r=10–12, the isolation of the offset-20 backward trail
+  at R=14, and the cancellation of the r0=23 trail from R=8 are concrete
+  points the new analysis must reproduce.
 - **If extending**, the priorities are documented in PAPER.md §4.7,
   §4.9, §4.10 and §8.
 
@@ -782,7 +816,8 @@ The cipher has not been externally audited.
 - Do not declare MYSX "secure": differential, linear, integral,
   related-key, and others are attack families, not all of them.
 - Do not present as "post-quantum": the key size is large, but the
-  post-quantum analysis has not been done beyond Grover.
+  post-quantum analysis has not been done beyond Grover (and HKDF-derived
+  keys carry at most 256 bits of entropy).
 - Do not use the old approximate linear MILP (`misc/mysx_linear_milp.py`)
   as evidence: it is superseded and its trails do not verify.
 - Do not report the 10-round single-bit dependency propagation as an
@@ -793,9 +828,12 @@ The cipher has not been externally audited.
   R=22" does not mean "a 22-round linear distinguisher exists", nor
   that none exists beyond it. The R=14 offset-20 backward trail is an
   exception where the hull check was completed and the weight *is* the
-  correlation.
+  correlation, on that window only.
 - Do not compare a differential weight with a linear weight directly
-  (differential: 2^w pairs; linear: 2^{2w} texts).
+  (differential: 2^w pairs; linear: 2^{2w} texts), and do not compare
+  the differential figure (one input, one offset) with the linear
+  figure (minimum over all offsets) as if they were the same kind of
+  number.
 - Do not treat the "≈20–22 rounds" threshold as exact: at beam 1000
   the same cell gives 64/71, so it is a tie with the 64 threshold, not
   a strict bound.
@@ -873,17 +911,24 @@ A third-party implementation should target the **public digest**.
   (NIST SP 800-38D).
 - König's theorem (bipartite matching / vertex cover) for the
   rank/matching identity in §2.2.
-- Todo–Morii (FSE 2016): bit-based division property and integral
-  distinguishers, including the standard `(1,1)`-invalid XOR rule
-  and the COPY / AND rules used in Section 3.
-- Hu et al. (2021): three-subset division property (not implemented
-  here; may extend the integral distinguishers).
+- Todo–Morii (FSE 2016, ePrint 2016/285): bit-based division property
+  and integral distinguishers on Simon32, including the standard
+  `(1,1)`-invalid XOR rule and the COPY / AND rules used in Section 3,
+  and the three-subset variant.
+- Hao–Leander–Meier–Todo–Wang (EUROCRYPT 2020): three-subset division
+  property without unknown subset (not implemented here; may extend the
+  integral distinguishers).
 - Wang et al. (2023): traceability-enhanced division property (not
-  implemented here).
-- Chen–Wang (ePrint 2014/973): linear hull cryptanalysis of
-  round-reduced Simon.
-- Biryukov–Roy–Velichkov (CRYPTO 2015): differential analysis of
-  Simon and Speck.
+  implemented here; citation to be verified).
+- Xiang–Zhang–Bao–Lin (ASIACRYPT 2016, ePrint 2016/857): MILP search of
+  integral distinguishers by division property, including Simon32/48/
+  64/96/128.
+- Chen–Wang (FSE 2016, ePrint 2015/666): improved linear hull attack on
+  round-reduced Simon with dynamic key-guessing.
+- Shi–Hu–Sun–Song–Qiao–Ma (ePrint 2014/973): improved linear (hull)
+  cryptanalysis of round-reduced versions of SIMON.
+- Biryukov–Roy–Velichkov (FSE 2014): differential analysis of Simon and
+  Speck.
 - Kölbl–Leander–Tiessen (CRYPTO 2015): observations on the SIMON
   block cipher family.
 

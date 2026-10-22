@@ -5,7 +5,11 @@ Experimental block cipher with a 256-bit block and 512-bit key.
 For real data: AES-256-GCM or XChaCha20-Poly1305.
 
 Author: StringManolo
-Version: `v0.2-draft` (2026)
+Version: `v0.1-draft2` (2026) — documentation draft 2. The reference
+implementation (`mysx.prod.js`) is still `v0.1-draft`; the cipher and
+the code did not change. (An earlier revision of this text was labelled
+`v0.2-draft`; that label is withdrawn because it suggested a change of
+the cipher.)
 
 ## Status
 
@@ -14,8 +18,8 @@ Version: `v0.2-draft` (2026)
 | Specification | [SPEC.md](SPEC.md), [PAPER.md](PAPER.md) §2 |
 | Test vectors | [KAT.json](KAT.json) |
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
-| Differential cryptanalysis | Upper bounds observed; r=4 trail directly verified with clustering factor 2.00× |
-| Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; beam search over the exact model **in both directions (forward + backward)**, merged over all 31 offsets and up to 128 rounds (achievable single-trail weight 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 with 63, a tie with the threshold; 2248 at R=128, offset 3 backward, a real trail inside the cipher). **Verified linear distinguisher at 14 rounds**: the offset-20 backward trail (weight 5) is isolated in its hull and its empirical correlation matches 2⁻⁵. Other trails cancel or are ≈2× larger. **No 128-round bound** |
+| Differential cryptanalysis | Upper bounds observed (one input, rotation offset not varied, so the r≈15 extrapolation is likely optimistic); r=4 trail directly verified with clustering factor 2.00× |
+| Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; beam search over the exact model **in both directions (forward + backward)**, merged over all 31 offsets and up to 128 rounds (achievable single-trail weight 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 with 63, a tie with the threshold; 2248 at R=128, offset 3 backward, a real trail inside the cipher). **Verified linear distinguisher on a 14-round window (rounds 100–113)**: the offset-20 backward trail (weight 5) is isolated in its hull and its empirical correlation matches 2⁻⁵; it is five cheap rounds plus a 9-round weight-0 chain, not an attack on the full cipher. Other trails cancel or are ≈2× larger. **No 128-round bound** |
 | Integral cryptanalysis | Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency (not an integral); only r0=0 tested |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
 | Impossible differential / boomerang / algebraic | Not analyzed |
@@ -114,24 +118,33 @@ the cipher:
 ## Usage (research only)
 
 ```javascript
+const nodeCrypto = require('node:crypto');
 const {
   aeadEncrypt, aeadDecrypt, deriveAeadKeys, NonceGuard
 } = require('./mysx.prod.js');
 
-const master = crypto.getRandomValues(new Uint8Array(32));
-const { encKey, macKey } = await deriveAeadKeys(master, { context: 'demo' });
-const guard = new NonceGuard();
+(async () => {
+  const master = nodeCrypto.randomBytes(32);   // Buffer is a Uint8Array
+  const { encKey, macKey } = await deriveAeadKeys(master, { context: 'demo' });
+  const guard = new NonceGuard();
 
-const plaintext = new TextEncoder().encode('hola mundo');
-const packet = await aeadEncrypt(plaintext, encKey, macKey, { nonceGuard: guard });
-const recovered = await aeadDecrypt(packet, encKey, macKey);
+  const plaintext = new TextEncoder().encode('hola mundo');
+  const packet = await aeadEncrypt(plaintext, encKey, macKey, { nonceGuard: guard });
+  const recovered = await aeadDecrypt(packet, encKey, macKey);
+  console.log(new TextDecoder().decode(recovered));
+})();
 ```
 
 Notes on the public API:
 
 - `aeadEncrypt` requires a `NonceGuard` or `unsafeNoGuard: true`.
-  The nonce is always generated internally; there is no public path
-  to impose it.
+  The nonce is always generated internally (16 random bytes); there is
+  no public path to impose it. Because nonces are 128-bit random, an
+  accidental `(key, nonce)` repeat is negligible; the guard mainly
+  enforces the per-key message limit and catches a faulty RNG.
+- Keys produced by `deriveAeadKeys*` come from HKDF-SHA256 over a
+  256-bit PRK, so they carry at most 256 bits of entropy (see
+  PAPER.md §6).
 - The test API is disabled by default. Set `MYSX_ENABLE_TEST=1` in the
   process environment before `require('./mysx.prod.js')` to enable it.
 - All public inputs are type-checked (`Uint8Array` with exact lengths).
@@ -225,8 +238,9 @@ python3 mysx_linear_beam.py run --direction backward --beam 2000 --jobs 8 --path
 # Combined table (forward + backward, minimum over offsets and directions)
 python3 mysx_linear_beam.py merge beam_full.json beam_pairs47.json beam_bwd.json
 
-# Verified distinguisher at R=14: offset-20 backward trail, hull = 1 trail,
-# empirical correlation ≈ ±0.0279 (σ = 0.0028) vs predicted 0.0312
+# Verified distinguisher on the 14-round window (rounds 100-113): offset-20
+# backward trail, hull = 1 trail, empirical correlation ≈ ±0.0279
+# (σ = 0.0028) vs predicted 0.0312
 python3 verify_beam_trail.py beam_bwd.json 20 --R 14 --n 17
 python3 hull_count.py beam_bwd.json 20 --R 14 --wmax 5
 
@@ -241,8 +255,9 @@ python3 mysx_linear_beam.py run --offsets 12,23,24,25,26,27 --starts rand:5000:4
 
 The tool needs only Python 3 (no dependencies). Its output values are
 **achievable single-trail weights** (upper bounds on the best weight),
-not correlations: see PAPER.md §4.10.3 for why, and §4.10.3 for the
-offset-20 backward trail at R=14 that *is* a verified distinguisher.
+not correlations: see PAPER.md §4.10.3 for why, and for the offset-20
+backward trail at R=14 that *is* a verified distinguisher of its
+window.
 
 The old approximate linear MILPs (`misc/mysx_linear_milp.py`, three
 variants) are kept for historical reference but are **superseded**.
@@ -295,7 +310,8 @@ node misc/keyschedule_test_extended.js --thorough
 
 - **Observed upper bounds** on the best single-trail differential
   weight for one input at r=12–14 (weight 114 at r=14, extrapolating
-  to the 128-bit threshold at r≈15). **Not a proof of security.**
+  to the 128-bit threshold at r≈15). The rotation offset was not
+  varied, so this is likely optimistic. **Not a proof of security.**
 - **Direct verification of the r=4 differential trail at w=32**: the
   trail exists with observed probability 2⁻⁷ vs MILP prediction 2⁻⁸,
   giving a clustering factor of **2.00×**.
@@ -334,19 +350,24 @@ node misc/keyschedule_test_extended.js --thorough
   backward; a real trail inside the cipher, not a virtual extension).
   Weight below 64 (≈2¹²⁸ texts) only up to R=22 (weight 63, a **tie**
   with the threshold; "≈20–22" is the defensible reading), below 32
-  only up to R=19. Growth of about 15–25 per round after R≈20. The
-  cheapest trails alternate direction: backward at R≤14 and at R≥24,
-  forward at R=16, 22, 56, 64, 80. The tool reproduces the earlier
-  r0=12/27 table exactly and passes its own `selftest` in both
-  directions.
-- **Verified linear distinguisher at 14 rounds.** The offset-20
+  only up to R=19. Between R=22 and R=112 the best weight grows by
+  roughly 12–21 per round (the last step, 112→128, is ≈36 per round
+  because only one offset fits a full 128-round trail). The cheapest
+  trails alternate direction: among the tabulated R values, backward at
+  R=9, 10, 12, 14, 18, 20, 24, 32, 40, 48, 96, 112, 128 and forward at
+  R=16, 22, 56, 64, 80. The tool reproduces the earlier r0=12/27 table
+  exactly and passes its own `selftest` in both directions.
+- **Verified linear distinguisher on a 14-round window.** The offset-20
   backward trail at R=14 (weight 5, covering rounds 100..113) is
   **isolated in its hull** (`hull_count` returns exactly one trail at
   the minimum weight for every R from 1 to 14) and its empirical
   correlation on the real cipher matches the predicted 2⁻⁵ at every
   prefix (measured ±0.0279 vs predicted 0.0312, σ = 0.0028, no
-  cancellation). This is the first non-trivial linear distinguisher the
-  analysis certifies, and it can be stated as such.
+  cancellation). The weight is flat from R=5 to R=14 (five cheap rounds
+  followed by a 9-round weight-0 chain), so the later rows are the same
+  signal. This is the first non-trivial linear distinguisher the
+  analysis certifies; it is a property of that window, not an attack on
+  the 128-round cipher.
 - **Hull effects measured and non-uniform**: across the trails checked,
   the real correlation of a beam trail was equal to its single-trail
   value (offset-20 backward at R=14; r0=12 forward up to R=12), about
@@ -375,7 +396,8 @@ node misc/keyschedule_test_extended.js --thorough
 ## What this paper does **not** establish
 
 - No lower bound on differential trail weights (requires gap=0 and
-  multi-bit input search), no differential inputs in the free windows.
+  multi-bit input search), no differential inputs in the free windows,
+  and no variation of the rotation offset in the differential runs.
 - No full differential clustering analysis (sum over all trails with
   the same Δin, Δout).
 - **No linear bound over 128 rounds.** Beam values are upper bounds
@@ -400,16 +422,17 @@ node misc/keyschedule_test_extended.js --thorough
 - **No integral bound.** The 5–6 round distinguishers reported above
   are preliminary: only r0 = 0 was tested; full-block inputs (255
   active bits), other round windows (notably r0 = 12 and r0 = 27),
-  three-subset division property (Hu et al. 2021), and traceability-
-  enhanced DP (Wang et al. 2023) are not explored. The 5-round /
-  2⁶⁴-text distinguisher was not verified empirically.
+  three-subset division property and traceability-enhanced variants
+  are not explored. The 5-round / 2⁶⁴-text distinguisher was not
+  verified empirically.
 - No key-recovery cost estimate from any trail (differential, linear,
   or integral).
 - No related-key bound (heuristic only); the number of consecutive
   round keys needed to recover the master key was not measured.
 - No impossible-differential, boomerang, or algebraic analysis.
 - No external review.
-- No proof of post-quantum security beyond the trivial Grover bound.
+- No proof of post-quantum security beyond the trivial Grover bound
+  (2²⁵⁶ for a uniformly random 512-bit key, 2¹²⁸ for HKDF-derived keys).
 
 ## Design weaknesses acknowledged
 
@@ -428,34 +451,36 @@ node misc/keyschedule_test_extended.js --thorough
   `|corr| = 1` chains exist at windows 12 and 27, and cheap single
   trails (weight < 64) extend to about 22 rounds in the best
   direction (forward at R=22, weight 63; backward at R=24, weight 88).
-  Beyond R≈20 the best single-trail weight grows by 15–25 per round,
-  so this is a short-range property of the rotation schedule and the
-  diffusion, not an attack on the 128-round cipher (no lower bound
+  Beyond R≈20 the best single-trail weight grows by roughly 12–21 per
+  round, so this is a short-range property of the rotation schedule and
+  the diffusion, not an attack on the 128-round cipher (no lower bound
   over 128 rounds, no hull-aware bound beyond R≈14, no key recovery).
   **However, the offset-20 backward trail at R=14 is a verified
-  distinguisher**: it is isolated in its hull and its empirical
-  correlation matches the prediction. An external reviewer should look
-  here first. See PAPER.md §4 and
+  distinguisher of its window**: it is isolated in its hull and its
+  empirical correlation matches the prediction. An external reviewer
+  should look here first. See PAPER.md §4 and
   `cryptanalysis/models/linear/LINEAR_MODEL.md`.
 - **Position inside the cipher matters, and it is a schedule
-  artifact**: the output end of the cipher is cheaper than the input
-  end for these trails (e.g. R=14: weight 8 at offset 20 backward vs
-  weight 45 at offset 0 forward). This is a property of the period-31
-  rotation schedule combined with the 128 round count, not of F.
-  Changing the round count or the rotation schedule moves the
-  alignment. This is documented as a design decision, not hidden.
+  artifact**: the cost of a 14-round trail depends strongly on where it
+  sits in the period-31 rotation schedule (backward offsets at R=14:
+  weight 5 at offset 20, 17 at offset 0, 61 at offset 6; PAPER.md
+  §4.10.2). This is a property of the rotation schedule combined with
+  the 128 round count, not of F. Changing the round count or the
+  rotation schedule moves the alignment. The differential runs did not
+  vary this offset, which is why their bound is probably optimistic.
+  This is documented as a design decision, not hidden.
 - **Integral distinguishers are short but present**: 6 rounds with
   2³² texts and 5 rounds with 2⁶⁴ texts. In relative coverage (4–5%
-  of 128 rounds) this is stronger than Simon32/64 (34% of its 32
-  rounds, 11-round integral distinguisher with 31 active bits,
-  Todo–Morii FSE 2016), but only r0 = 0 was tested and the analysis
-  is preliminary. See PAPER.md §4.9.
+  of 128 rounds) this is stronger than Simon32/64 (14 rounds, 44% of
+  its 32 rounds, 31 active bits, Todo–Morii FSE 2016; 15 with three
+  subsets), but in absolute rounds Simon reaches further, only r0 = 0
+  was tested and the analysis is preliminary. See PAPER.md §4.9.
 
 ## Citation
 
 ```
 StringManolo. "MYSX-256/512: A 256-bit Block Cipher with 512-bit Keys
-(v0.2-draft)". 2026. https://github.com/stringmanolo/MYSX-256
+(v0.1-draft2)". 2026. https://github.com/stringmanolo/MYSX-256
 ```
 
 ## Final warning
