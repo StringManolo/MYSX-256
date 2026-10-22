@@ -13,6 +13,7 @@ a = ap.parse_args()
 d = json.load(open(a.json))
 r = [x for x in d["results"] if x["offset"] == a.offset][0]
 path = [int(h, 16) for h in r["paths"][str(a.R)]]
+first = r.get("first_round", {}).get(str(a.R), a.offset)   # first round of the saved trail
 
 def full_expand(x, sh):
     w = [(x >> (32 * i)) & M32 for i in range(8)]
@@ -34,7 +35,7 @@ def full_expand(x, sh):
 
 layer = {(path[0], 0): 1}
 for R in range(1, a.R + 1):
-    sh = ((a.offset + R - 1) % 31) + 1
+    sh = ((first + R - 1) % 31) + 1
     nxt = {}
     for (x, wx), cnt in layer.items():
         for y, c in full_expand(x, sh):

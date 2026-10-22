@@ -5,7 +5,7 @@ Experimental block cipher with a 256-bit block and 512-bit key.
 For real data: AES-256-GCM or XChaCha20-Poly1305.
 
 Author: StringManolo
-Version: `v0.1-draft` (2026)
+Version: `v0.2-draft` (2026)
 
 ## Status
 
@@ -15,7 +15,7 @@ Version: `v0.1-draft` (2026)
 | Test vectors | [KAT.json](KAT.json) |
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
 | Differential cryptanalysis | Upper bounds observed; r=4 trail directly verified with clustering factor 2.00× |
-| Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; **no 128-round bound** |
+| Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; beam search over the exact model **in both directions (forward + backward)**, merged over all 31 offsets and up to 128 rounds (achievable single-trail weight 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 with 63, a tie with the threshold; 2248 at R=128, offset 3 backward, a real trail inside the cipher). **Verified linear distinguisher at 14 rounds**: the offset-20 backward trail (weight 5) is isolated in its hull and its empirical correlation matches 2⁻⁵. Other trails cancel or are ≈2× larger. **No 128-round bound** |
 | Integral cryptanalysis | Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency (not an integral); only r0=0 tested |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
 | Impossible differential / boomerang / algebraic | Not analyzed |
@@ -67,7 +67,7 @@ the cipher:
 ├── SECURITY.md                  # Standalone security summary
 ├── TODO.md                      # Open items
 ├── KAT.json                     # Test vectors (block, AEAD, KDF)
-├── MYSX-paper.pdf               # Rendered paper
+├── MYSX-paper.pdf               # Rendered paper (regenerate from PAPER.md)
 ├── generate_kat.py              # KAT generator
 ├── mysx.prod.js                 # Public API (AEAD, KDF, NonceGuard)
 ├── mysx.test.js                 # Functional test suite (17 tests)
@@ -76,8 +76,16 @@ the cipher:
 │       └── linear/
 │           ├── mysx_linear_model.py   # EXACT linear model of F + round
 │           ├── LINEAR_MODEL.md        # Detailed model documentation
-│           └── linear_model_data.json # All numbers from PAPER.md §4 as JSON
+│           └── linear_model_data.json # Numbers from PAPER.md §4.1–§4.9 as JSON
 └── misc/
+    ├── mysx_linear_beam.py            # Beam search over the exact linear model, all offsets, up to 128 rounds, both directions (selftest, reproduce, run, merge)
+    ├── beam_full.log                  # Output of the forward PAPER.md §4.10 run
+    ├── beam_full.json                 # Same run: weights per round/offset, saved trails
+    ├── beam_bwd.log                   # Output of the backward PAPER.md §4.10 run
+    ├── beam_bwd.json                  # Same run: weights per round/offset, saved trails
+    ├── beam_pairs47.json              # Output of the pairs47 multi-bit run (merged; not an improvement)
+    ├── verify_beam_trail.py           # Prefix-by-prefix check of a saved trail vs the real cipher, both directions
+    ├── hull_count.py                  # Counts trails sharing the end masks of a saved trail
     ├── mysx_milp.py                   # Differential MILP
     ├── mysx_linear_milp.py            # Previous approximate linear MILPs (superseded)
     ├── mysx_division_property.py      # Bit-based division property MILP (v1)
@@ -195,6 +203,47 @@ node misc/mini_linear_fast.js
 node misc/verify_trail_w32.js
 ```
 
+#### Beam search to 128 rounds, all offsets, both directions (PAPER.md §4.10)
+
+```bash
+cd misc
+
+# Validate the tool against the real cipher. In both directions:
+# LAT of F, one round, 9-round chains, forward/backward edge duality,
+# backward 9-round chains, backward R=14 trail is a valid forward trail.
+python3 mysx_linear_beam.py selftest
+
+# Reproduce the PAPER.md §4.5 table (r0=12 and r0=27, R<=14)
+python3 mysx_linear_beam.py reproduce
+
+# Forward run reported in PAPER.md §4.10 (~33 min with 8 processes)
+python3 mysx_linear_beam.py run --beam 2000 --jobs 8 --paths 12,14,20,24,32,64,128 --out beam_full.json | tee beam_full.log
+
+# Backward run reported in PAPER.md §4.10 (~25 min with 8 processes)
+python3 mysx_linear_beam.py run --direction backward --beam 2000 --jobs 8 --paths 12,14,20,24,32,64,128 --out beam_bwd.json | tee beam_bwd.log
+
+# Combined table (forward + backward, minimum over offsets and directions)
+python3 mysx_linear_beam.py merge beam_full.json beam_pairs47.json beam_bwd.json
+
+# Verified distinguisher at R=14: offset-20 backward trail, hull = 1 trail,
+# empirical correlation ≈ ±0.0279 (σ = 0.0028) vs predicted 0.0312
+python3 verify_beam_trail.py beam_bwd.json 20 --R 14 --n 17
+python3 hull_count.py beam_bwd.json 20 --R 14 --wmax 5
+
+# Cancellation example (for comparison): r0=23 forward trail cancels from R=8
+python3 verify_beam_trail.py beam_full.json 23 --R 14 --n 17
+python3 hull_count.py beam_full.json 23 --R 14
+
+# Multi-bit starts (explored; did not improve on single-bit; see TODO.md)
+python3 mysx_linear_beam.py run --offsets 12,23,24,25,26,27 --starts pairs47 --beam 2000 --paths 14,20,24 --out beam_pairs47.json
+python3 mysx_linear_beam.py run --offsets 12,23,24,25,26,27 --starts rand:5000:4 --beam 2000 --paths 14,20,24 --out beam_rand.json
+```
+
+The tool needs only Python 3 (no dependencies). Its output values are
+**achievable single-trail weights** (upper bounds on the best weight),
+not correlations: see PAPER.md §4.10.3 for why, and §4.10.3 for the
+offset-20 backward trail at R=14 that *is* a verified distinguisher.
+
 The old approximate linear MILPs (`misc/mysx_linear_milp.py`, three
 variants) are kept for historical reference but are **superseded**.
 Their trails do not verify empirically because they used a per-cell
@@ -246,7 +295,7 @@ node misc/keyschedule_test_extended.js --thorough
 
 - **Observed upper bounds** on the best single-trail differential
   weight for one input at r=12–14 (weight 114 at r=14, extrapolating
-  to 128 at r≈15). **Not a proof of security.**
+  to the 128-bit threshold at r≈15). **Not a proof of security.**
 - **Direct verification of the r=4 differential trail at w=32**: the
   trail exists with observed probability 2⁻⁷ vs MILP prediction 2⁻⁸,
   giving a clustering factor of **2.00×**.
@@ -261,22 +310,50 @@ node misc/keyschedule_test_extended.js --thorough
   adjacency matrix of a subgraph of the 32-cycle `j ↔ j−7`; the valid
   set of `g` and the sign are given in closed form. Machine-checked
   against brute-force LAT in `selftest`.
-- **Exact mask propagation with key-dependent sign tracking**: every
-  trail carries its exact `(−1)^{Σ m_r·rk[r]}` factor. Free-chain
-  structure: a round has weight 0 iff words 0..3 of its input mask are
-  zero; the rotation schedule has period 31, so there are 31 distinct
-  windows.
+- **Exact mask propagation with key-dependent sign tracking**, in both
+  directions: every trail carries its exact `(−1)^{Σ m_r·rk[r]}` factor.
+  The `selftest` verifies that every forward edge is a backward edge
+  with the same cost (325 edges checked), so the two searches enumerate
+  the same set of trails. Free-chain structure: a round has weight 0
+  iff words 0..3 of its input mask are zero; the rotation schedule has
+  period 31, so there are 31 distinct windows.
 - **`|corr| = 1` single-bit linear relations over up to 9 consecutive
   rounds**, at windows `r ≡ 12 (mod 31)` and `r ≡ 27 (mod 31)`.
   Verified against the real cipher with three independent keys
-  (magnitude = 1, sign predicted exactly by the model).
+  (magnitude = 1, sign predicted exactly by the model). Found by both
+  the forward and backward searches at the corresponding residues
+  (20 and 4 mod 31).
 - **Exact signed linear hulls match the real cipher** at r=10, 11, 12
   (window r0=12) with |z| < 0.4 over 2²² plaintexts. Three independent
   predictions, three matches within sampling error.
-- **Beam-search upper bounds on single-trail weight** from single-bit
-  starts, up to r=14: weight 12 (window r0=12) and 11 (window r0=27)
-  at r=14. Each value is an achievable weight, i.e. an upper bound on
-  the best weight, not a minimum.
+- **Beam search over the exact model, both directions, all 31 offsets,
+  up to 128 rounds** (single-bit starts, beam 2000, merged): achievable
+  single-trail weight **2 at R=12, 5 at R=14, 38 at R=20, 88 at R=24,
+  204 at R=32, 361 at R=40, 485 at R=48, 630 at R=56, 786 at R=64,
+  1081 at R=80, 1336 at R=96, 1671 at R=112, 2248 at R=128** (offset 3
+  backward; a real trail inside the cipher, not a virtual extension).
+  Weight below 64 (≈2¹²⁸ texts) only up to R=22 (weight 63, a **tie**
+  with the threshold; "≈20–22" is the defensible reading), below 32
+  only up to R=19. Growth of about 15–25 per round after R≈20. The
+  cheapest trails alternate direction: backward at R≤14 and at R≥24,
+  forward at R=16, 22, 56, 64, 80. The tool reproduces the earlier
+  r0=12/27 table exactly and passes its own `selftest` in both
+  directions.
+- **Verified linear distinguisher at 14 rounds.** The offset-20
+  backward trail at R=14 (weight 5, covering rounds 100..113) is
+  **isolated in its hull** (`hull_count` returns exactly one trail at
+  the minimum weight for every R from 1 to 14) and its empirical
+  correlation on the real cipher matches the predicted 2⁻⁵ at every
+  prefix (measured ±0.0279 vs predicted 0.0312, σ = 0.0028, no
+  cancellation). This is the first non-trivial linear distinguisher the
+  analysis certifies, and it can be stated as such.
+- **Hull effects measured and non-uniform**: across the trails checked,
+  the real correlation of a beam trail was equal to its single-trail
+  value (offset-20 backward at R=14; r0=12 forward up to R=12), about
+  twice as large (r0=26, r0=27 forward), or exactly cancelled by a
+  second trail of the same weight (r0=23 forward from R=8, r0=24
+  forward). Single-trail weight is therefore not a *universal*
+  distinguisher length, but it is not universally cancelled either.
 - **The linear sampling harness is validated**: the hand-computed
   `w=8` case gives |corr| = 0.5 with fixed key, drops to ~0 with
   random keys per sample. Confirms that the earlier "no signal"
@@ -298,13 +375,28 @@ node misc/keyschedule_test_extended.js --thorough
 ## What this paper does **not** establish
 
 - No lower bound on differential trail weights (requires gap=0 and
-  multi-bit input search).
+  multi-bit input search), no differential inputs in the free windows.
 - No full differential clustering analysis (sum over all trails with
   the same Δin, Δout).
 - **No linear bound over 128 rounds.** Beam values are upper bounds
-  from single-bit starts only; multi-bit starts are unexplored; the
-  exact hull at 128 rounds would need a SAT/MILP encoding (proposed in
-  `cryptanalysis/models/linear/LINEAR_MODEL.md` §7, not implemented).
+  from single-bit starts only, with the 3 sparsest valid `g` per cell;
+  the exact hull at 128 rounds would need a SAT/MILP encoding
+  (proposed in `cryptanalysis/models/linear/LINEAR_MODEL.md` §7, not
+  implemented). No lower bound over 128 rounds; no hull-aware bound
+  beyond R≈14.
+- **No linear distinguisher length beyond R=14.** R=14 is established
+  for the offset-20 backward trail (isolated hull, empirical
+  correlation matches). R≥16 requires a hull-aware correlation for the
+  chosen end masks; the trails of the beam search at R=16–22 were not
+  checked at the weights where this matters, and cancellation was
+  observed for some trails at those weights. The next step is the exact
+  signed hull (`propagate()`) for the best end-mask pairs at R=16–22.
+- **Multi-bit starts are not conclusive.** `pairs47` and `rand:5000:4`
+  were explored and did **not** improve on single-bit starts at any R.
+  `pairs47` covers a small structured subset; `rand:5000:4` covers 5000
+  masks out of 2²⁵⁶, so it is not conclusive for structured multi-bit
+  masks. The honest statement is "the multi-bit starts tested do not
+  improve on single-bit", not "multi-bit starts do not help".
 - **No integral bound.** The 5–6 round distinguishers reported above
   are preliminary: only r0 = 0 was tested; full-block inputs (255
   active bits), other round windows (notably r0 = 12 and r0 = 27),
@@ -313,7 +405,8 @@ node misc/keyschedule_test_extended.js --thorough
   2⁶⁴-text distinguisher was not verified empirically.
 - No key-recovery cost estimate from any trail (differential, linear,
   or integral).
-- No related-key bound (heuristic only).
+- No related-key bound (heuristic only); the number of consecutive
+  round keys needed to recover the master key was not measured.
 - No impossible-differential, boomerang, or algebraic analysis.
 - No external review.
 - No proof of post-quantum security beyond the trivial Grover bound.
@@ -332,12 +425,25 @@ node misc/keyschedule_test_extended.js --thorough
   Not exploitable with current techniques but worth noting. See
   PAPER.md §5.
 - **Linear structure at short range is exact and verified**: 9-round
-  `|corr| = 1` chains reduce the effective "hard" round count to
-  ~119 in the best window. This is a structural property of the
-  rotation schedule, not a key-dependent artifact. It is **not** an
-  attack on the full cipher (no lower bound over 128 rounds, no key
-  recovery), but it is real cryptanalytic material. See PAPER.md §4
-  and `cryptanalysis/models/linear/LINEAR_MODEL.md`.
+  `|corr| = 1` chains exist at windows 12 and 27, and cheap single
+  trails (weight < 64) extend to about 22 rounds in the best
+  direction (forward at R=22, weight 63; backward at R=24, weight 88).
+  Beyond R≈20 the best single-trail weight grows by 15–25 per round,
+  so this is a short-range property of the rotation schedule and the
+  diffusion, not an attack on the 128-round cipher (no lower bound
+  over 128 rounds, no hull-aware bound beyond R≈14, no key recovery).
+  **However, the offset-20 backward trail at R=14 is a verified
+  distinguisher**: it is isolated in its hull and its empirical
+  correlation matches the prediction. An external reviewer should look
+  here first. See PAPER.md §4 and
+  `cryptanalysis/models/linear/LINEAR_MODEL.md`.
+- **Position inside the cipher matters, and it is a schedule
+  artifact**: the output end of the cipher is cheaper than the input
+  end for these trails (e.g. R=14: weight 8 at offset 20 backward vs
+  weight 45 at offset 0 forward). This is a property of the period-31
+  rotation schedule combined with the 128 round count, not of F.
+  Changing the round count or the rotation schedule moves the
+  alignment. This is documented as a design decision, not hidden.
 - **Integral distinguishers are short but present**: 6 rounds with
   2³² texts and 5 rounds with 2⁶⁴ texts. In relative coverage (4–5%
   of 128 rounds) this is stronger than Simon32/64 (34% of its 32
@@ -349,7 +455,7 @@ node misc/keyschedule_test_extended.js --thorough
 
 ```
 StringManolo. "MYSX-256/512: A 256-bit Block Cipher with 512-bit Keys
-(v0.1-draft)". 2026. https://github.com/stringmanolo/MYSX-256
+(v0.2-draft)". 2026. https://github.com/stringmanolo/MYSX-256
 ```
 
 ## Final warning

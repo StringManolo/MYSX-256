@@ -48,32 +48,49 @@ def rotr(x, n):
 # ---------------------------------------------------------------- linear layer
 # State mask = one 256-bit int, bit 32*i + j  <->  word i, bit j.
 def build_tables():
-    LT = {}
+    """Forward and inverse linear layer (byte transposition + word rotation) as
+    per-byte lookup tables over the 256-bit mask (little-endian byte layout)."""
+    LT, LTI = {}, {}
     for sh in range(1, 32):
         img = [0] * 256
+        inv = [0] * 256
         for i in range(8):
             for j in range(32):
                 bi = i * 4 + (3 - j // 8)          # big-endian byte index
                 k = INV[bi]                         # destination byte
                 i2 = k // 4
                 db = (3 - (k % 4)) * 8 + (j % 8)
-                img[32 * i + j] = 1 << (32 * i2 + ((db + sh) % 32))
-        tabs = []
-        for k in range(32):
-            t = [0] * 256
-            for v in range(1, 256):
-                low = (v & -v).bit_length() - 1
-                t[v] = t[v & (v - 1)] ^ img[8 * k + low]
-            tabs.append(t)
-        LT[sh] = tabs
-    return LT
+                d = 32 * i2 + ((db + sh) % 32)
+                img[32 * i + j] = 1 << d
+                inv[d] = 1 << (32 * i + j)
+        for tabs_out, im in ((LT, img), (LTI, inv)):
+            tabs = []
+            for k in range(32):
+                t = [0] * 256
+                for v in range(1, 256):
+                    low = (v & -v).bit_length() - 1
+                    t[v] = t[v & (v - 1)] ^ im[8 * k + low]
+                tabs.append(t)
+            tabs_out[sh] = tabs
+    return LT, LTI
 
 
-LT = build_tables()
+LT, LTI = build_tables()
 
 
 def lin(x, sh):
     tabs = LT[sh]
+    out = 0
+    bs = x.to_bytes(32, "little")
+    for k in range(32):
+        b = bs[k]
+        if b:
+            out ^= tabs[k][b]
+    return out
+
+
+def lin_inv(x, sh):
+    tabs = LTI[sh]
     out = 0
     bs = x.to_bytes(32, "little")
     for k in range(32):
@@ -195,6 +212,44 @@ def expand(x, sh, hmax, rcap, gkeep):
         yield lin(c, sh), tot
 
 
+def expand_backward(x, sh, hmax, rcap, gkeep):
+    """Backward step. x = mask on s[r+1]; yield (mask on s[r], round_cost).
+    n = lin^-1(x); m[p] = n[p+4] (this is b_p, cost h(b_p));
+    m[p+4] = n[p] ^ g_p, g_p valid for b_p, i.e. m[p+4] in the coset
+    (n[p] ^ rotr(b_p,2)) ^ im(A_b): the same coset as the forward step with
+    the roles of n[p] and m[p+4] exchanged."""
+    n = lin_inv(x, sh)
+    w = [(n >> (32 * i)) & M32 for i in range(8)]
+    infos = []
+    tot = 0
+    for p in range(4):
+        o = cell_info(w[p + 4], hmax)
+        if o is None:
+            return
+        tot += o[0]
+        infos.append(o)
+    if tot > rcap:
+        return
+    lo = 0
+    for p in range(4):
+        lo |= w[p + 4] << (32 * p)                   # m[p] = n[p+4]
+    combos = [lo]
+    for p in range(4):
+        h, basis, base = infos[p]
+        t = w[p] ^ base
+        if h == 0:
+            cs = (w[p],)
+        else:
+            cs = coset_choices(t, basis, gkeep, w[p + 4] ^ (w[p] << 1))
+        if len(cs) == 1:
+            v = cs[0] << (32 * (p + 4))
+            combos = [c | v for c in combos]
+        else:
+            combos = [c | (v << (32 * (p + 4))) for c in combos for v in cs]
+    for c in combos:
+        yield c, tot
+
+
 # ---------------------------------------------------------------- beam search
 def make_starts(kind):
     if kind == "single":
@@ -210,21 +265,39 @@ def make_starts(kind):
     raise ValueError("unknown starts: " + kind)
 
 
-def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=()):
+def end_round(o):
+    """Backward mode: the last round of the trail is the largest round index
+    e <= 127 with e = o (mod 31)."""
+    return o + PERIOD * ((TOTAL_ROUNDS - 1 - o) // PERIOD)
+
+
+def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=(), direction="forward"):
+    """forward : o = index (mod 31) of the first round; starts are masks on s[r0];
+                 trail covers rounds r0..r0+R-1.
+    backward: o = index (mod 31) of the last round e; starts are masks on s[e+1];
+                 trail covers rounds e-R+1..e (rounds are inverted one by one).
+    Paths are always returned in forward order (mask on s[first] .. s[last+1])."""
+    bwd = direction == "backward"
+    e = end_round(o) if bwd else None
     st0 = list(dict.fromkeys(starts))
     layers = [(st0, [0] * len(st0), [-1] * len(st0))]
     best = []
     died = None
     for r in range(rounds):
-        sh = ((o + r) % PERIOD) + 1
+        if bwd:
+            sh = ((o - r) % PERIOD) + 1
+            gen = expand_backward
+        else:
+            sh = ((o + r) % PERIOD) + 1
+            gen = expand
         st, wt, _ = layers[-1]
         nxt = {}
         for idx in range(len(st)):
             wx = wt[idx]
-            for y, c in expand(st[idx], sh, hmax, rcap, gkeep):
+            for y, c in gen(st[idx], sh, hmax, rcap, gkeep):
                 wy = wx + c
-                e = nxt.get(y)
-                if e is None or wy < e[0]:
+                en = nxt.get(y)
+                if en is None or wy < en[0]:
                     nxt[y] = (wy, idx)
         if not nxt:
             died = r + 1
@@ -233,14 +306,18 @@ def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=()):
         layers.append(([k for k, _ in items], [v[0] for _, v in items], [v[1] for _, v in items]))
         best.append(items[0][1][0])
     paths = {}
+    first_round = {}
     for R in want_paths:
         if R < len(layers):
             idx, path = 0, []
             for L in range(R, -1, -1):
                 path.append("%064x" % layers[L][0][idx])
                 idx = layers[L][2][idx]
-            paths[R] = path[::-1]
-    return {"offset": o, "beam_best": best, "died_at": died, "paths": paths}
+            paths[R] = path if bwd else path[::-1]      # forward order
+            first_round[R] = (e - R + 1) if bwd else o
+    realizable = (e + 1) if bwd else (TOTAL_ROUNDS - o)
+    return {"offset": o, "direction": direction, "beam_best": best, "died_at": died,
+            "paths": paths, "first_round": first_round, "realizable_R": realizable}
 
 
 def _worker(args):
@@ -380,6 +457,66 @@ def selftest():
         print("[3] r0=%d: 9-round weight-0 chain found=%s, |corr|=1 on real cipher: %s"
               % (o, w9 == 0, "OK" if good else "FAIL"))
         ok &= good
+
+    # 4) duality: every forward edge must be a backward edge with the same cost
+    bad = 0
+    checked = 0
+    for trial in range(40):
+        sh = rng.randrange(1, 32)
+        m = 0
+        for _ in range(rng.choice((1, 1, 2, 3))):
+            m |= 1 << rng.randrange(256)
+        for y, c in expand(m, sh, 16, 64, 0):
+            checked += 1
+            if not any(x == m and cc == c for x, cc in expand_backward(y, sh, 16, 64, 0)):
+                bad += 1
+            if checked > 3000:
+                break
+        if checked > 3000:
+            break
+    print("[4] forward edges are backward edges (%d edges):" % checked, "OK" if bad == 0 else "FAIL (%d)" % bad)
+    ok &= bad == 0
+
+    # 5) backward search: 9-round weight-0 chains vs the real cipher + forward validity
+    for o in (20, 4):                                   # chains of r0=12 (ends at 20) and r0=27 (ends at 35=4 mod 31)
+        res = beam_run(o, 9, make_starts("single"), 1200, 2, 8, 0, want_paths=(9,), direction="backward")
+        w9 = res["beam_best"][8]
+        good = (w9 == 0)
+        if good:
+            path = [int(h, 16) for h in res["paths"][9]]
+            first = res["first_round"][9]
+            consts = set()
+            for _ in range(256):
+                x = [rng.getrandbits(32) for _ in range(8)]
+                st = list(x)
+                for r in range(first, first + 9):
+                    st = round_enc(st, rks[r], r)
+                consts.add((popcount(path[0] & to_int(x)) ^ popcount(path[-1] & to_int(st))) & 1)
+            good = (len(consts) == 1)
+        print("[5] backward end-residue %d: 9-round weight-0 chain found=%s, |corr|=1 on real cipher: %s"
+              % (o, w9 == 0, "OK" if good else "FAIL"))
+        ok &= good
+
+    # 6) a backward trail with weight > 0 is a valid forward trail with the same weight
+    res = beam_run(23, 14, make_starts("single"), 300, 16, 64, 3, want_paths=(14,), direction="backward")
+    path = [int(h, 16) for h in res["paths"][14]]
+    first = res["first_round"][14]
+    wsum, valid = 0, True
+    for i in range(14):
+        sh = ((first + i) % PERIOD) + 1
+        cost = None
+        for y, c in expand(path[i], sh, 16, 64, 0):
+            if y == path[i + 1]:
+                cost = c
+                break
+        if cost is None:
+            valid = False
+            break
+        wsum += cost
+    valid = valid and wsum == res["beam_best"][13]
+    print("[6] backward R=14 trail (weight %d) is a valid forward trail with equal weight: %s"
+          % (res["beam_best"][13], "OK" if valid else "FAIL"))
+    ok &= valid
     print("SELFTEST", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
 
@@ -413,15 +550,43 @@ def parse_offsets(s):
     return out
 
 
+def realizable_R(r):
+    if "realizable_R" in r:
+        return r["realizable_R"]
+    return TOTAL_ROUNDS - r["offset"]            # old forward-only files
+
+
+def summarize(results, rounds, title):
+    """results: list of per-offset dicts (any mix of directions)."""
+    checkpoints = [c for c in (9, 10, 12, 14, 16, 18, 20, 22, 24, 32, 40, 48, 56, 64, 80, 96,
+                               112, 128) if c <= rounds]
+    print("\n%s" % title)
+    print("   R   weight  offset  dir        data~2^(2w)")
+    for R in checkpoints:
+        cand = [(r["ub"][R - 1], r["offset"], r.get("direction", "forward")) for r in results
+                if len(r["ub"]) >= R and R <= realizable_R(r)]
+        if cand:
+            w, o, d = min(cand)
+            print("  %3d   %5d   %5d  %-9s  2^%d" % (R, w, o, d, 2 * w))
+    for thr in (32, 64):
+        rs = [R for R in range(1, rounds + 1)
+              if any(len(r["ub"]) >= R and R <= realizable_R(r) and r["ub"][R - 1] < thr
+                     for r in results)]
+        print("largest R with an achievable trail of weight < %d (data ~2^%d): %s"
+              % (thr, 2 * thr, max(rs) if rs else "none"))
+    print("(heuristic: upper bounds only; NOT a security proof, and hull/sign effects "
+          "can cancel single trails)")
+
+
 def run(args):
     offsets = parse_offsets(args.offsets)
     want = tuple(int(v) for v in args.paths.split(",")) if args.paths else ()
     starts = make_starts(args.starts)
-    jobs = [(o, args.rounds, starts, args.beam, args.cell_h, args.round_cost, args.g_keep, want)
-            for o in offsets]
-    print("offsets=%s rounds=%d beam=%d starts=%s (%d) cell-h<=%d g-keep=%d jobs=%d"
-          % (offsets, args.rounds, args.beam, args.starts, len(starts), args.cell_h,
-             args.g_keep, args.jobs), flush=True)
+    jobs = [(o, args.rounds, starts, args.beam, args.cell_h, args.round_cost, args.g_keep, want,
+             args.direction) for o in offsets]
+    print("direction=%s offsets=%s rounds=%d beam=%d starts=%s (%d) cell-h<=%d g-keep=%d jobs=%d"
+          % (args.direction, offsets, args.rounds, args.beam, args.starts, len(starts),
+             args.cell_h, args.g_keep, args.jobs), flush=True)
     results = []
     t0 = time.time()
     with Pool(args.jobs) as pool:
@@ -434,31 +599,23 @@ def run(args):
                      r["ub"][13] if len(r["ub"]) > 13 else "-", len(r["ub"]),
                      r["ub"][-1] if r["ub"] else "-", note), flush=True)
     results.sort(key=lambda r: r["offset"])
-
-    # summary: best realizable upper bound per R (trail rounds o..o+R-1 must be < 128)
-    checkpoints = [c for c in (9, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128)
-                   if c <= args.rounds]
-    print("\nBest achievable weight per R (min over offsets with o+R<=128):")
-    print("   R   weight  offset   data~2^(2w)")
-    summary = {}
-    for R in checkpoints:
-        cand = [(r["ub"][R - 1], r["offset"]) for r in results
-                if len(r["ub"]) >= R and r["offset"] + R <= TOTAL_ROUNDS]
-        if cand:
-            w, o = min(cand)
-            summary[R] = (w, o)
-            print("  %3d   %5d   %5d    2^%d" % (R, w, o, 2 * w))
-    for thr in (32, 64):
-        rs = [R for R in range(1, args.rounds + 1)
-              if any(len(r["ub"]) >= R and r["offset"] + R <= TOTAL_ROUNDS and r["ub"][R - 1] < thr
-                     for r in results)]
-        print("largest R with an achievable trail of weight < %d (data ~2^%d): %s"
-              % (thr, 2 * thr, max(rs) if rs else "none"))
-    print("(heuristic: upper bounds only; NOT a security proof, and hull/sign effects "
-          "can cancel single trails)")
+    summarize(results, args.rounds, "Best achievable weight per R (trail must fit inside the 128 rounds):")
     with open(args.out, "w") as f:
         json.dump({"params": vars(args), "results": results}, f)
     print("saved", args.out, "total %.0fs" % (time.time() - t0))
+    return 0
+
+
+def merge(args):
+    allr = []
+    for fn in args.files:
+        d = json.load(open(fn))
+        for r in d["results"]:
+            r.setdefault("direction", d["params"].get("direction", "forward"))
+            allr.append(r)
+    rounds = max(len(r["ub"]) for r in allr)
+    print("merged %d result sets from %d files" % (len(allr), len(args.files)))
+    summarize(allr, rounds, "Combined best achievable weight per R:")
     return 0
 
 
@@ -467,8 +624,13 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selftest")
     sub.add_parser("reproduce")
+    mg = sub.add_parser("merge", help="combine several result files (any directions)")
+    mg.add_argument("files", nargs="+")
     p = sub.add_parser("run")
-    p.add_argument("--offsets", default="0-30", help="e.g. 0-30 or 0,12,27 (rotation offset r0 mod 31)")
+    p.add_argument("--direction", choices=("forward", "backward"), default="forward",
+                   help="forward: starts are masks on s[r0] (r0 = offset); backward: starts are "
+                        "masks on the output of the last round, offset = last round index mod 31")
+    p.add_argument("--offsets", default="0-30", help="e.g. 0-30 or 0,12,27 (rotation offset mod 31)")
     p.add_argument("--rounds", type=int, default=128)
     p.add_argument("--beam", type=int, default=600)
     p.add_argument("--starts", default="single", help="single | pairs47 | pairs | rand:N:K")
@@ -481,7 +643,7 @@ def main():
     p.add_argument("--out", default="beam_results.json")
     args = ap.parse_args()
     sys.exit({"selftest": lambda: selftest(), "reproduce": lambda: reproduce(args),
-              "run": lambda: run(args)}[args.cmd]())
+              "run": lambda: run(args), "merge": lambda: merge(args)}[args.cmd]())
 
 
 if __name__ == "__main__":
