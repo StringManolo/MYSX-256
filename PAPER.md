@@ -3,6 +3,33 @@ title: "MYSX-256/512: A 256-bit Block Cipher with 512-bit Keys (v0.1-draft2)"
 author: "StringManolo"
 date: "2026"
 abstract: |
+  We present MYSX-256/512, an experimental 256-bit block cipher with
+  512-bit keys and 128 rounds, combining Feistel cells with Simon's F
+  function, a Myszkowski byte transposition, word rotations, and an ARX
+  key schedule. We provide the full specification, test vectors, and a
+  self-analysis covering differential, linear, integral, and related-key
+  cryptanalysis. The linear analysis is built on an exact, machine-checked
+  model of F: its LAT admits the closed form |corr(b,g)| = 2^{−h(b)},
+  mask propagation is bit-exact, and every trail carries an exact
+  key-dependent sign. Within this model we verify |corr|=1 chains over up
+  to 9 consecutive rounds, exact linear hulls at r=10,11,12, and a linear
+  distinguisher on a 16-round window (offset-20 backward trail, rounds
+  98–113, |corr| = 2⁻¹¹). The differential analysis finds probability-1
+  weight-0 chains of up to 13 rounds (r0=10, proven maximal), and the
+  integral analysis finds 6-round (2³²-text) and 5-round (2⁶⁴-text)
+  distinguishers at r0=0, extending to 10 rounds at r0=15. A beam search
+  over the exact linear model, both directions, all 31 offsets, up to
+  128 rounds, gives achievable single-trail weights of 2 at R=12, 5 at
+  R=14, 38 at R=20, and 2248 at R=128. The CTR keystream passes the full
+  NIST SP 800-22 battery (100 sequences × 10⁶ bits, no failures). The
+  three directions peak at different offsets, so no single-offset bound
+  describes the cipher as a whole. No lower bound over 128 rounds is
+  established, and MYSX has not been externally audited. It is released
+  for public review and must not be used to protect real data.
+---
+
+
+## Executive summary
   We present MYSX-256/512, a 256-bit block cipher with 512-bit keys and
   128 rounds. The design combines Feistel cells with Simon's round
   function, a Myszkowski byte transposition, word rotations, and an ARX
@@ -75,7 +102,6 @@ abstract: |
   MYSX has not been externally audited. It is released as
   v0.1-draft2 for public review and must not be used to protect real
   data.
----
 
 # 1. Introduction
 
