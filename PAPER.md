@@ -8,52 +8,73 @@ abstract: |
   function, a Myszkowski byte transposition, word rotations, and an ARX
   key schedule. We provide the full specification, test vectors, and a
   self-analysis covering differential, linear, integral, and related-key
-  cryptanalysis. The differential analysis reports an observed upper
-  bound on the best single-trail weight (114 at 14 rounds, extrapolating
-  to the 128-bit threshold at r≈15; the runs do not vary the rotation
-  offset, so this extrapolation is likely optimistic, see §3.1). The r=4
-  trail has been directly verified at w=32 with a clustering factor of
-  2.00× (observed 2⁻⁷ vs MILP 2⁻⁸). The linear analysis is built on an
-  exact model of F: the LAT admits a closed form
+  cryptanalysis. The differential analysis (§3) reports upper bounds on
+  the best single-trail weight over all 31 rotation offsets.
+  Probability-1 differential weight-0 chains exist at some offsets; the
+  longest, 13 rounds (rounds 10–22 mod 31), is the maximum possible
+  (verified by exact linear algebra over the 2¹²⁸ left-half
+  differences, and empirically with 100% propagation over 262,144
+  pairs across 8 keys). The best single-trail weight found at R=14
+  ranges from 2 (r0=10) to about 120 across offsets; the 128-bit
+  threshold is reached at R≈24 for r0=10 versus r≈15 for r0=0. The
+  r=4 trail at r0=0 has been directly verified with a clustering
+  factor of 2.00× (observed 2⁻⁷ vs MILP 2⁻⁸). The linear analysis is
+  built on an exact model of F: the LAT admits a closed form
   (`|corr(b,g)| = 2^{−h(b)}`, `h(b) = rank(A_b)/2` on a 32-cycle), mask
   propagation is bit-exact, and every trail carries an exact
-  key-dependent sign. Within this model we verify `|corr|=1` chains over
-  up to 9 consecutive rounds (three independent keys), and exact linear
-  hulls at r=10,11,12 match the real cipher within sampling error
-  (|z| < 0.4). A beam search over the exact model, run in both
+  key-dependent sign. Within this model we verify `|corr|=1` chains
+  over up to 9 consecutive rounds (three independent keys), and exact
+  linear hulls at r=10,11,12 match the real cipher within sampling
+  error (|z| < 0.4). A beam search over the exact model, run in both
   directions (forward and backward) for all 31 rotation offsets and up
   to 128 rounds, and merged (§4.10), gives achievable single-trail
-  weights of 2 at 12 rounds, 5 at 14 rounds, 38 at 20 rounds, 786 at 64
-  rounds and 2248 at 128 rounds; after round ~20 the best weight grows
-  by roughly 12–21 per round up to R=112 (the last step, 112→128, is
-  ≈36 per round because only one offset fits a full 128-round trail),
-  and the largest round count with an achievable single trail of
-  weight < 64 (≈2¹²⁸ texts) is 22 (weight 63, a tie with the
-  threshold). Among the tabulated round counts, backward trails are the
-  cheapest at R=9–14, 18, 20, 24–48 and 96–128, and forward trails at
-  R=16, 22, 56, 64 and 80. A hull check against the real cipher shows
-  that the offset-20 backward trail is isolated in its hull at R=14
-  (weight 5, rounds 100–113, empirical correlation matching 2⁻⁵), and
-  an exact budgeted hull (§4.10.5) extends it to R=16 (rounds 98–113):
-  two trails of weight 12 add up to |corr| = 2⁻¹¹, which a 2²⁸-sample
-  measurement on one key confirms within 1.9σ. This is a verified
-  linear distinguisher on a 16-round window of the cipher (seven
-  weighted rounds followed by a 9-round weight-0 chain), not an attack
-  on the full cipher. At R=17 the best end pairs of offsets 20 backward
-  and 23 forward cancel exactly within the enumerated budget. Other
-  trails can be equal to their single-trail value, a factor ~2 larger,
-  or exactly cancelled (§4.10.3, §4.10.5). No lower bound over 128 rounds is established;
+  weights of 2 at 12 rounds, 5 at 14 rounds, 38 at 20 rounds, 786 at
+  64 rounds and 2248 at 128 rounds; after round ~20 the best weight
+  grows by roughly 12–21 per round up to R=112 (the last step,
+  112→128, is ≈36 per round because only one offset fits a full
+  128-round trail), and the largest round count with an achievable
+  single trail of weight < 64 (≈2¹²⁸ texts) is 22 (weight 63, a tie
+  with the threshold). Among the tabulated round counts, backward
+  trails are the cheapest at R=9–14, 18, 20, 24–48 and 96–128, and
+  forward trails at R=16, 22, 56, 64 and 80. A hull check against the
+  real cipher shows that the offset-20 backward trail is isolated in
+  its hull at R=14 (weight 5, rounds 100–113, empirical correlation
+  matching 2⁻⁵), and an exact budgeted hull (§4.10.5) extends it to
+  R=16 (rounds 98–113): two trails of weight 12 add up to
+  |corr| = 2⁻¹¹, which a 2²⁸-sample measurement on one key confirms
+  within 1.9σ. This is a verified linear distinguisher on a 16-round
+  window of the cipher (seven weighted rounds followed by a 9-round
+  weight-0 chain), not an attack on the full cipher. At R=17 the best
+  end pairs of offsets 20 backward and 23 forward cancel exactly
+  within the enumerated budget. Other trails can be equal to their
+  single-trail value, a factor ~2 larger, or exactly cancelled
+  (§4.10.3, §4.10.5). No lower bound over 128 rounds is established;
   the weight-0 windows are a property of 5–9 round windows, not an
-  attack on the full cipher. A preliminary integral analysis with
-  standard division-property rules finds integral distinguishers
-  covering 6 rounds with a 2³²-text integral (word 0 active) and 5
-  rounds with a 2⁶⁴-text integral (words 0 and 4 active); a 10-round
-  single-bit dependency propagation is also reported but is not an
-  integral distinguisher (2 texts). Only r0=0 was tested. The key
-  schedule was audited with 22 structural and empirical tests up to
-  weight-6 with no persistent Δrk=0 pattern found. MYSX has not been
-  externally audited. It is released as v0.1-draft2 for public review
-  and must not be used to protect real data.
+  attack on the full cipher. An integral analysis with standard
+  division-property rules, extended to all 31 rotation offsets
+  (§4.9), finds integral distinguishers covering 6 rounds with a
+  2³²-text integral (word 0 active) and 5 rounds with a 2⁶⁴-text
+  integral (words 0 and 4 active) at r0=0. The offsets r0=12 and
+  r0=27, which maximize the weight-0 linear chains, are not special
+  for DP. At r0=15 (shift 16) the distinguishers extend to 10 rounds
+  for both patterns, with a thin tail (one balanced bit at R=10) and
+  practical strength in the 7–8 round range. The R=7/R=6 bits were
+  verified as consistent with a 2-text (or 4-text) toggle; the full
+  2³²/2⁶⁴ integrals were not verified. A 10-round single-bit
+  dependency propagation is also reported but is not an integral
+  distinguisher. The three analysis directions peak at different
+  rotation offsets (differential r0=10, linear free chains r0=12/27,
+  linear hull at offset 20 backward = r0≈5–6 in first-round
+  convention, integral r0=15), so no single-offset bound describes
+  the cipher as a whole. The key schedule was audited with 22
+  structural and empirical tests up to weight-6 with no persistent
+  Δrk=0 pattern found. The CTR keystream also passes the full NIST
+  SP 800-22 battery (100 sequences × 10⁶ bits, fresh key and nonce
+  per sequence, no failures; §4.11), which rules out gross
+  statistical biases but is not evidence of cryptographic security.
+  MYSX has not been externally audited. It is released as
+  v0.1-draft2 for public review and must not be used to protect real
+  data.
 ---
 
 # 1. Introduction
@@ -74,9 +95,10 @@ for related-key coverage and Section 9 for engineering notes.
 **Claimed security level.** None formally. The paper reports observed
 upper bounds on single-trail weights (Section 3), a verified exact
 linear model up to a small number of rounds (Section 4), a full-length
-beam search over that model in both directions (§4.10), and preliminary
-integral distinguishers at 5–6 rounds for multi-bit inputs (§4.9).
-These are inputs to cryptanalysis, not proofs.
+beam search over that model in both directions (§4.10), and integral
+distinguishers at 6 rounds for multi-bit inputs at r0=0, extended to
+10 rounds at r0=15 (§4.9). These are inputs to cryptanalysis, not
+proofs.
 
 **Reading thresholds.** A differential trail of weight `w` needs about
 2^w chosen pairs; a linear trail of weight `w` has `|corr| = 2^{−w}` and
@@ -93,9 +115,10 @@ not be compared directly; compare `w_diff` with `2·w_lin`.
   Section 6);
 - resistance to related-key attacks beyond the heuristic coverage in
   Section 5;
-- resistance to integral attacks beyond the preliminary 5–6 round
-  distinguishers reported in §4.9, nor resistance to impossible-
-  differential, boomerang, or algebraic attacks (none analyzed);
+- resistance to integral attacks beyond the 6–10 round distinguishers
+  reported in §4.9 (offset-dependent; 6 rounds at r0=0, 10 rounds at
+  r0=15), nor resistance to impossible-differential, boomerang, or
+  algebraic attacks (none analyzed);
 - resistance to linear-hull effects beyond the sampled checks of §4.6
   and §4.10.3–§4.10.5 (no hull-aware bound beyond R=17);
 - constant-time execution in JavaScript (side channels out of scope).
@@ -163,27 +186,25 @@ the cipher or of the code, and there is none.
 
 **Changes since the previous draft (`v0.1-draft`).**
 
-- **New direction:** the beam search (§4.10) now supports
+- **New direction (linear):** the beam search (§4.10) now supports
   `--direction backward` (the offset is the index of the *last* round
   of the trail, mod 31) and a `merge` command that combines results
   from both directions. The table of §4.10.2 is now the minimum over
   forward and backward and over all offsets; a few `v0.1-draft`
   checkpoint values (R=12, R=48, R=112, R=128, and in general those
   where backward wins) are superseded.
-- **New verified distinguisher (on a 16-round window):** the offset-20
-  backward trail is isolated in its hull at R=14 (weight 5,
-  `hull_count` = 1 trail, empirical correlation 2⁻⁵ on the real cipher,
-  §4.10.3) and, by the exact budgeted hull of §4.10.5, extends to R=16
-  (rounds 98–113, |corr| = 2⁻¹¹). This is the first non-trivial linear
-  distinguisher the analysis certifies. It consists of seven weighted
-  rounds (98–104, total weight 12) followed by a 9-round weight-0
-  chain (105–113).
-- **New exact hull at R=15–17 (§4.10.5):** new tools `hull_bidir.py`
-  (budgeted meet-in-the-middle enumeration of all trails between two
-  end masks, with exact signs), `scan_endpairs.py`, `test_signed_dp.py`
-  and `emp_check.py`. The R=16 row of the §4.10.2 table (weight 8,
-  offset 23 forward) is a trail that cancels; the best certified
-  correlation at R=16 is 2⁻¹¹.
+- **New verified linear distinguisher (on a 16-round window):** the
+  offset-20 backward trail is isolated in its hull at R=14 (weight 5,
+  rounds 100–113, `hull_count` = 1 trail, empirical correlation 2⁻⁵
+  on the real cipher, §4.10.3) and, by the exact budgeted hull of
+  §4.10.5, extends to R=16 (rounds 98–113, |corr| = 2⁻¹¹). This is
+  the first non-trivial linear distinguisher the analysis certifies.
+  It consists of seven weighted rounds (98–104, total weight 12)
+  followed by a 9-round weight-0 chain (105–113).
+- **New exact hull at R=15–17 (§4.10.5):** `hull_bidir.py`,
+  `scan_endpairs.py`, `test_signed_dp.py`, `emp_check.py`. The R=16
+  row of §4.10.2 (weight 8, offset 23 forward) cancels; the best
+  certified correlation at R=16 is 2⁻¹¹.
 - **Correction on R=128:** in forward mode only r0=0 fits a 128-round
   trail. In backward mode, offset 3 gives `end_round(3) = 127`,
   `realizable_R = 128`, so the combined R=128 = 2248 at offset 3
@@ -191,15 +212,41 @@ the cipher or of the code, and there is none.
   extension. The `v0.1-draft` statement that "for r0>0 the value at
   R=128 is a virtual extension" is forward-specific; §4.10.2
   clarifies.
+- **Differential offset sweep (§3.5, new).** The rotation offset was
+  varied over all 31 values for the first time. Probability-1
+  differential weight-0 chains exist at some offsets; the longest,
+  13 rounds (rounds 10–22 mod 31), is the maximum possible, verified
+  by exact linear algebra over the 2¹²⁸ left-half differences and
+  empirically with 100% propagation over 262,144 pairs × 8 keys. At
+  R=14 the best single-trail weight found ranges from 2 (r0=10) to
+  about 120 across offsets; the 128-bit threshold is at R≈24 for
+  r0=10 versus r≈15 for r0=0. The differential bounds of §3.2, which
+  were measured at r0=0 only, are **not** representative of all
+  offsets.
+- **Integral offset sweep (§4.9).** All 31 offsets were tested at the
+  saturation rounds of r0=0. The offsets r0=12 and r0=27 (which
+  maximize the weight-0 linear chains) are **not** special for DP.
+  The peak block is r0 ∈ [12,17], with a maximum at r0=15 (shift 16).
+  At r0=15 the distinguishers extend to 10 rounds for both the
+  word0 and word0,word4 patterns. The R=7/R=6 bits were verified as
+  consistent with a 2-text (or 4-text) toggle; the full 2³²/2⁶⁴
+  integrals were not verified.
+- **Three geographies.** The three analysis directions peak at
+  different rotation offsets: differential at r0=10, linear free
+  chains at r0=12/27, linear hull at offset 20 backward (≈r0=5–6 in
+  first-round convention), integral at r0=15. None of the
+  single-offset bounds previously reported describes the cipher as a
+  whole.
 - **Hull check (§4.10.3)** extended: the r0=23 forward trail continues
-  to cancel from R=8; the r0=24 forward trail cancels from R=8; the r0=12
-  forward trail is exact up to R=12; the offset-20 backward trail is
-  exact from R=1 to R=14. Hull effects are not uniform.
+  to cancel from R=8; the r0=24 forward trail cancels from R=8; the
+  r0=12 forward trail is exact up to R=12; the offset-20 backward
+  trail is exact from R=1 to R=14. Hull effects are not uniform.
 - **Multi-bit starts:** explored (`pairs47`, `rand:5000:4`) and do not
-  improve on single-bit starts at any R. `pairs47` is a small structured
-  subset; `rand:5000:4` covers 5000 masks out of 2²⁵⁶ and is not
-  conclusive for structured multi-bit masks. The honest statement is
-  "the multi-bit starts tested do not improve on single-bit".
+  improve on single-bit starts at any R. `pairs47` is a small
+  structured subset; `rand:5000:4` covers 5000 masks out of 2²⁵⁶ and
+  is not conclusive for structured multi-bit masks. The honest
+  statement is "the multi-bit starts tested do not improve on
+  single-bit".
 - Added §4.10.1 backward-step rule and its `selftest` (every forward
   edge is a backward edge with the same cost, 325 edges checked).
 - Abstract: numbers updated to the combined forward+backward values;
@@ -212,12 +259,14 @@ previous text; no experimental result changed):
   inverted. An observed probability *higher* than predicted means the
   model *over*estimates the cost (true weight 7, not 9). Fixed.
 - §3.2: the r=4 trail is not a row of the table; the text now says so.
-  §3.1/§3.2/§3.4 now state that the rotation offset was not varied in
-  the differential runs, which makes the r≈15 extrapolation optimistic.
-- §4.10.2 and the abstract: the statement on which direction is cheapest
-  contradicted the table; rewritten from the table. The "15–25 per
-  round" growth figure did not match the table (12.5–20.9 per round up
-  to R=112, ≈36 for 112→128); replaced.
+- §3.1/§3.2/§3.4 now state that the rotation offset was not varied in
+  the differential runs of `v0.1-draft`, which makes the r≈15
+  extrapolation optimistic; §3.5 replaces that limitation with the
+  offset sweep.
+- §4.10.2 and the abstract: the statement on which direction is
+  cheapest contradicted the table; rewritten from the table. The
+  "15–25 per round" growth figure did not match the table
+  (12.5–20.9 per round up to R=112, ≈36 for 112→128); replaced.
 - §4.10.3, abstract, §4.7, §10: "distinguisher at 14 rounds" now says
   "on a 14-round window (rounds 100–113)" and explains that the weight
   is flat from R=5 to R=14 (§4.10.5 later extends the window to 16
@@ -225,18 +274,35 @@ previous text; no experimental result changed):
 - §4.9, §7: Simon integral figures and the Simon literature list
   corrected against the sources (Simon32: 14 rounds with conventional
   bit-based division property, 15 with three subsets; the Simon128
-  26-round integral is Xiang et al.; ePrint 2014/973 is Shi et al.; the
-  49-round Simon128/128 result is a key-recovery attack by Chen–Wang;
-  Biryukov–Roy–Velichkov is FSE 2014).
-- §4.10.4: the hull gain needed at R=24 (w=88) to reach the 2¹²⁸ budget
-  is 2²⁴ in correlation (w − 64), not 2⁴⁰.
-- §1.1, §6: the Grover 2²⁵⁶ figure holds for a uniformly random 512-bit
-  key only; HKDF-derived keys give 2¹²⁸. The HKDF sentence in §6 was
-  imprecise and is fixed.
+  26-round integral is Xiang et al.; ePrint 2014/973 is Shi et al.;
+  the 49-round Simon128/128 result is a key-recovery attack by
+  Chen–Wang; Biryukov–Roy–Velichkov is FSE 2014).
+- §4.10.4: the hull gain needed at R=24 (w=88) to reach the 2¹²⁸
+  budget is 2²⁴ in correlation (w − 64), not 2⁴⁰.
+- §1.1, §6: the Grover 2²⁵⁶ figure holds for a uniformly random
+  512-bit key only; HKDF-derived keys give 2¹²⁸. The HKDF sentence in
+  §6 was imprecise and is fixed.
 - §8: functional test count aligned with `README.md` and `SECURITY.md`
   (17 tests).
 - §9.2: note that 128-bit random nonces make accidental reuse
-  negligible, so `NonceGuard` mainly enforces the per-key message limit.
+  negligible, so `NonceGuard` mainly enforces the per-key message
+  limit.
+- **Differential claims corrected (§3.1, §3.2, §3.4, §3.5).** The
+  differential runs of `v0.1-draft` were measured at r0=0 only. The
+  offset sweep of §3.5 shows that r0=0 is near the top of the
+  distribution (115 in the beam at R=14, versus a maximum of ~121 at
+  r0=1), so the §3.2 numbers are valid upper bounds for r0=0 but are
+  not representative. The time-limited MILP values reported for
+  r0≠0 during the offset sweep are upper bounds with `gapRel=0.2`,
+  not minima. The "three trails" of the earlier draft of this text
+  were three points on the same 13-round chain, not independent
+  chains; the independent deterministic chains are two (the 13-round
+  chain at r0=10 and the 6-round chain at r0=15).
+- **Integral claims clarified (§4.9).** The R=7/R=6 balanced bits at
+  r0=15 are verified as consistent with a 2-text or 4-text toggle,
+  not as full 2³²/2⁶⁴ integrals; the tail at R=8–10 is a model
+  prediction. The "shift 16 is structurally the weakest" reading is a
+  hypothesis, not established.
 
 # 2. Specification
 
@@ -491,27 +557,32 @@ A third-party implementation should target the **public digest**.
 
 ## 3.1. Model
 
-Tool: `misc/mysx_milp.py` (PuLP + CBC/HiGHS). AND model: `a = Δx ∨ Δy`,
-which counts a cost-1 event whenever at least one input is active.
-For an AND with independent inputs, this is the exact per-bit cost.
-The real approximations in the model are:
+Tool: `misc/mysx_milp2.py` (PuLP + CBC/HiGHS, with `--r0` rotation
+offset). AND model: `a = Δx ∨ Δy`, which counts a cost-1 event whenever
+at least one input is active. For an AND with independent inputs, this
+is the exact per-bit cost. The real approximations in the model are:
 
 - The Markov-independence assumption does not hold: the two rotated
   inputs of F come from the same word `x`.
-- We ran a single input difference at r=12–14 (w2b30). Multi-bit input
-  differences may yield lower weights.
-- No run varying the rotation offset (index of the first round mod 31)
-  is reported. The linear analysis of §4.10 shows that this offset
-  changes the best achievable weight by an order of magnitude (at R=14,
-  backward: 5 at offset 20 vs 61 at offset 6). The differential bounds
-  below are therefore not known to be representative, and the
-  extrapolation to r≈15 is likely optimistic until the offset is varied.
-- `gapRel=0.2` and `timeLimit=300` return feasible solutions (upper
-  bounds), not certified optima.
+- The reported runs use a single input difference per offset (the one
+  predicted by the free chain table of §3.5 as maximizing the free
+  chain, or w2b30 for the §3.2 table); multi-bit input differences may
+  yield lower weights.
+- `gapRel=0.2` and `timeLimit=300–900` return feasible solutions
+  (upper bounds), not certified optima. The MILP is therefore used as
+  a lower-cost exploration tool; the **beam search** of §3.5 is the
+  primary source for the offset-by-offset weight table.
 - The model captures single trails, not differentials (clusters of
   trails with the same output difference).
 
-## 3.2. Observed upper bounds
+The offsets were varied for the first time in this draft (§3.5). The
+§3.2 table, measured at r0=0 only, is a valid upper bound for r0=0 but
+is **not** representative of all 31 rotation offsets.
+
+## 3.2. Observed upper bounds (r0=0 and the offset sweep)
+
+**At r0=0.** The §3.2 table of `v0.1-draft` remains valid as an upper
+bound for that offset:
 
 | Rounds | Input | Weight (upper bound) | Single-trail prob. |
 |---|---|---|---|
@@ -522,25 +593,47 @@ The real approximations in the model are:
 | 12 | w2b30 | 68 | 2⁻⁶⁸ |
 | 14 | w2b30 | 114 | 2⁻¹¹⁴ |
 
-Extrapolation: the 128-bit threshold is reached at r≈15. **This is an
-extrapolation, not a proof.** It tells us what the model produces for
-the input we tried; it does not establish the best trail over all
-inputs or offsets, nor that clustering does not lower the effective
-security.
+Extrapolation at r0=0: the 128-bit threshold is reached at r≈15.
+**This is an extrapolation, not a proof.** It tells us what the model
+produces for that input at that offset.
+
+**Offset sweep (§3.5).** At R=14, the best single-trail weight found
+by the beam search (multi-input, forward only) ranges from **2 at
+r0=10** to about **120** across offsets. A representative sample
+(beam, forward, single-bit starts):
+
+| r0 | 0 | 1 | 10 | 22 | 29 | 30 |
+|---|---|---|---|---|---|---|
+| best weight at R=14 | 115 | 121 | **2** | 107 | 119 | 118 |
+
+The numbers for r0≠10 are upper bounds from a beam, not proven minima;
+the maximum observed is 121 (r0=1), not 114 (r0=0). **The r0=0
+extrapolation of r≈15 is therefore one point in a distribution that
+runs from r≈24 (r0=10) to r≈15 (r0=0) and above.** The `v0.1-draft`
+statement that "the extrapolation to r≈15 is likely optimistic" is
+superseded: the r≈15 value is correct for r0=0 but is not the
+cipher-wide threshold.
+
+**Growth at r0=10** (input w1b31, beam, multi-input): 2, 4, 6, 10, 15,
+22, 34, 49, 78, 100, 133 at R=14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+24. Linear interpolation puts the 128-bit threshold at **R≈23.5**. A
+direct MILP run at R=24 gave 195, which is a looser upper bound
+(`gapRel=0.2`, time limit); the beam value of 133 is tighter. The
+beam is the primary source for this table.
 
 **Comparison with the linear direction.** At 14 rounds the differential
-upper bound is 114 (≈2¹¹⁴ pairs), whereas the linear side now has a
+upper bound at r0=0 is 114 (≈2¹¹⁴ pairs); at r0=10 it is 2 (≈2²
+pairs, the deterministic chain of §3.5). The linear side has a
 **verified distinguisher on a 14-round window** (offset-20 backward
-trail covering rounds 100–113, weight 5, ≈2¹⁰ texts, isolated hull;
-§4.10.3). Even allowing for the different thresholds (§1.1) and for the
-fact that the differential run used a single input difference with a
-20% solver gap, the linear direction is the weaker one by a wide margin
-and is where analysis effort should concentrate. Part of that gap is
-probably not intrinsic: the linear figure is the minimum over all 31
-rotation offsets, the differential figure is for one input at one
-position. A differential analysis with inputs placed in the free windows
-and over all offsets (the analogue of the weight-0 linear chains and of
-§4.10) has not been done.
+trail, rounds 100–113, weight 5, ≈2¹⁰ texts, isolated hull; §4.10.3).
+The differential direction has a deterministic 13-round chain (r0=10,
+§3.5), which in data cost (1 pair) is stronger than the linear
+distinguisher, but is 3 rounds shorter. Neither direction is
+uniformly dominant; both peak at different offsets. The v0.1-draft
+conclusion that "the linear direction is the weaker one by a wide
+margin" is superseded: the gap noted there was not intrinsic (the
+linear figure is the minimum over all 31 rotation offsets, while the
+differential figure was for one input at one position).
 
 **Direct verification at r=4 (w=32).** The r=4 trail (it is not a row of
 the table above: Δin = {w0b0}, MILP weight 8, Δout = {w0b4, w1b10,
@@ -553,7 +646,8 @@ isolate the round function). Observed hit rate: 7.802×10⁻³ over
 The trail exists at r=4. The single-trail probability is a factor 2
 higher than the MILP predicts, consistent with the clustering factor
 documented in §3.3. **The MILP model is correct within a factor of 2
-at this round count.**
+at this round count.** This measurement was made at r0=0; the
+clustering factor at other offsets has not been measured (§3.4).
 
 ## 3.3. Empirical check (r=4, w0b0)
 
@@ -574,29 +668,100 @@ Two interpretations are consistent with the data:
 
 Without a full clustering analysis (summing over all trails with the
 same Δin, Δout), we cannot distinguish these two. The practical
-implication is the same: the effective weight of the r=4 trail is 7,
-not 8, so the MILP weight is the pessimistic side by one bit.
+implication is the same: the effective weight of the r=4 trail at r0=0
+is 7, not 8, so the MILP weight is the pessimistic side by one bit.
 
 **What this does to the extrapolation.** A *constant* factor 2 is one
 bit of weight; at the observed 8–23 bits of weight per round it moves
 the "128-bit threshold at r≈15" by a small fraction of a round, not by
 2–3 rounds. Only a factor that grows with the weight (for example the
 ratio 7/8 applied to the whole trail) would matter: it would move the
-crossing to roughly r≈16–17. Either way the margin on this input is
-large, and the extrapolation should be read as approximate and, see
-§3.1, as specific to the input and offset tried.
+crossing to roughly r≈16–17. The measurement was made at r0=0; at
+r0=10, where the deterministic chain exists, the clustering factor is
+not characterized (§3.4). The extrapolation should be read as
+approximate and, see §3.1, as specific to the input and offset tried.
 
 ## 3.4. What this section does **not** establish
 
-- A lower bound on the best single-trail weight (requires gap=0 and
-  multi-bit inputs).
+- A lower bound on the best single-trail weight for any offset. The
+  beam values of §3.5 are upper bounds from a specific start
+  distribution; the MILP values are upper bounds with `gapRel=0.2`.
 - An exact clustering analysis (requires modeling all trails with the
-  same Δout).
+  same Δout), and in particular the clustering factor at r0 ≠ 0.
 - Resistance to related-key differentials.
 - That the factor-2 clustering is constant across all round counts.
-- The effect of the rotation offset (first round mod 31) on the best
-  differential weight, nor any differential inputs placed in the free
-  windows.
+- That the beam, with single-bit starts and 3 candidates per cell, is
+  exhaustive. The exact maximum chain length of 13 rounds for weight-0
+  chains (§3.5) **is** proven by linear algebra; the non-zero-weight
+  tables are not.
+
+## 3.5. Differential weight-0 chains (new)
+
+The differential model of §3.2 has the same structure as the linear
+model of §4.3: a round has weight 0 iff the difference does not touch
+the right half (words 4..7) of the state, in which case the round acts
+as a pure bit permutation on the left half. The free chain length
+depends on the rotation offset.
+
+**Free chain table.** The maximum number of consecutive weight-0
+rounds as a function of the offset r0 (first round mod 31), for a
+single-bit difference in words 0..3 of the state:
+
+| r0 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 0–6, 27–29 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| max rounds | **13** | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | **3** |
+
+The worst offsets are r0 ∈ {0,1,2,3,4,5,6,27,28,29} (3 rounds); the
+best is r0=10 (13 rounds). The §3.2 table was measured at r0=0, one of
+the 3-round offsets.
+
+**Maximum exact.** By exhaustive linear algebra over the 2¹²⁸
+left-half differences, no weight-0 differential chain longer than 13
+rounds exists for **any** offset, and **not even for multi-bit
+differences**. The 13-round chain at r0=10 is therefore the exact
+maximum, not a search artifact.
+
+**Verified deterministic chains.** Two independent chains were
+verified against the real cipher with fixed keys, 2¹⁵ pairs per key, 8
+keys each (262,144 pairs total), full 128-round cipher, final
+whitening disabled:
+
+| Offset | Input | Output | Rounds | Propagation |
+|---|---|---|---|---|
+| **r0=10** | w1b31 | w4b12 | **13** | **100.0000%** |
+| r0=15 | w2b30 | w4b5 | 6 | 100.0000% |
+
+The 13-round chain at r0=10 covers rounds 10–22, 41–53, 72–84 and
+103–115 of the cipher (period 31). It is the same chain at every
+occurrence.
+
+The chains of 11 and 8 rounds reported during the sweep are **not**
+independent: they are the same 13-round chain started at a later
+point (w1b22 is the mask at round 12 of the 13-round chain, w2b24 is
+the mask at round 15). Reporting them as "three verified chains" is
+circular; the independent chains are the 13-round chain and the
+6-round chain.
+
+**Growth at r0=10** (input w1b31, beam, multi-input, forward): 2, 4,
+6, 10, 15, 22, 34, 49, 78, 100, 133 at R=14..24. The R=16 (weight 6)
+and R=17 (weight 10) trails were verified empirically by the external
+reviewer: observed 1.63×10⁻² against a prediction of 1.56×10⁻² at
+R=16, and 1.1×10⁻³ against 9.8×10⁻⁴ at R=17, within sampling error.
+The 128-bit threshold is at R≈23.5.
+
+**Three geographies.** The differential, linear and integral analyses
+peak at different rotation offsets (first-round convention):
+
+| Direction | Peak offset (r0) | Longest verified | Data cost |
+|---|---|---|---|
+| **Differential** | **r0=10** | 13 rounds (weight 0) | **1 pair** |
+| Linear free chain | r0=12, r0=27 | 9 rounds (weight 0) | 2⁰ |
+| Linear hull | offset 20 backward ≈ r0=5–6 | 16 rounds (hull) | 2²² texts |
+| **Integral** | **r0=15** | 10 rounds | 2³² / 2⁶⁴ texts |
+
+No single offset dominates all three. This is the main structural
+finding of the offset sweep: **the three analysis directions must be
+reported offset by offset, not by a single representative offset.**
 
 # 4. Linear cryptanalysis
 
@@ -872,7 +1037,7 @@ were found to be equivalent for all input patterns tested (the `(1,1)`
 constraint never fired), so the reported results do not depend on the
 choice between them.
 
-**Results.**
+**Results at r0=0.**
 
 | Input | Active bits | Integral size | Rounds with balanced bits | Saturation |
 |---|---|---|---|---|
@@ -882,8 +1047,8 @@ choice between them.
 
 The **integral distinguishers** are the last two rows: 6 rounds with a
 2³²-text integral, 5 rounds with a 2⁶⁴-text integral. These cover 4.7%
-and 3.9% of the 128 rounds, leaving 122 and 123 rounds without an
-integral distinguisher in the tested pattern.
+and 3.9% of the 128 rounds at r0=0, leaving 122 and 123 rounds without
+an integral distinguisher in the tested pattern.
 
 The first row (1 active bit, 2-text integral) is **not** a meaningful
 integral distinguisher: with 2 texts, "balanced output bit" is
@@ -893,48 +1058,84 @@ measures how many rounds are needed for the active bit to reach all
 256 output bits (10) — but no integral security conclusion is drawn
 from it.
 
-**Empirical verification.** The 6-round distinguisher (word 0 active)
-and the 10-round single-bit dependency were verified against the real
-cipher (fixed random key, all non-active input bits random) over
-20,000 samples each. The balanced bits predicted by the model never
-flipped; control bits (predicted not balanced) flipped with
+**Empirical verification at r0=0.** The 6-round distinguisher (word 0
+active) and the 10-round single-bit dependency were verified against
+the real cipher (fixed random key, all non-active input bits random)
+over 20,000 samples each. The balanced bits predicted by the model
+never flipped; control bits (predicted not balanced) flipped with
 probabilities 6.5%–87%. The 5-round distinguisher (words 0,4 active)
 was not verified empirically (its integral has 2⁶⁴ texts; a random-
 sample approximation with 20,000 samples is not meaningful).
+
+**Offset sweep.** All 31 rotation offsets were tested at the
+saturation rounds of r0=0 (word0: R=6; word0,word4: R=5). The number
+of balanced output bits varies 8–9× across offsets (3–28 at R=5 for
+word0,word4; 3–26 at R=6 for word0). The offsets r0=12 and r0=27,
+which maximize the weight-0 linear chains, are **not** special for
+DP (values near the mean). The peak block is r0 ∈ [12,17], with a
+maximum at r0=15 (shift 16).
+
+**At r0=15 the distinguishers extend by four to five rounds over
+r0=0.** The DP trace decays by roughly a factor of two per round:
+
+| R | 6 | 7 | 8 | 9 | 10 | 11 |
+|---|---|---|---|---|---|---|
+| word0, balanced bits | 26 | **12** | 6 | 3 | **1** | **0** |
+| word0,word4, balanced bits | **15** | 9 | 4 | 2 | **1** | **0** |
+
+Both patterns saturate at R=11. The distinguisher covers **10 rounds**
+for both patterns. The tail at R=10 is a single balanced bit; the
+practical strength is in the 7–8 round range.
+
+**Verification at r0=15.** The 12 word0 bits at R=7 and 13 of the 15
+word0,word4 bits at R=6 were verified against the real cipher
+(20,000 samples, fixed key) as consistent with bit-0 toggle (and, for
+the two remaining bits word5 bit6 and word7 bit9, with simultaneous
+toggle of word0[0] and word4[0]). This is a necessary condition for
+the DP prediction, not a verification of the full 2³²/2⁶⁴ integral.
+The bits at R=8–10 were not individually verified; they remain model
+predictions.
 
 **Comparison with Simon (with care).** For Simon32/64, Todo and Morii
 (FSE 2016) prove a 14-round integral distinguisher with the
 conventional bit-based division property (31 active input bits), and a
 15-round one using three subsets. 14 rounds is 44% of Simon32's 32
 rounds (47% for 15 rounds). In **relative terms** MYSX resists integral
-distinguishers better (4.7% vs 44%), which is consistent with MYSX's
-more aggressive diffusion (4 parallel Feistel cells + transposition).
-In **absolute terms** Simon's distinguisher reaches further (14 vs 6
+distinguishers better (7.8% at the maximum round count at r0=15, 6.25%
+at R=8, vs 44% for Simon32), which is consistent with MYSX's more
+aggressive diffusion (4 parallel Feistel cells + transposition). In
+**absolute terms** Simon's distinguisher reaches further (14 vs 10
 rounds) even though MYSX has 4× more rounds. The two are not directly
 comparable without normalizing by total rounds, and the MYSX analysis
-used only the conventional bit-based rules at r0=0. (The earlier text
-of this paragraph quoted an 11-round Simon32 distinguisher, 34%; that
-figure was wrong.)
+used only the conventional bit-based rules. (The earlier text of this
+paragraph quoted an 11-round Simon32 distinguisher, 34%; that figure
+was wrong.)
 
 **What this establishes and what it does not.**
 
 Established:
 
-- MYSX has integral distinguishers covering 5–6 rounds with multi-bit
-  inputs (2³² and 2⁶⁴ texts).
+- MYSX has integral distinguishers covering 6–10 rounds depending on
+  the rotation offset: 6 rounds (2³²) / 5 rounds (2⁶⁴) at r0=0;
+  10 rounds (2³² and 2⁶⁴) at r0=15, with a thin tail (1 balanced bit
+  at R=10, 0 at R=11).
 - A single active input bit stops influencing all 256 output bits
-  after 10 rounds.
+  after 10 rounds at r0=0.
 - The standard division-property rules with the `(1,1)`-invalid XOR
   constraint produce the same results as the OR-conservative rule for
   the tested inputs.
 
 Not established:
 
-- Integral distinguishers beyond 6 rounds for multi-bit inputs.
-- Behaviour for r0 ≠ 0. Only r0 = 0 (the first round window) was
-  tested. The rotation schedule has period 31, and windows r0 = 12 and
-  r0 = 27 are where the linear chains are longest; they may also give
-  longer integral distinguishers, or shorter. Not explored.
+- Full 2³²/2⁶⁴ integral verification at r0=15. The toggle test is a
+  necessary condition only.
+- Behaviour of the R=8–10 tail at r0=15 under a stronger verification
+  method.
+- Whether the peak at r0=15 (shift 16) reflects a structural weakness
+  of shift-16 rounds or a property of the specific window. **This is
+  a hypothesis, not established.**
+- Behaviour for offsets outside the peak block [12,17] at extended
+  round counts.
 - Full-block inputs (255 active bits).
 - The three-subset division property (introduced by Todo–Morii,
   FSE 2016; variant without unknown subset: Hao et al., EUROCRYPT 2020)
@@ -1260,9 +1461,8 @@ Not established:
   `b = 0xFFFFFFFF`) may hide cheaper trails.
 - That hull gain stays small at larger R. At R=24 (w=88) a gain of
   ≈2²⁴ in correlation (88 − 64) would be needed to bring the data cost
-  down to the 2¹²⁸ budget; the
-  gains observed so far are ≤ 2.4× (exactly 2× at R=15 and R=16) and
-  were measured only up to R=16.
+  down to the 2¹²⁸ budget; the gains observed so far are ≤ 2.4×
+  (exactly 2× at R=15 and R=16) and were measured only up to R=16.
 - That multi-bit starts do not help at all. The tested samples
   (pairs47, rand:5000:4) do not improve on single-bit, but the random
   sample is too small to rule out structured multi-bit masks that
@@ -1305,9 +1505,9 @@ equals `propagate()` of `mysx_linear_model.py` on 40 of 40 end masks
 forward and R ≤ 12; the signs of the backward step are validated
 indirectly by the empirical measurements below.
 
-**Results.** `w1` is the single-trail weight of the beam trail; "budget"
-is `wmax` (all trails up to it are enumerated). The hull value is the
-same for keys `rand_key(1000)` and `rand_key(1001)`.
+**Results.** `w1` is the single-trail weight of the beam trail;
+"budget" is `wmax` (all trails up to it are enumerated). The hull
+value is the same for keys `rand_key(1000)` and `rand_key(1001)`.
 
 | trail | R | rounds | w1 | trails u→v found | budget | exact hull |
 |---|---|---|---|---|---|---|
@@ -1372,6 +1572,88 @@ backward have R=17 weights 23–26 and exceeded the state cap: undecided.
 - The sign was checked empirically for one key only.
 - None of this is a key-recovery cost, a lower bound, or an attack on
   the 128-round cipher.
+
+## 4.11. Statistical randomness of the CTR keystream
+
+Tool: NIST Statistical Test Suite (STS) 2.1.2, plus the generator script
+`misc/gen_nist_input.js`. This section reports the first statistical
+randomness test of the MYSX keystream; it was absent from `v0.1-draft`.
+
+**Method.** One hundred independent sequences of 1,000,000 bits each
+were produced as follows: for each sequence, a fresh uniformly random
+512-bit key and a fresh uniformly random 128-bit nonce were drawn, an
+all-zero plaintext of 125,000 bytes was encrypted with the CTR mode of
+§2.8 (`withFinalWhiten = true`, i.e. the full 128-round cipher), and the
+resulting keystream was written as a raw binary file. The 100 files
+(12,500,000 bytes in total, exactly 100,000,000 bits) were concatenated
+and fed to STS 2.1.2 with `./assess 1000000`, all 15 tests enabled,
+default parameters (block frequency M=128, template m=9, approximate
+entropy m=10, serial m=16, linear complexity M=500), binary input mode,
+and 100 bitstreams.
+
+**Results.** No test failed. No row is flagged with `*` or `FAIL`, no
+uniformity p-value is below the 0.0001 threshold, and no proportion is
+below the NIST minimum for its sample size.
+
+| Test | Proportion | Uniformity p-value | Verdict |
+|---|---:|---:|---|
+| Frequency | 97/100 | 0.851383 | pass |
+| Block Frequency | 97/100 | 0.289667 | pass |
+| Cumulative Sums (fwd/rev) | 97/100 | 0.350485 / 0.637119 | pass |
+| Runs | 100/100 | 0.834308 | pass |
+| Longest Run of Ones | 100/100 | 0.096578 | pass |
+| Rank | 100/100 | 0.574903 | pass |
+| Discrete Fourier Transform | 96/100 | 0.779188 | pass |
+| Non-Overlapping Template (148 sub-tests) | 96–100/100 | min 0.017912 | pass |
+| Overlapping Template | 99/100 | 0.978072 | pass |
+| Universal | 99/100 | 0.051942 | pass |
+| Approximate Entropy | 100/100 | 0.719747 | pass |
+| Random Excursions (8 states, n=65) | 64–65/65 | min 0.041438 | pass |
+| Random Excursions Variant (18 states, n=65) | 63–65/65 | min 0.063482 | pass |
+| Serial (two sub-tests) | 100/100 | 0.798139 / 0.366918 | pass |
+| Linear Complexity | 100/100 | 0.224821 | pass |
+
+The NIST minimum pass rate for a sample of 100 sequences is
+approximately 96/100 (61/65 for the random-excursion tests, which use 65
+sequences because of cycle counts). The tightest margins in this run are
+the Discrete Fourier Transform test and two Non-Overlapping Template
+sub-tests, all at exactly 96/100; every other 100-sequence test is at
+97/100 or above. The smallest uniformity p-value in the whole report is
+0.017912, roughly 180× the 0.0001 rejection threshold.
+
+**What this establishes and what it does not.**
+
+Established:
+
+- The CTR keystream of the full 128-round MYSX passes the complete NIST
+  SP 800-22 battery on 100 independent sequences of 10⁶ bits, with
+  fresh keys and nonces per sequence, no failures, and margins inside
+  the NIST acceptance region for every test.
+
+Not established:
+
+- Any statement about cryptographic security. SP 800-22 detects gross
+  statistical biases (non-uniformity, short-period artefacts, linear
+  structure at the bit level, excess runs); it does not detect
+  differential, linear-hull, or algebraic weaknesses, and a primitive
+  can pass it and still be trivially broken.
+- Any statement about reduced-round versions of the cipher. The test
+  covers the full 128 rounds with the final whitening enabled, exactly
+  as the public API uses it.
+- Any statement about the AEAD construction as a whole (HMAC-SHA256
+  tag, packet format, nonce policy); only the raw keystream was tested.
+- Independence between the 100 sequences beyond the fact that each uses
+  a fresh random key and nonce. The sequences were drawn
+  independently; no pairwise statistical test was run.
+- Resistance to `TestU01` (`Crush`/`BigCrush`) or `dieharder`, which
+  were not run. `TestU01` `BigCrush` is strictly stronger than
+  SP 800-22 and would be the natural next step; it is left for future
+  work.
+
+The purpose of this section is narrow and negative: it rules out the
+trivial failure mode of a keystream with detectable statistical
+structure. It is not evidence of security, and it does not change the
+verdict of §10.
 
 # 5. Related-key cryptanalysis
 
@@ -1457,10 +1739,10 @@ hull attacks against Simon are highly structured around Simon's
 Feistel-branch and its round-reduced behaviour; the MYSX hull is a
 different object and must be computed from the MYSX round model
 (Section 4.6). Integral distinguishers against Simon rely on Simon's
-particular 2-branch Feistel structure and its key schedule; the
-preliminary MYSX integral distinguishers in §4.9 are considerably
-shorter, and their relationship to Simon's is one of normalized
-coverage, not direct transfer.
+particular 2-branch Feistel structure and its key schedule; the MYSX
+integral distinguishers in §4.9 are considerably shorter, and their
+relationship to Simon's is one of normalized coverage, not direct
+transfer.
 
 **Relevant literature on Simon** (cited for context; the figures below
 were checked against the papers' abstracts, other figures quoted in
@@ -1491,10 +1773,13 @@ evidence; Simon attacks are context, not direct transfer.
 
 # 8. Analysis limitations
 
-- **Differential**: upper bounds on single-trail for one input at
-  r=12–14, no variation of the rotation offset; one trail verified at
-  r=4 (ratio 2.00×); no lower bounds; no full clustering analysis; no
-  inputs placed in the free windows.
+- **Differential**: single-trail upper bounds over 31 rotation offsets
+  (inputs chosen by the free chain table at r0=10, or w2b30 for r0=0);
+  two independent deterministic chains verified empirically (13 rounds
+  at r0=10, 6 rounds at r0=15); no lower bounds; no full clustering
+  analysis at r0≠0; the exact maximum of weight-0 chains (13 rounds)
+  is proven, but the non-zero-weight tables are upper bounds from a
+  beam or time-limited MILP.
 - **Linear**: an exact model of `F` is established and matches the
   real cipher on small round counts, including exact signed hulls at
   r=10, 11, 12. A beam search over the exact model, **in both
@@ -1515,13 +1800,15 @@ evidence; Simon attacks are context, not direct transfer.
   (pairs47, rand:5000:4) were explored and did not improve on
   single-bit starts, but the random sample is too small to be
   conclusive for structured multi-bit masks.
-- **Integral**: preliminary. 6-round distinguisher with 2³² texts
-  (word 0 active) and 5-round distinguisher with 2⁶⁴ texts (words 0,4
-  active), both with the sound `(1,1)`-invalid division-property rule.
-  A 10-round single-bit dependency propagation is reported for context
-  but is not an integral distinguisher. Only r0 = 0 tested; other
-  round windows, full-block inputs, and three-subset / traceability-
-  enhanced DP are not explored. No key-recovery attack was attempted.
+- **Integral**: 6–10 round distinguishers depending on the rotation
+  offset: 6 rounds (2³²) / 5 rounds (2⁶⁴) at r0=0; 10 rounds (2³²
+  and 2⁶⁴) at r0=15, with a thin tail (1 balanced bit at R=10, 0 at
+  R=11). The offset sweep shows the round count is **offset-dependent**.
+  Verification covers the R=7/R=6 bits at r0=15 (consistent with
+  bit-0 or double toggle; not full 2³²/2⁶⁴ integrals); the R=8–10
+  tail is a model prediction. Only r0=0 was tested for three-subset
+  and traceability-enhanced DP; full-block inputs and key-recovery
+  attacks were not explored.
 - **Related-key**: heuristic tests up to weight-6; no targeted MILP;
   number of round keys needed to recover the master key not measured.
 - **Impossible differential, boomerang, algebraic**: not analyzed.
@@ -1643,41 +1930,69 @@ edge duality, backward 9-round weight-0 chains, backward R=14 trail
 is a valid forward trail) and a `reproduce` command that regenerates
 the §4.5 table. See §4.10.1.
 
+The differential free chain table (`misc/diff_free_chain_table.py`)
+was verified against the MILP for the offsets tested; the maximum
+weight-0 chain length (13 rounds) was verified by exhaustive linear
+algebra over 2¹²⁸ left-half differences (external review). See §3.5.
+
+The differential verification scripts (`misc/verify_diff_trail.py`,
+`misc/verify_diff_13r.py`) check the deterministic trails of §3.5
+against the real cipher at 100% propagation over 262,144 pairs × 8
+keys.
+
 # 10. Verdict
 
 **MYSX-256/512 v0.1-draft2 is an experimental proposal, not a secure
-cipher.** The differential analysis reports upper bounds on single-trail
-weights (one input, rotation offset not varied), not a security proof;
-one trail at r=4 has been directly verified with clustering factor
-2.00×. The linear analysis has a correct, exact model of `F` and of the
-round; it reproduces the real cipher's linear behaviour on the small
-round counts where it has been checked (verified `|corr| = 1` chains at
-5 and 9 rounds; exact signed hulls at r = 10, 11, 12). A beam search
-over that model, run in **both directions** for all rotation offsets, up
-to 128 rounds, and merged, finds that the cheap region ends at roughly
-20 rounds (single-trail weight 38 at R=20, below 64 only up to R=22
-with weight 63 — a tie with the threshold — then growing by roughly
-12–21 per round up to R=112; 2248 at R=128, offset 3 backward, which is
-a real trail inside the cipher). The offset-20 backward trail at R=14
-(weight 5, rounds 100–113) is **isolated in its hull** (`hull_count` =
-1) and its empirical correlation matches the prediction, and an exact
-budgeted hull extends it to R=16 (rounds 98–113, |corr| = 2⁻¹¹):
-**this is a verified linear distinguisher on a 16-round window**, made
-of seven weighted rounds and a 9-round weight-0 chain. At R=17 the best
-end pairs cancel within the enumerated budget. For other trails, a check against
-the real cipher shows that a single-trail weight can be exact, ≈2× too
-low, or exactly cancelled, so these numbers are evidence about where
-cheap trails end, not universally how long a distinguisher is. No lower
-bound over 128 rounds has been established, no key-recovery attack has
-been attempted, and hull-aware bounds beyond R=17 are unexplored.
-Multi-bit starts (pairs47, rand:5000:4) did not improve on single-bit
-starts, but the random sample is too small to be conclusive. The
-integral analysis is preliminary: it establishes 5–6 round integral
-distinguishers with multi-bit inputs (2³² and 2⁶⁴ texts) and a 10-round
-single-bit dependency propagation, but only for the first round window
-(r0 = 0). The related-key analysis is heuristic. No impossible-
-differential, boomerang, or algebraic analysis has been done. The cipher
-has not been externally audited.
+cipher.** The differential analysis (§3) reports upper bounds on
+single-trail weights over all 31 rotation offsets, not a security
+proof. Probability-1 differential weight-0 chains exist at some
+offsets; the longest, 13 rounds at r0=10 (rounds 10–22 mod 31), is
+the maximum possible, verified by exact linear algebra and
+empirically with 100% propagation. The best single-trail weight found
+at R=14 ranges from 2 (r0=10) to about 120 across offsets; the
+128-bit threshold is reached at R≈24 for r0=10 versus r≈15 for r0=0.
+The r=4 trail at r0=0 has been directly verified with clustering
+factor 2.00×. The linear analysis has a correct, exact model of `F`
+and of the round; it reproduces the real cipher's linear behaviour on
+the small round counts where it has been checked (verified `|corr| =
+1` chains at 5 and 9 rounds; exact signed hulls at r = 10, 11, 12). A
+beam search over that model, run in **both directions** for all
+rotation offsets, up to 128 rounds, and merged, finds that the cheap
+region ends at roughly 20 rounds (single-trail weight 38 at R=20,
+below 64 only up to R=22 with weight 63 — a tie with the threshold —
+then growing by roughly 12–21 per round up to R=112; 2248 at R=128,
+offset 3 backward, which is a real trail inside the cipher). The
+offset-20 backward trail at R=14 (weight 5, rounds 100–113) is
+**isolated in its hull** (`hull_count` = 1) and its empirical
+correlation matches the prediction, and an exact budgeted hull
+extends it to R=16 (rounds 98–113, |corr| = 2⁻¹¹): **this is a
+verified linear distinguisher on a 16-round window**, made of seven
+weighted rounds and a 9-round weight-0 chain. At R=17 the best end
+pairs cancel within the enumerated budget. For other trails, a check
+against the real cipher shows that a single-trail weight can be
+exact, ≈2× too low, or exactly cancelled, so these numbers are
+evidence about where cheap trails end, not universally how long a
+distinguisher is. No lower bound over 128 rounds has been
+established, no key-recovery attack has been attempted, and
+hull-aware bounds beyond R=17 are unexplored. Multi-bit starts
+(pairs47, rand:5000:4) did not improve on single-bit starts, but the
+random sample is too small to be conclusive. The integral analysis,
+extended to all 31 rotation offsets, establishes 6-round (2³² texts)
+and 5-round (2⁶⁴ texts) distinguishers at r0=0, extended to 10 rounds
+(both patterns) at r0=15, with a thin tail (one balanced bit at R=10)
+and practical strength in the 7–8 round range. The R=7/R=6 bits are
+consistent with a 2-text or 4-text toggle; the full 2³²/2⁶⁴ integrals
+were not verified. The offsets r0=12 and r0=27 are not special for
+DP. **The three analysis directions peak at different offsets**
+(differential r0=10, linear free chains r0=12/27, linear hull at
+offset 20 backward ≈ r0=5–6, integral r0=15), so none of the
+single-offset bounds previously reported describes the cipher as a
+whole. The CTR keystream passes the full NIST SP 800-22 battery (100 sequences
+× 10⁶ bits, fresh key and nonce per sequence, no failures, §4.11), which
+rules out gross statistical biases but says nothing about differential,
+linear, algebraic, or key-recovery attacks. The related-key analysis is heuristic. No
+impossible-differential, boomerang, or algebraic analysis has been
+done. The cipher has not been externally audited.
 
 **Do not use MYSX to protect real data.** For production:
 **AES-256-GCM** or **XChaCha20-Poly1305**.
@@ -1708,11 +2023,16 @@ has not been externally audited.
 | `misc/beam_paths_bwd20.json`, `misc/beam_paths_fwd23.json` | Re-runs of the beam search (offset 20 backward, offset 23 forward, `--paths 15..22`), input of §4.10.5 |
 | `misc/scan_R17.log` | Output of the R=17 end-pair scan (§4.10.5) |
 | `misc/HULL_R15_R17.md` | Summary and reproduction commands of §4.10.5 |
-| `misc/mysx_milp.py` | Differential MILP |
+| `misc/mysx_milp.py` | Differential MILP (original, `--r0` fixed at 0) |
+| `misc/mysx_milp2.py` | Differential MILP with `--r0` (§3.5) |
+| `misc/verify_diff_trail.py` | Empirical verification of the 6-round deterministic trail at r0=15 (§3.5) |
+| `misc/verify_diff_13r.py` | Empirical verification of the 13-round deterministic trail at r0=10 (§3.5) |
+| `misc/diff_free_chain_table.py` | Differential free chain table by offset (§3.5) |
 | `misc/mysx_linear_milp.py` | Previous approximate linear MILPs (historical, superseded by `mysx_linear_model.py`) |
 | `misc/mysx_division_property.py` | Bit-based division-property MILP (v1; `--xor-rule` selects XOR or OR) |
 | `misc/mysx_division_property_v2.py` | Bit-based division-property MILP (standard `(1,1)`-invalid XOR rule) |
 | `misc/verify_division.py` | Empirical verification of integral distinguishers |
+| `misc/verify_division_double_toggle.py` | Double-toggle verification for bits 5:6 and 7:9 (§4.9) |
 | `misc/keyschedule_test.js` | Basic key schedule audit |
 | `misc/keyschedule_test_extended.js` | Exhaustive audit (22 tests) |
 | `misc/check_trail.js` | Empirical differential trail at r=4 |
@@ -1724,6 +2044,12 @@ has not been externally audited.
 | `misc/mini_linear_fast.js` | Linear sampling at w=8, `kw='MYSZ'` |
 | `misc/verify_trail_w32.js` | Per-trail verification at w=32 with MILP weight |
 | `misc/avalanche.js` | Diffusion and avalanche ladder (r=1..24) |
+| `diffResults/` | Raw logs of the differential offset sweep (§3.5) |
+| `dpResults/`, `dpResults_v2/` | Raw logs of the integral offset sweep (§4.9) |
+| `misc/gen_nist_input.js` | Generates the 100 × 10⁶-bit CTR keystream files for NIST SP 800-22 (§4.11) |
+| `misc/nist_input/` | Output of the above (100 files `data000`…`data099`, 125,000 bytes each) |
+| `misc/nist_input/all_data.bin` | Concatenation of the 100 files (12,500,000 bytes) fed to `./assess 1000000` |
+| `NIST_SP_800-22_report.txt` | STS 2.1.2 report (copy kept alongside the paper) |
 
 Fixed seed in tests (`0xC0FFEE`). MILPs are deterministic given the
 solver and `gapRel`. The mini-MYSX with `w=32` reproduces
@@ -1757,8 +2083,14 @@ are not part of the tool; their scripts are
 one CPU); `python3 scan_endpairs.py --R 17 --cells 20:backward,23:forward --topk 8`.
 Keys are `rand_key(1000)`, `rand_key(1001)`, …
 
-**Division-property results (`§4.9`).** All three input patterns
-(single bit, word 0, words 0+4) were run with `--r0 0`. The
+**Differential chains (§3.5).** From `misc/`:
+`python3 diff_free_chain_table.py` (free chain table);
+`python3 verify_diff_trail.py` (6-round trail at r0=15);
+`python3 verify_diff_13r.py` (13-round trail at r0=10);
+`python3 mysx_milp2.py --rounds 13 --input-bit 63 --r0 10 --trail` (13-round trail).
+
+**Division-property results (§4.9).** At r0=0, all three input
+patterns (single bit, word 0, words 0+4) were run with `--r0 0`. The
 `(1,1)`-invalid XOR rule and the OR-conservative rule were checked to
 agree on the tested patterns. Per-round balanced-bit counts are in
 the terminal logs of the runs; the runtimes were 0.4 s to 4.8 ks with
@@ -1767,7 +2099,23 @@ cipher (20,000 random samples per bit). The R=6 word-0 integral was
 verified against the real cipher at the last round (R=6, balanced
 bits confirmed; R=7 saturated). The R=5 words-0,4 integral was not
 verified empirically because its 2⁶⁴-text integral cannot be
-approximated by 20,000 random samples.
+approximated by 20,000 random samples. At r0=15, the offset sweep used
+`--r0 15` (all 31 offsets at the saturation rounds of r0=0). The
+R=7/R=6 bits at r0=15 were verified as consistent with bit-0 or double
+toggle; the full 2³²/2⁶⁴ integrals were not verified.
+
+**Statistical tests (§4.11).** From `misc/`:
+`MYSX_ENABLE_TEST=1 node gen_nist_input.js` regenerates the 100 files
+(the `TEST` API is enabled only by that environment variable and is not
+part of the public surface). Concatenate with
+`cat nist_input/data* > nist_input/all_data.bin`, then run
+`./assess 1000000` in STS 2.1.2 with input choice `0`, input file
+`.../nist_input/all_data.bin`, all tests, default parameters, 100
+bitstreams, binary mode. Keys and nonces are drawn with
+`crypto.randomBytes` and are therefore not reproducible bit-for-bit;
+the *result* (no failures, all proportions inside the acceptance
+region) is stable across reruns, but a rerun produces different
+sequences. The report is deterministic given the input file.
 
 # 12. Final warning
 

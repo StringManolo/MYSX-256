@@ -1,0 +1,43 @@
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 218 left
+    iter 10: 213 left
+    iter 15: 208 left
+    iter 20: 203 left
+    iter 25: 198 left
+    iter 30: 193 left
+    iter 35: 188 left
+    iter 40: 183 left
+    iter 45: 160 left
+    iter 50: 155 left
+    iter 55: 145 left
+    iter 60: 140 left
+    iter 65: 129 left
+    iter 70: 124 left
+    iter 75: 119 left
+    iter 80: 114 left
+    iter 85: 109 left
+    iter 90: 104 left
+    iter 95: 99 left
+    iter 100: 94 left
+    iter 105: 89 left
+    iter 110: 84 left
+    iter 115: 79 left
+    iter 120: 74 left
+    iter 125: 69 left
+    iter 130: 64 left
+    iter 135: 59 left
+    iter 140: 54 left
+    iter 145: 49 left
+    iter 150: 44 left
+    iter 155: 39 left
+    iter 160: 34 left
+    iter 165: 29 left
+    iter 170: 24 left
+    iter 175: 19 left
+    iter 180: 14 left
+[R=7] Balanced: 12/256 (183 iters, 414.0s)
+
+=== SUMMARY ===
+R | balanced
+ 7 |  12 ###

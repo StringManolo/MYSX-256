@@ -1,0 +1,2271 @@
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 171 left
+    iter 10: 166 left
+    iter 15: 129 left
+    iter 20: 124 left
+    iter 25: 119 left
+    iter 30: 114 left
+    iter 35: 109 left
+    iter 40: 104 left
+    iter 45: 99 left
+    iter 50: 94 left
+    iter 55: 89 left
+    iter 60: 84 left
+    iter 65: 79 left
+    iter 70: 74 left
+    iter 75: 69 left
+    iter 80: 64 left
+    iter 85: 59 left
+    iter 90: 54 left
+    iter 95: 49 left
+    iter 100: 44 left
+    iter 105: 39 left
+    iter 110: 34 left
+    iter 115: 29 left
+    iter 120: 24 left
+    iter 125: 19 left
+    iter 130: 14 left
+[R=5] Balanced: 11/256 (134 iters, 491.6s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  11 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 134 left
+    iter 10: 129 left
+    iter 15: 124 left
+    iter 20: 119 left
+    iter 25: 114 left
+    iter 30: 109 left
+    iter 35: 99 left
+    iter 40: 94 left
+    iter 45: 89 left
+    iter 50: 84 left
+    iter 55: 79 left
+    iter 60: 74 left
+    iter 65: 69 left
+    iter 70: 64 left
+    iter 75: 59 left
+    iter 80: 54 left
+    iter 85: 49 left
+    iter 90: 44 left
+    iter 95: 39 left
+    iter 100: 34 left
+    iter 105: 29 left
+    iter 110: 24 left
+    iter 115: 19 left
+    iter 120: 14 left
+    iter 125: 9 left
+    iter 130: 4 left
+[R=5] Balanced: 4/256 (131 iters, 617.7s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   4 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 141 left
+    iter 10: 132 left
+    iter 15: 110 left
+    iter 20: 105 left
+    iter 25: 100 left
+    iter 30: 95 left
+    iter 35: 90 left
+    iter 40: 85 left
+    iter 45: 80 left
+    iter 50: 75 left
+    iter 55: 70 left
+    iter 60: 65 left
+    iter 65: 60 left
+    iter 70: 55 left
+    iter 75: 50 left
+    iter 80: 45 left
+    iter 85: 40 left
+    iter 90: 35 left
+    iter 95: 30 left
+    iter 100: 25 left
+    iter 105: 20 left
+    iter 110: 15 left
+    iter 115: 10 left
+[R=5] Balanced: 6/256 (120 iters, 488.7s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   6 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 146 left
+    iter 10: 140 left
+    iter 15: 135 left
+    iter 20: 130 left
+    iter 25: 125 left
+    iter 30: 108 left
+    iter 35: 103 left
+    iter 40: 98 left
+    iter 45: 93 left
+    iter 50: 86 left
+    iter 55: 81 left
+    iter 60: 76 left
+    iter 65: 71 left
+    iter 70: 66 left
+    iter 75: 61 left
+    iter 80: 56 left
+    iter 85: 51 left
+    iter 90: 46 left
+    iter 95: 41 left
+    iter 100: 36 left
+    iter 105: 31 left
+    iter 110: 26 left
+    iter 115: 21 left
+    iter 120: 16 left
+[R=5] Balanced: 14/256 (123 iters, 474.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  14 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 153 left
+    iter 10: 148 left
+    iter 15: 143 left
+    iter 20: 138 left
+    iter 25: 133 left
+    iter 30: 128 left
+    iter 35: 123 left
+    iter 40: 118 left
+    iter 45: 113 left
+    iter 50: 108 left
+    iter 55: 103 left
+    iter 60: 98 left
+    iter 65: 87 left
+    iter 70: 81 left
+    iter 75: 76 left
+    iter 80: 71 left
+    iter 85: 66 left
+    iter 90: 61 left
+    iter 95: 56 left
+    iter 100: 51 left
+    iter 105: 46 left
+    iter 110: 41 left
+    iter 115: 36 left
+    iter 120: 31 left
+    iter 125: 26 left
+[R=5] Balanced: 22/256 (130 iters, 595.0s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  22 #####
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 155 left
+    iter 10: 149 left
+    iter 15: 144 left
+    iter 20: 139 left
+    iter 25: 134 left
+    iter 30: 129 left
+    iter 35: 124 left
+    iter 40: 119 left
+    iter 45: 114 left
+    iter 50: 102 left
+    iter 55: 97 left
+    iter 60: 92 left
+    iter 65: 87 left
+    iter 70: 82 left
+    iter 75: 77 left
+    iter 80: 72 left
+    iter 85: 67 left
+    iter 90: 62 left
+    iter 95: 57 left
+    iter 100: 52 left
+    iter 105: 47 left
+    iter 110: 42 left
+    iter 115: 37 left
+    iter 120: 32 left
+    iter 125: 27 left
+[R=5] Balanced: 27/256 (126 iters, 358.1s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  27 ######
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 156 left
+    iter 10: 151 left
+    iter 15: 146 left
+    iter 20: 141 left
+    iter 25: 136 left
+    iter 30: 131 left
+    iter 35: 126 left
+    iter 40: 121 left
+    iter 45: 116 left
+    iter 50: 111 left
+    iter 55: 106 left
+    iter 60: 101 left
+    iter 65: 94 left
+    iter 70: 89 left
+    iter 75: 81 left
+    iter 80: 76 left
+    iter 85: 71 left
+    iter 90: 66 left
+    iter 95: 61 left
+    iter 100: 56 left
+    iter 105: 51 left
+    iter 110: 46 left
+    iter 115: 41 left
+    iter 120: 36 left
+    iter 125: 31 left
+[R=5] Balanced: 28/256 (129 iters, 338.8s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  28 #######
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 144 left
+    iter 10: 139 left
+    iter 15: 133 left
+    iter 20: 128 left
+    iter 25: 123 left
+    iter 30: 118 left
+    iter 35: 113 left
+    iter 40: 108 left
+    iter 45: 103 left
+    iter 50: 98 left
+    iter 55: 93 left
+    iter 60: 88 left
+    iter 65: 83 left
+    iter 70: 78 left
+    iter 75: 73 left
+    iter 80: 68 left
+    iter 85: 63 left
+    iter 90: 58 left
+    iter 95: 53 left
+    iter 100: 48 left
+    iter 105: 43 left
+    iter 110: 38 left
+    iter 115: 33 left
+    iter 120: 28 left
+    iter 125: 23 left
+[R=5] Balanced: 22/256 (127 iters, 546.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  22 #####
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 176 left
+    iter 10: 171 left
+    iter 15: 166 left
+    iter 20: 135 left
+    iter 25: 130 left
+    iter 30: 125 left
+    iter 35: 120 left
+    iter 40: 115 left
+    iter 45: 110 left
+    iter 50: 105 left
+    iter 55: 100 left
+    iter 60: 95 left
+    iter 65: 90 left
+    iter 70: 85 left
+    iter 75: 80 left
+    iter 80: 75 left
+    iter 85: 70 left
+    iter 90: 65 left
+    iter 95: 58 left
+    iter 100: 53 left
+    iter 105: 48 left
+    iter 110: 42 left
+    iter 115: 37 left
+    iter 120: 32 left
+    iter 125: 27 left
+    iter 130: 22 left
+[R=5] Balanced: 19/256 (134 iters, 457.9s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  19 ####
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 189 left
+    iter 10: 184 left
+    iter 15: 179 left
+    iter 20: 174 left
+    iter 25: 169 left
+    iter 30: 164 left
+    iter 35: 122 left
+    iter 40: 109 left
+    iter 45: 104 left
+    iter 50: 92 left
+    iter 55: 87 left
+    iter 60: 82 left
+    iter 65: 77 left
+    iter 70: 72 left
+    iter 75: 67 left
+    iter 80: 62 left
+    iter 85: 57 left
+    iter 90: 52 left
+    iter 95: 47 left
+    iter 100: 42 left
+    iter 105: 37 left
+    iter 110: 32 left
+    iter 115: 27 left
+    iter 120: 22 left
+    iter 125: 17 left
+    iter 130: 12 left
+[R=5] Balanced: 12/256 (131 iters, 552.3s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  12 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 142 left
+    iter 10: 136 left
+    iter 15: 130 left
+    iter 20: 125 left
+    iter 25: 120 left
+    iter 30: 115 left
+    iter 35: 110 left
+    iter 40: 103 left
+    iter 45: 98 left
+    iter 50: 93 left
+    iter 55: 88 left
+    iter 60: 83 left
+    iter 65: 78 left
+    iter 70: 73 left
+    iter 75: 68 left
+    iter 80: 60 left
+    iter 85: 55 left
+    iter 90: 50 left
+    iter 95: 45 left
+    iter 100: 40 left
+    iter 105: 35 left
+    iter 110: 30 left
+    iter 115: 25 left
+    iter 120: 20 left
+    iter 125: 15 left
+[R=5] Balanced: 11/256 (130 iters, 653.3s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  11 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 151 left
+    iter 10: 143 left
+    iter 15: 138 left
+    iter 20: 133 left
+    iter 25: 128 left
+    iter 30: 123 left
+    iter 35: 118 left
+    iter 40: 113 left
+    iter 45: 108 left
+    iter 50: 103 left
+    iter 55: 88 left
+    iter 60: 83 left
+    iter 65: 78 left
+    iter 70: 71 left
+    iter 75: 66 left
+    iter 80: 61 left
+    iter 85: 56 left
+    iter 90: 51 left
+    iter 95: 46 left
+    iter 100: 41 left
+    iter 105: 36 left
+    iter 110: 31 left
+    iter 115: 26 left
+    iter 120: 21 left
+    iter 125: 16 left
+[R=5] Balanced: 13/256 (129 iters, 702.8s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  13 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 143 left
+    iter 10: 136 left
+    iter 15: 129 left
+    iter 20: 124 left
+    iter 25: 119 left
+    iter 30: 114 left
+    iter 35: 109 left
+    iter 40: 104 left
+    iter 45: 99 left
+    iter 50: 94 left
+    iter 55: 89 left
+    iter 60: 84 left
+    iter 65: 79 left
+    iter 70: 74 left
+    iter 75: 69 left
+    iter 80: 64 left
+    iter 85: 59 left
+    iter 90: 54 left
+    iter 95: 49 left
+    iter 100: 42 left
+    iter 105: 37 left
+    iter 110: 32 left
+    iter 115: 27 left
+    iter 120: 22 left
+    iter 125: 17 left
+[R=5] Balanced: 13/256 (130 iters, 571.2s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  13 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 182 left
+    iter 10: 177 left
+    iter 15: 158 left
+    iter 20: 152 left
+    iter 25: 147 left
+    iter 30: 118 left
+    iter 35: 111 left
+    iter 40: 106 left
+    iter 45: 101 left
+    iter 50: 96 left
+    iter 55: 91 left
+    iter 60: 86 left
+    iter 65: 79 left
+    iter 70: 74 left
+    iter 75: 69 left
+    iter 80: 64 left
+    iter 85: 59 left
+    iter 90: 54 left
+    iter 95: 49 left
+    iter 100: 44 left
+    iter 105: 39 left
+    iter 110: 34 left
+    iter 115: 29 left
+    iter 120: 24 left
+    iter 125: 19 left
+    iter 130: 14 left
+[R=5] Balanced: 13/256 (132 iters, 514.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  13 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 143 left
+    iter 10: 136 left
+    iter 15: 131 left
+    iter 20: 126 left
+    iter 25: 121 left
+    iter 30: 116 left
+    iter 35: 94 left
+    iter 40: 89 left
+    iter 45: 81 left
+    iter 50: 76 left
+    iter 55: 71 left
+    iter 60: 66 left
+    iter 65: 61 left
+    iter 70: 56 left
+    iter 75: 51 left
+    iter 80: 46 left
+    iter 85: 41 left
+    iter 90: 36 left
+    iter 95: 31 left
+    iter 100: 26 left
+    iter 105: 21 left
+    iter 110: 16 left
+    iter 115: 11 left
+[R=5] Balanced: 9/256 (118 iters, 346.1s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   9 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 174 left
+    iter 10: 169 left
+    iter 15: 136 left
+    iter 20: 131 left
+    iter 25: 126 left
+    iter 30: 121 left
+    iter 35: 116 left
+    iter 40: 111 left
+    iter 45: 106 left
+    iter 50: 101 left
+    iter 55: 96 left
+    iter 60: 82 left
+    iter 65: 77 left
+    iter 70: 72 left
+    iter 75: 67 left
+    iter 80: 60 left
+    iter 85: 55 left
+    iter 90: 50 left
+    iter 95: 45 left
+    iter 100: 40 left
+    iter 105: 35 left
+    iter 110: 30 left
+    iter 115: 25 left
+    iter 120: 20 left
+    iter 125: 15 left
+    iter 130: 10 left
+[R=5] Balanced: 10/256 (131 iters, 476.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  10 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 154 left
+    iter 10: 140 left
+    iter 15: 134 left
+    iter 20: 129 left
+    iter 25: 120 left
+    iter 30: 107 left
+    iter 35: 101 left
+    iter 40: 96 left
+    iter 45: 91 left
+    iter 50: 86 left
+    iter 55: 81 left
+    iter 60: 76 left
+    iter 65: 71 left
+    iter 70: 66 left
+    iter 75: 61 left
+    iter 80: 56 left
+    iter 85: 51 left
+    iter 90: 46 left
+    iter 95: 41 left
+    iter 100: 36 left
+    iter 105: 31 left
+    iter 110: 26 left
+    iter 115: 21 left
+    iter 120: 16 left
+    iter 125: 11 left
+[R=5] Balanced: 11/256 (126 iters, 500.1s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  11 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 135 left
+    iter 10: 130 left
+    iter 15: 125 left
+    iter 20: 120 left
+    iter 25: 115 left
+    iter 30: 108 left
+    iter 35: 103 left
+    iter 40: 86 left
+    iter 45: 81 left
+    iter 50: 76 left
+    iter 55: 71 left
+    iter 60: 66 left
+    iter 65: 61 left
+    iter 70: 56 left
+    iter 75: 51 left
+    iter 80: 46 left
+    iter 85: 41 left
+    iter 90: 36 left
+    iter 95: 31 left
+    iter 100: 26 left
+    iter 105: 21 left
+    iter 110: 16 left
+    iter 115: 11 left
+[R=5] Balanced: 8/256 (119 iters, 355.8s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 185 left
+    iter 10: 180 left
+    iter 15: 175 left
+    iter 20: 170 left
+    iter 25: 165 left
+    iter 30: 124 left
+    iter 35: 114 left
+    iter 40: 109 left
+    iter 45: 104 left
+    iter 50: 99 left
+    iter 55: 94 left
+    iter 60: 83 left
+    iter 65: 77 left
+    iter 70: 72 left
+    iter 75: 67 left
+    iter 80: 62 left
+    iter 85: 57 left
+    iter 90: 52 left
+    iter 95: 47 left
+    iter 100: 42 left
+    iter 105: 37 left
+    iter 110: 32 left
+    iter 115: 27 left
+    iter 120: 22 left
+    iter 125: 17 left
+    iter 130: 12 left
+[R=5] Balanced: 8/256 (135 iters, 419.1s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 138 left
+    iter 10: 131 left
+    iter 15: 126 left
+    iter 20: 121 left
+    iter 25: 116 left
+    iter 30: 111 left
+    iter 35: 106 left
+    iter 40: 101 left
+    iter 45: 96 left
+    iter 50: 88 left
+    iter 55: 83 left
+    iter 60: 78 left
+    iter 65: 73 left
+    iter 70: 68 left
+    iter 75: 63 left
+    iter 80: 58 left
+    iter 85: 53 left
+    iter 90: 48 left
+    iter 95: 43 left
+    iter 100: 38 left
+    iter 105: 33 left
+    iter 110: 28 left
+    iter 115: 23 left
+    iter 120: 18 left
+    iter 125: 13 left
+    iter 130: 8 left
+[R=5] Balanced: 8/256 (131 iters, 409.2s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 143 left
+    iter 10: 136 left
+    iter 15: 131 left
+    iter 20: 126 left
+    iter 25: 121 left
+    iter 30: 116 left
+    iter 35: 111 left
+    iter 40: 106 left
+    iter 45: 101 left
+    iter 50: 96 left
+    iter 55: 91 left
+    iter 60: 86 left
+    iter 65: 81 left
+    iter 70: 72 left
+    iter 75: 67 left
+    iter 80: 62 left
+    iter 85: 57 left
+    iter 90: 52 left
+    iter 95: 47 left
+    iter 100: 42 left
+    iter 105: 37 left
+    iter 110: 32 left
+    iter 115: 27 left
+    iter 120: 22 left
+    iter 125: 17 left
+    iter 130: 12 left
+    iter 135: 7 left
+[R=5] Balanced: 7/256 (136 iters, 463.8s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   7 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 142 left
+    iter 10: 131 left
+    iter 15: 126 left
+    iter 20: 121 left
+    iter 25: 116 left
+    iter 30: 111 left
+    iter 35: 106 left
+    iter 40: 101 left
+    iter 45: 96 left
+    iter 50: 91 left
+    iter 55: 86 left
+    iter 60: 81 left
+    iter 65: 76 left
+    iter 70: 71 left
+    iter 75: 66 left
+    iter 80: 61 left
+    iter 85: 56 left
+    iter 90: 51 left
+    iter 95: 46 left
+    iter 100: 41 left
+    iter 105: 36 left
+    iter 110: 30 left
+    iter 115: 25 left
+    iter 120: 20 left
+    iter 125: 15 left
+    iter 130: 10 left
+[R=5] Balanced: 10/256 (131 iters, 418.2s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  10 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 188 left
+    iter 10: 182 left
+    iter 15: 177 left
+    iter 20: 135 left
+    iter 25: 129 left
+    iter 30: 124 left
+    iter 35: 119 left
+    iter 40: 114 left
+    iter 45: 109 left
+    iter 50: 104 left
+    iter 55: 99 left
+    iter 60: 94 left
+    iter 65: 89 left
+    iter 70: 84 left
+    iter 75: 79 left
+    iter 80: 74 left
+    iter 85: 69 left
+    iter 90: 62 left
+    iter 95: 57 left
+    iter 100: 52 left
+    iter 105: 47 left
+    iter 110: 42 left
+    iter 115: 37 left
+    iter 120: 32 left
+    iter 125: 27 left
+    iter 130: 22 left
+    iter 135: 17 left
+    iter 140: 12 left
+[R=5] Balanced: 11/256 (142 iters, 508.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  11 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 144 left
+    iter 10: 139 left
+    iter 15: 129 left
+    iter 20: 124 left
+    iter 25: 118 left
+    iter 30: 113 left
+    iter 35: 94 left
+    iter 40: 89 left
+    iter 45: 84 left
+    iter 50: 79 left
+    iter 55: 74 left
+    iter 60: 69 left
+    iter 65: 64 left
+    iter 70: 59 left
+    iter 75: 54 left
+    iter 80: 49 left
+    iter 85: 44 left
+    iter 90: 39 left
+    iter 95: 34 left
+    iter 100: 29 left
+    iter 105: 24 left
+    iter 110: 19 left
+[R=5] Balanced: 15/256 (115 iters, 338.5s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |  15 ###
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 182 left
+    iter 10: 177 left
+    iter 15: 172 left
+    iter 20: 126 left
+    iter 25: 120 left
+    iter 30: 115 left
+    iter 35: 110 left
+    iter 40: 105 left
+    iter 45: 100 left
+    iter 50: 95 left
+    iter 55: 90 left
+    iter 60: 85 left
+    iter 65: 80 left
+    iter 70: 75 left
+    iter 75: 68 left
+    iter 80: 63 left
+    iter 85: 58 left
+    iter 90: 53 left
+    iter 95: 48 left
+    iter 100: 43 left
+    iter 105: 38 left
+    iter 110: 33 left
+    iter 115: 28 left
+    iter 120: 23 left
+    iter 125: 18 left
+    iter 130: 13 left
+    iter 135: 8 left
+[R=5] Balanced: 8/256 (136 iters, 438.9s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 179 left
+    iter 10: 174 left
+    iter 15: 169 left
+    iter 20: 164 left
+    iter 25: 123 left
+    iter 30: 118 left
+    iter 35: 113 left
+    iter 40: 108 left
+    iter 45: 103 left
+    iter 50: 98 left
+    iter 55: 93 left
+    iter 60: 88 left
+    iter 65: 83 left
+    iter 70: 78 left
+    iter 75: 73 left
+    iter 80: 68 left
+    iter 85: 63 left
+    iter 90: 58 left
+    iter 95: 53 left
+    iter 100: 48 left
+    iter 105: 43 left
+    iter 110: 38 left
+    iter 115: 33 left
+    iter 120: 28 left
+    iter 125: 23 left
+    iter 130: 18 left
+    iter 135: 13 left
+    iter 140: 8 left
+[R=5] Balanced: 7/256 (142 iters, 562.9s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   7 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 180 left
+    iter 10: 131 left
+    iter 15: 126 left
+    iter 20: 121 left
+    iter 25: 116 left
+    iter 30: 111 left
+    iter 35: 106 left
+    iter 40: 101 left
+    iter 45: 96 left
+    iter 50: 91 left
+    iter 55: 86 left
+    iter 60: 81 left
+    iter 65: 76 left
+    iter 70: 71 left
+    iter 75: 62 left
+    iter 80: 57 left
+    iter 85: 52 left
+    iter 90: 45 left
+    iter 95: 40 left
+    iter 100: 35 left
+    iter 105: 30 left
+    iter 110: 25 left
+    iter 115: 20 left
+    iter 120: 15 left
+    iter 125: 10 left
+    iter 130: 5 left
+[R=5] Balanced: 3/256 (133 iters, 659.7s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   3 
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 176 left
+    iter 10: 171 left
+    iter 15: 166 left
+    iter 20: 122 left
+    iter 25: 117 left
+    iter 30: 93 left
+    iter 35: 87 left
+    iter 40: 82 left
+    iter 45: 74 left
+    iter 50: 69 left
+    iter 55: 64 left
+    iter 60: 59 left
+    iter 65: 46 left
+    iter 70: 41 left
+    iter 75: 36 left
+    iter 80: 31 left
+    iter 85: 26 left
+    iter 90: 21 left
+    iter 95: 16 left
+    iter 100: 11 left
+    iter 105: 6 left
+[R=5] Balanced: 4/256 (108 iters, 569.0s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   4 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 170 left
+    iter 10: 165 left
+    iter 15: 160 left
+    iter 20: 155 left
+    iter 25: 150 left
+    iter 30: 113 left
+    iter 35: 108 left
+    iter 40: 103 left
+    iter 45: 98 left
+    iter 50: 93 left
+    iter 55: 88 left
+    iter 60: 83 left
+    iter 65: 78 left
+    iter 70: 73 left
+    iter 75: 68 left
+    iter 80: 61 left
+    iter 85: 56 left
+    iter 90: 51 left
+    iter 95: 46 left
+    iter 100: 35 left
+    iter 105: 30 left
+    iter 110: 25 left
+    iter 115: 20 left
+    iter 120: 15 left
+    iter 125: 10 left
+[R=5] Balanced: 7/256 (129 iters, 467.0s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   7 #
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 139 left
+    iter 10: 133 left
+    iter 15: 128 left
+    iter 20: 122 left
+    iter 25: 117 left
+    iter 30: 112 left
+    iter 35: 107 left
+    iter 40: 96 left
+    iter 45: 91 left
+    iter 50: 86 left
+    iter 55: 81 left
+    iter 60: 76 left
+    iter 65: 71 left
+    iter 70: 66 left
+    iter 75: 61 left
+    iter 80: 56 left
+    iter 85: 51 left
+    iter 90: 40 left
+    iter 95: 35 left
+    iter 100: 30 left
+    iter 105: 25 left
+    iter 110: 20 left
+    iter 115: 15 left
+    iter 120: 10 left
+[R=5] Balanced: 8/256 (123 iters, 509.3s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 64 active bits
+Solver: SCIP
+    iter 5: 148 left
+    iter 10: 141 left
+    iter 15: 136 left
+    iter 20: 131 left
+    iter 25: 118 left
+    iter 30: 113 left
+    iter 35: 108 left
+    iter 40: 103 left
+    iter 45: 98 left
+    iter 50: 93 left
+    iter 55: 84 left
+    iter 60: 73 left
+    iter 65: 68 left
+    iter 70: 63 left
+    iter 75: 58 left
+    iter 80: 53 left
+    iter 85: 48 left
+    iter 90: 43 left
+    iter 95: 38 left
+    iter 100: 33 left
+    iter 105: 28 left
+    iter 110: 23 left
+    iter 115: 18 left
+    iter 120: 13 left
+    iter 125: 8 left
+[R=5] Balanced: 8/256 (126 iters, 556.4s)
+
+=== SUMMARY ===
+R | balanced
+ 5 |   8 ##
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 190 left
+    iter 20: 185 left
+    iter 25: 180 left
+    iter 30: 161 left
+    iter 35: 155 left
+    iter 40: 150 left
+    iter 45: 145 left
+    iter 50: 140 left
+    iter 55: 133 left
+    iter 60: 128 left
+    iter 65: 123 left
+    iter 70: 118 left
+    iter 75: 113 left
+    iter 80: 108 left
+    iter 85: 103 left
+    iter 90: 98 left
+    iter 95: 93 left
+    iter 100: 88 left
+    iter 105: 83 left
+    iter 110: 78 left
+    iter 115: 73 left
+    iter 120: 68 left
+    iter 125: 63 left
+    iter 130: 58 left
+    iter 135: 53 left
+    iter 140: 48 left
+    iter 145: 42 left
+    iter 150: 37 left
+    iter 155: 32 left
+    iter 160: 27 left
+    iter 165: 22 left
+    iter 170: 17 left
+    iter 175: 12 left
+    iter 180: 7 left
+[R=6] Balanced: 4/256 (184 iters, 1029.2s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   4 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 217 left
+    iter 10: 212 left
+    iter 15: 182 left
+    iter 20: 177 left
+    iter 25: 160 left
+    iter 30: 152 left
+    iter 35: 146 left
+    iter 40: 141 left
+    iter 45: 135 left
+    iter 50: 130 left
+    iter 55: 125 left
+    iter 60: 120 left
+    iter 65: 115 left
+    iter 70: 110 left
+    iter 75: 105 left
+    iter 80: 100 left
+    iter 85: 95 left
+    iter 90: 90 left
+    iter 95: 85 left
+    iter 100: 80 left
+    iter 105: 75 left
+    iter 110: 70 left
+    iter 115: 65 left
+    iter 120: 60 left
+    iter 125: 55 left
+    iter 130: 50 left
+    iter 135: 45 left
+    iter 140: 40 left
+    iter 145: 35 left
+    iter 150: 30 left
+    iter 155: 25 left
+    iter 160: 20 left
+    iter 165: 15 left
+    iter 170: 10 left
+[R=6] Balanced: 7/256 (174 iters, 900.5s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   7 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 190 left
+    iter 10: 185 left
+    iter 15: 164 left
+    iter 20: 159 left
+    iter 25: 154 left
+    iter 30: 149 left
+    iter 35: 144 left
+    iter 40: 139 left
+    iter 45: 134 left
+    iter 50: 129 left
+    iter 55: 124 left
+    iter 60: 119 left
+    iter 65: 114 left
+    iter 70: 109 left
+    iter 75: 104 left
+    iter 80: 99 left
+    iter 85: 94 left
+    iter 90: 89 left
+    iter 95: 84 left
+    iter 100: 79 left
+    iter 105: 74 left
+    iter 110: 69 left
+    iter 115: 64 left
+    iter 120: 59 left
+    iter 125: 54 left
+    iter 130: 49 left
+    iter 135: 44 left
+    iter 140: 39 left
+    iter 145: 34 left
+    iter 150: 29 left
+    iter 155: 24 left
+    iter 160: 19 left
+    iter 165: 14 left
+[R=6] Balanced: 11/256 (169 iters, 694.8s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  11 ##
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 199 left
+    iter 10: 194 left
+    iter 15: 187 left
+    iter 20: 180 left
+    iter 25: 163 left
+    iter 30: 154 left
+    iter 35: 149 left
+    iter 40: 144 left
+    iter 45: 139 left
+    iter 50: 134 left
+    iter 55: 124 left
+    iter 60: 119 left
+    iter 65: 114 left
+    iter 70: 109 left
+    iter 75: 104 left
+    iter 80: 99 left
+    iter 85: 94 left
+    iter 90: 89 left
+    iter 95: 84 left
+    iter 100: 79 left
+    iter 105: 74 left
+    iter 110: 69 left
+    iter 115: 64 left
+    iter 120: 59 left
+    iter 125: 54 left
+    iter 130: 49 left
+    iter 135: 44 left
+    iter 140: 39 left
+    iter 145: 34 left
+    iter 150: 29 left
+    iter 155: 24 left
+    iter 160: 19 left
+[R=6] Balanced: 18/256 (162 iters, 602.8s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  18 ####
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 219 left
+    iter 10: 183 left
+    iter 15: 176 left
+    iter 20: 163 left
+    iter 25: 158 left
+    iter 30: 152 left
+    iter 35: 147 left
+    iter 40: 142 left
+    iter 45: 137 left
+    iter 50: 132 left
+    iter 55: 127 left
+    iter 60: 122 left
+    iter 65: 117 left
+    iter 70: 112 left
+    iter 75: 107 left
+    iter 80: 102 left
+    iter 85: 97 left
+    iter 90: 92 left
+    iter 95: 87 left
+    iter 100: 82 left
+    iter 105: 77 left
+    iter 110: 72 left
+    iter 115: 67 left
+    iter 120: 62 left
+    iter 125: 57 left
+    iter 130: 52 left
+    iter 135: 47 left
+    iter 140: 42 left
+    iter 145: 37 left
+    iter 150: 32 left
+    iter 155: 27 left
+    iter 160: 22 left
+[R=6] Balanced: 21/256 (162 iters, 592.8s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  21 #####
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 195 left
+    iter 10: 180 left
+    iter 15: 175 left
+    iter 20: 164 left
+    iter 25: 156 left
+    iter 30: 151 left
+    iter 35: 142 left
+    iter 40: 137 left
+    iter 45: 131 left
+    iter 50: 126 left
+    iter 55: 121 left
+    iter 60: 116 left
+    iter 65: 111 left
+    iter 70: 106 left
+    iter 75: 101 left
+    iter 80: 96 left
+    iter 85: 91 left
+    iter 90: 86 left
+    iter 95: 81 left
+    iter 100: 76 left
+    iter 105: 71 left
+    iter 110: 66 left
+    iter 115: 61 left
+    iter 120: 56 left
+    iter 125: 51 left
+    iter 130: 46 left
+    iter 135: 41 left
+    iter 140: 36 left
+    iter 145: 31 left
+    iter 150: 26 left
+[R=6] Balanced: 23/256 (154 iters, 673.0s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  23 #####
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 188 left
+    iter 10: 183 left
+    iter 15: 176 left
+    iter 20: 171 left
+    iter 25: 166 left
+    iter 30: 161 left
+    iter 35: 156 left
+    iter 40: 151 left
+    iter 45: 146 left
+    iter 50: 141 left
+    iter 55: 135 left
+    iter 60: 130 left
+    iter 65: 125 left
+    iter 70: 120 left
+    iter 75: 114 left
+    iter 80: 109 left
+    iter 85: 104 left
+    iter 90: 98 left
+    iter 95: 93 left
+    iter 100: 88 left
+    iter 105: 83 left
+    iter 110: 78 left
+    iter 115: 73 left
+    iter 120: 68 left
+    iter 125: 63 left
+    iter 130: 58 left
+    iter 135: 53 left
+    iter 140: 48 left
+    iter 145: 43 left
+    iter 150: 38 left
+    iter 155: 33 left
+    iter 160: 28 left
+[R=6] Balanced: 26/256 (163 iters, 567.6s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  26 ######
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 196 left
+    iter 10: 191 left
+    iter 15: 180 left
+    iter 20: 175 left
+    iter 25: 170 left
+    iter 30: 165 left
+    iter 35: 158 left
+    iter 40: 149 left
+    iter 45: 142 left
+    iter 50: 134 left
+    iter 55: 129 left
+    iter 60: 124 left
+    iter 65: 119 left
+    iter 70: 114 left
+    iter 75: 107 left
+    iter 80: 102 left
+    iter 85: 97 left
+    iter 90: 92 left
+    iter 95: 87 left
+    iter 100: 82 left
+    iter 105: 77 left
+    iter 110: 72 left
+    iter 115: 67 left
+    iter 120: 62 left
+    iter 125: 57 left
+    iter 130: 52 left
+    iter 135: 47 left
+    iter 140: 42 left
+    iter 145: 37 left
+    iter 150: 32 left
+    iter 155: 27 left
+    iter 160: 22 left
+[R=6] Balanced: 22/256 (161 iters, 670.8s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  22 #####
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 189 left
+    iter 10: 184 left
+    iter 15: 179 left
+    iter 20: 174 left
+    iter 25: 152 left
+    iter 30: 145 left
+    iter 35: 135 left
+    iter 40: 129 left
+    iter 45: 124 left
+    iter 50: 119 left
+    iter 55: 114 left
+    iter 60: 109 left
+    iter 65: 104 left
+    iter 70: 99 left
+    iter 75: 94 left
+    iter 80: 89 left
+    iter 85: 84 left
+    iter 90: 79 left
+    iter 95: 74 left
+    iter 100: 69 left
+    iter 105: 64 left
+    iter 110: 59 left
+    iter 115: 54 left
+    iter 120: 49 left
+    iter 125: 44 left
+    iter 130: 39 left
+    iter 135: 34 left
+    iter 140: 29 left
+    iter 145: 24 left
+    iter 150: 19 left
+    iter 155: 14 left
+[R=6] Balanced: 14/256 (156 iters, 796.5s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  14 ###
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 191 left
+    iter 15: 177 left
+    iter 20: 171 left
+    iter 25: 166 left
+    iter 30: 161 left
+    iter 35: 146 left
+    iter 40: 132 left
+    iter 45: 127 left
+    iter 50: 122 left
+    iter 55: 113 left
+    iter 60: 108 left
+    iter 65: 103 left
+    iter 70: 98 left
+    iter 75: 93 left
+    iter 80: 88 left
+    iter 85: 83 left
+    iter 90: 78 left
+    iter 95: 73 left
+    iter 100: 68 left
+    iter 105: 63 left
+    iter 110: 58 left
+    iter 115: 53 left
+    iter 120: 48 left
+    iter 125: 43 left
+    iter 130: 38 left
+    iter 135: 33 left
+    iter 140: 28 left
+    iter 145: 23 left
+    iter 150: 18 left
+[R=6] Balanced: 15/256 (154 iters, 1093.0s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  15 ###
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 210 left
+    iter 10: 172 left
+    iter 15: 167 left
+    iter 20: 162 left
+    iter 25: 157 left
+    iter 30: 143 left
+    iter 35: 134 left
+    iter 40: 129 left
+    iter 45: 124 left
+    iter 50: 119 left
+    iter 55: 114 left
+    iter 60: 109 left
+    iter 65: 104 left
+    iter 70: 99 left
+    iter 75: 94 left
+    iter 80: 89 left
+    iter 85: 84 left
+    iter 90: 79 left
+    iter 95: 74 left
+    iter 100: 69 left
+    iter 105: 64 left
+    iter 110: 59 left
+    iter 115: 54 left
+    iter 120: 49 left
+    iter 125: 44 left
+    iter 130: 39 left
+    iter 135: 34 left
+    iter 140: 29 left
+    iter 145: 24 left
+    iter 150: 19 left
+    iter 155: 14 left
+    iter 160: 9 left
+[R=6] Balanced: 9/256 (161 iters, 987.6s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   9 ##
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 219 left
+    iter 10: 214 left
+    iter 15: 209 left
+    iter 20: 175 left
+    iter 25: 148 left
+    iter 30: 143 left
+    iter 35: 138 left
+    iter 40: 133 left
+    iter 45: 128 left
+    iter 50: 123 left
+    iter 55: 118 left
+    iter 60: 113 left
+    iter 65: 108 left
+    iter 70: 101 left
+    iter 75: 96 left
+    iter 80: 91 left
+    iter 85: 86 left
+    iter 90: 81 left
+    iter 95: 76 left
+    iter 100: 71 left
+    iter 105: 66 left
+    iter 110: 61 left
+    iter 115: 56 left
+    iter 120: 51 left
+    iter 125: 46 left
+    iter 130: 41 left
+    iter 135: 36 left
+    iter 140: 31 left
+    iter 145: 26 left
+    iter 150: 21 left
+    iter 155: 16 left
+    iter 160: 11 left
+    iter 165: 6 left
+[R=6] Balanced: 4/256 (168 iters, 795.9s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   4 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 218 left
+    iter 10: 213 left
+    iter 15: 208 left
+    iter 20: 203 left
+    iter 25: 178 left
+    iter 30: 149 left
+    iter 35: 139 left
+    iter 40: 134 left
+    iter 45: 129 left
+    iter 50: 124 left
+    iter 55: 119 left
+    iter 60: 114 left
+    iter 65: 109 left
+    iter 70: 104 left
+    iter 75: 99 left
+    iter 80: 93 left
+    iter 85: 88 left
+    iter 90: 83 left
+    iter 95: 78 left
+    iter 100: 73 left
+    iter 105: 68 left
+    iter 110: 63 left
+    iter 115: 58 left
+    iter 120: 53 left
+    iter 125: 48 left
+    iter 130: 43 left
+    iter 135: 38 left
+    iter 140: 33 left
+    iter 145: 28 left
+    iter 150: 23 left
+    iter 155: 18 left
+    iter 160: 13 left
+    iter 165: 8 left
+[R=6] Balanced: 5/256 (169 iters, 1329.3s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   5 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 200 left
+    iter 30: 189 left
+    iter 35: 184 left
+    iter 40: 157 left
+    iter 45: 147 left
+    iter 50: 133 left
+    iter 55: 123 left
+    iter 60: 118 left
+    iter 65: 113 left
+    iter 70: 108 left
+    iter 75: 103 left
+    iter 80: 98 left
+    iter 85: 93 left
+    iter 90: 88 left
+    iter 95: 83 left
+    iter 100: 78 left
+    iter 105: 73 left
+    iter 110: 68 left
+    iter 115: 63 left
+    iter 120: 58 left
+    iter 125: 53 left
+    iter 130: 48 left
+    iter 135: 43 left
+    iter 140: 38 left
+    iter 145: 33 left
+    iter 150: 28 left
+    iter 155: 23 left
+    iter 160: 18 left
+    iter 165: 13 left
+    iter 170: 8 left
+    iter 175: 3 left
+[R=6] Balanced: 2/256 (177 iters, 877.3s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   2 
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 163 left
+    iter 30: 150 left
+    iter 35: 145 left
+    iter 40: 140 left
+    iter 45: 135 left
+    iter 50: 130 left
+    iter 55: 125 left
+    iter 60: 120 left
+    iter 65: 115 left
+    iter 70: 110 left
+    iter 75: 105 left
+    iter 80: 100 left
+    iter 85: 94 left
+    iter 90: 89 left
+    iter 95: 84 left
+    iter 100: 79 left
+    iter 105: 74 left
+    iter 110: 69 left
+    iter 115: 64 left
+    iter 120: 59 left
+    iter 125: 54 left
+    iter 130: 49 left
+    iter 135: 44 left
+    iter 140: 39 left
+    iter 145: 34 left
+    iter 150: 29 left
+    iter 155: 24 left
+    iter 160: 19 left
+    iter 165: 14 left
+    iter 170: 9 left
+[R=6] Balanced: 5/256 (175 iters, 1000.3s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   5 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 172 left
+    iter 30: 167 left
+    iter 35: 162 left
+    iter 40: 157 left
+    iter 45: 152 left
+    iter 50: 147 left
+    iter 55: 142 left
+    iter 60: 137 left
+    iter 65: 132 left
+    iter 70: 127 left
+    iter 75: 122 left
+    iter 80: 117 left
+    iter 85: 112 left
+    iter 90: 107 left
+    iter 95: 102 left
+    iter 100: 97 left
+    iter 105: 92 left
+    iter 110: 87 left
+    iter 115: 82 left
+    iter 120: 77 left
+    iter 125: 72 left
+    iter 130: 63 left
+    iter 135: 58 left
+    iter 140: 53 left
+    iter 145: 48 left
+    iter 150: 43 left
+    iter 155: 38 left
+    iter 160: 33 left
+    iter 165: 28 left
+    iter 170: 23 left
+    iter 175: 18 left
+    iter 180: 13 left
+    iter 185: 8 left
+[R=6] Balanced: 5/256 (189 iters, 984.4s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   5 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 191 left
+    iter 15: 186 left
+    iter 20: 181 left
+    iter 25: 171 left
+    iter 30: 160 left
+    iter 35: 155 left
+    iter 40: 150 left
+    iter 45: 145 left
+    iter 50: 132 left
+    iter 55: 127 left
+    iter 60: 122 left
+    iter 65: 117 left
+    iter 70: 112 left
+    iter 75: 104 left
+    iter 80: 99 left
+    iter 85: 94 left
+    iter 90: 89 left
+    iter 95: 84 left
+    iter 100: 79 left
+    iter 105: 74 left
+    iter 110: 69 left
+    iter 115: 64 left
+    iter 120: 59 left
+    iter 125: 54 left
+    iter 130: 49 left
+    iter 135: 44 left
+    iter 140: 39 left
+    iter 145: 34 left
+    iter 150: 29 left
+    iter 155: 24 left
+    iter 160: 19 left
+    iter 165: 14 left
+    iter 170: 9 left
+    iter 175: 4 left
+[R=6] Balanced: 4/256 (176 iters, 1069.8s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   4 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 200 left
+    iter 30: 195 left
+    iter 35: 179 left
+    iter 40: 174 left
+    iter 45: 169 left
+    iter 50: 164 left
+    iter 55: 159 left
+    iter 60: 154 left
+    iter 65: 149 left
+    iter 70: 144 left
+    iter 75: 139 left
+    iter 80: 134 left
+    iter 85: 129 left
+    iter 90: 124 left
+    iter 95: 119 left
+    iter 100: 114 left
+    iter 105: 109 left
+    iter 110: 103 left
+    iter 115: 98 left
+    iter 120: 93 left
+    iter 125: 88 left
+    iter 130: 83 left
+    iter 135: 78 left
+    iter 140: 73 left
+    iter 145: 68 left
+    iter 150: 63 left
+    iter 155: 58 left
+    iter 160: 53 left
+    iter 165: 48 left
+    iter 170: 43 left
+    iter 175: 38 left
+    iter 180: 33 left
+    iter 185: 28 left
+    iter 190: 23 left
+    iter 195: 18 left
+    iter 200: 13 left
+    iter 205: 8 left
+    iter 210: 3 left
+[R=6] Balanced: 3/256 (211 iters, 1041.5s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   3 
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 180 left
+    iter 25: 175 left
+    iter 30: 170 left
+    iter 35: 165 left
+    iter 40: 160 left
+    iter 45: 147 left
+    iter 50: 141 left
+    iter 55: 136 left
+    iter 60: 131 left
+    iter 65: 126 left
+    iter 70: 117 left
+    iter 75: 112 left
+    iter 80: 107 left
+    iter 85: 102 left
+    iter 90: 97 left
+    iter 95: 92 left
+    iter 100: 86 left
+    iter 105: 81 left
+    iter 110: 76 left
+    iter 115: 71 left
+    iter 120: 66 left
+    iter 125: 61 left
+    iter 130: 56 left
+    iter 135: 51 left
+    iter 140: 46 left
+    iter 145: 41 left
+    iter 150: 36 left
+    iter 155: 31 left
+    iter 160: 26 left
+    iter 165: 21 left
+    iter 170: 16 left
+    iter 175: 11 left
+    iter 180: 6 left
+[R=6] Balanced: 4/256 (183 iters, 900.3s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   4 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 221 left
+    iter 10: 207 left
+    iter 15: 202 left
+    iter 20: 176 left
+    iter 25: 171 left
+    iter 30: 166 left
+    iter 35: 161 left
+    iter 40: 148 left
+    iter 45: 140 left
+    iter 50: 135 left
+    iter 55: 130 left
+    iter 60: 125 left
+    iter 65: 120 left
+    iter 70: 115 left
+    iter 75: 110 left
+    iter 80: 105 left
+    iter 85: 100 left
+    iter 90: 95 left
+    iter 95: 90 left
+    iter 100: 84 left
+    iter 105: 79 left
+    iter 110: 74 left
+    iter 115: 69 left
+    iter 120: 64 left
+    iter 125: 59 left
+    iter 130: 54 left
+    iter 135: 49 left
+    iter 140: 44 left
+    iter 145: 39 left
+    iter 150: 34 left
+    iter 155: 29 left
+    iter 160: 24 left
+    iter 165: 19 left
+    iter 170: 14 left
+    iter 175: 9 left
+[R=6] Balanced: 9/256 (176 iters, 849.5s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   9 ##
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 200 left
+    iter 30: 195 left
+    iter 35: 190 left
+    iter 40: 185 left
+    iter 45: 157 left
+    iter 50: 152 left
+    iter 55: 147 left
+    iter 60: 141 left
+    iter 65: 136 left
+    iter 70: 131 left
+    iter 75: 126 left
+    iter 80: 116 left
+    iter 85: 111 left
+    iter 90: 106 left
+    iter 95: 101 left
+    iter 100: 96 left
+    iter 105: 91 left
+    iter 110: 86 left
+    iter 115: 81 left
+    iter 120: 74 left
+    iter 125: 69 left
+    iter 130: 64 left
+    iter 135: 59 left
+    iter 140: 54 left
+    iter 145: 49 left
+    iter 150: 44 left
+    iter 155: 39 left
+    iter 160: 34 left
+    iter 165: 29 left
+    iter 170: 24 left
+    iter 175: 19 left
+    iter 180: 14 left
+    iter 185: 9 left
+[R=6] Balanced: 7/256 (188 iters, 854.1s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   7 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 205 left
+    iter 25: 183 left
+    iter 30: 174 left
+    iter 35: 169 left
+    iter 40: 164 left
+    iter 45: 159 left
+    iter 50: 154 left
+    iter 55: 149 left
+    iter 60: 144 left
+    iter 65: 139 left
+    iter 70: 134 left
+    iter 75: 129 left
+    iter 80: 124 left
+    iter 85: 119 left
+    iter 90: 114 left
+    iter 95: 109 left
+    iter 100: 104 left
+    iter 105: 99 left
+    iter 110: 94 left
+    iter 115: 89 left
+    iter 120: 84 left
+    iter 125: 79 left
+    iter 130: 73 left
+    iter 135: 68 left
+    iter 140: 63 left
+    iter 145: 57 left
+    iter 150: 52 left
+    iter 155: 47 left
+    iter 160: 42 left
+    iter 165: 37 left
+    iter 170: 32 left
+    iter 175: 27 left
+    iter 180: 22 left
+    iter 185: 17 left
+    iter 190: 12 left
+    iter 195: 7 left
+[R=6] Balanced: 7/256 (196 iters, 830.0s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   7 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 195 left
+    iter 10: 190 left
+    iter 15: 185 left
+    iter 20: 167 left
+    iter 25: 162 left
+    iter 30: 157 left
+    iter 35: 152 left
+    iter 40: 138 left
+    iter 45: 133 left
+    iter 50: 128 left
+    iter 55: 123 left
+    iter 60: 118 left
+    iter 65: 113 left
+    iter 70: 108 left
+    iter 75: 103 left
+    iter 80: 98 left
+    iter 85: 93 left
+    iter 90: 88 left
+    iter 95: 83 left
+    iter 100: 78 left
+    iter 105: 73 left
+    iter 110: 68 left
+    iter 115: 63 left
+    iter 120: 58 left
+    iter 125: 53 left
+    iter 130: 48 left
+    iter 135: 43 left
+    iter 140: 38 left
+    iter 145: 33 left
+    iter 150: 28 left
+    iter 155: 23 left
+    iter 160: 18 left
+    iter 165: 13 left
+    iter 170: 8 left
+    iter 175: 3 left
+[R=6] Balanced: 3/256 (176 iters, 892.0s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   3 
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 185 left
+    iter 10: 180 left
+    iter 15: 175 left
+    iter 20: 170 left
+    iter 25: 157 left
+    iter 30: 151 left
+    iter 35: 146 left
+    iter 40: 141 left
+    iter 45: 136 left
+    iter 50: 131 left
+    iter 55: 126 left
+    iter 60: 121 left
+    iter 65: 116 left
+    iter 70: 111 left
+    iter 75: 106 left
+    iter 80: 101 left
+    iter 85: 96 left
+    iter 90: 91 left
+    iter 95: 86 left
+    iter 100: 81 left
+    iter 105: 76 left
+    iter 110: 71 left
+    iter 115: 66 left
+    iter 120: 61 left
+    iter 125: 56 left
+    iter 130: 51 left
+    iter 135: 46 left
+    iter 140: 41 left
+    iter 145: 36 left
+    iter 150: 31 left
+    iter 155: 26 left
+    iter 160: 21 left
+    iter 165: 16 left
+    iter 170: 11 left
+    iter 175: 6 left
+[R=6] Balanced: 5/256 (177 iters, 838.1s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   5 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 219 left
+    iter 10: 214 left
+    iter 15: 209 left
+    iter 20: 204 left
+    iter 25: 194 left
+    iter 30: 168 left
+    iter 35: 148 left
+    iter 40: 138 left
+    iter 45: 133 left
+    iter 50: 127 left
+    iter 55: 122 left
+    iter 60: 117 left
+    iter 65: 112 left
+    iter 70: 107 left
+    iter 75: 102 left
+    iter 80: 97 left
+    iter 85: 92 left
+    iter 90: 87 left
+    iter 95: 82 left
+    iter 100: 77 left
+    iter 105: 72 left
+    iter 110: 67 left
+    iter 115: 62 left
+    iter 120: 57 left
+    iter 125: 52 left
+    iter 130: 47 left
+    iter 135: 42 left
+    iter 140: 37 left
+    iter 145: 32 left
+    iter 150: 27 left
+    iter 155: 22 left
+    iter 160: 17 left
+    iter 165: 12 left
+    iter 170: 7 left
+[R=6] Balanced: 7/256 (171 iters, 763.6s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   7 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 218 left
+    iter 10: 213 left
+    iter 15: 208 left
+    iter 20: 203 left
+    iter 25: 160 left
+    iter 30: 155 left
+    iter 35: 150 left
+    iter 40: 145 left
+    iter 45: 140 left
+    iter 50: 135 left
+    iter 55: 130 left
+    iter 60: 125 left
+    iter 65: 120 left
+    iter 70: 115 left
+    iter 75: 110 left
+    iter 80: 105 left
+    iter 85: 100 left
+    iter 90: 95 left
+    iter 95: 88 left
+    iter 100: 83 left
+    iter 105: 78 left
+    iter 110: 73 left
+    iter 115: 68 left
+    iter 120: 63 left
+    iter 125: 58 left
+    iter 130: 53 left
+    iter 135: 48 left
+    iter 140: 43 left
+    iter 145: 38 left
+    iter 150: 33 left
+    iter 155: 28 left
+    iter 160: 23 left
+    iter 165: 18 left
+    iter 170: 13 left
+    iter 175: 8 left
+[R=6] Balanced: 4/256 (180 iters, 868.1s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   4 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 215 left
+    iter 15: 210 left
+    iter 20: 170 left
+    iter 25: 158 left
+    iter 30: 153 left
+    iter 35: 141 left
+    iter 40: 136 left
+    iter 45: 131 left
+    iter 50: 126 left
+    iter 55: 121 left
+    iter 60: 116 left
+    iter 65: 111 left
+    iter 70: 106 left
+    iter 75: 101 left
+    iter 80: 96 left
+    iter 85: 91 left
+    iter 90: 86 left
+    iter 95: 79 left
+    iter 100: 74 left
+    iter 105: 69 left
+    iter 110: 64 left
+    iter 115: 59 left
+    iter 120: 54 left
+    iter 125: 49 left
+    iter 130: 44 left
+    iter 135: 39 left
+    iter 140: 34 left
+    iter 145: 29 left
+    iter 150: 24 left
+    iter 155: 19 left
+    iter 160: 14 left
+    iter 165: 9 left
+[R=6] Balanced: 6/256 (169 iters, 977.6s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   6 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 219 left
+    iter 10: 214 left
+    iter 15: 209 left
+    iter 20: 204 left
+    iter 25: 199 left
+    iter 30: 189 left
+    iter 35: 184 left
+    iter 40: 179 left
+    iter 45: 174 left
+    iter 50: 169 left
+    iter 55: 164 left
+    iter 60: 159 left
+    iter 65: 154 left
+    iter 70: 149 left
+    iter 75: 144 left
+    iter 80: 139 left
+    iter 85: 134 left
+    iter 90: 129 left
+    iter 95: 124 left
+    iter 100: 119 left
+    iter 105: 114 left
+    iter 110: 97 left
+    iter 115: 92 left
+    iter 120: 87 left
+    iter 125: 82 left
+    iter 130: 77 left
+    iter 135: 72 left
+    iter 140: 67 left
+    iter 145: 62 left
+    iter 150: 57 left
+    iter 155: 52 left
+    iter 160: 47 left
+    iter 165: 42 left
+    iter 170: 37 left
+    iter 175: 32 left
+    iter 180: 27 left
+    iter 185: 22 left
+    iter 190: 17 left
+[R=6] Balanced: 13/256 (195 iters, 858.9s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  13 ###
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 194 left
+    iter 10: 167 left
+    iter 15: 162 left
+    iter 20: 156 left
+    iter 25: 151 left
+    iter 30: 146 left
+    iter 35: 141 left
+    iter 40: 136 left
+    iter 45: 128 left
+    iter 50: 123 left
+    iter 55: 118 left
+    iter 60: 113 left
+    iter 65: 108 left
+    iter 70: 103 left
+    iter 75: 98 left
+    iter 80: 93 left
+    iter 85: 88 left
+    iter 90: 83 left
+    iter 95: 78 left
+    iter 100: 73 left
+    iter 105: 68 left
+    iter 110: 63 left
+    iter 115: 58 left
+    iter 120: 53 left
+    iter 125: 48 left
+    iter 130: 43 left
+    iter 135: 38 left
+    iter 140: 33 left
+    iter 145: 28 left
+    iter 150: 23 left
+    iter 155: 18 left
+    iter 160: 13 left
+[R=6] Balanced: 11/256 (163 iters, 768.9s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |  11 ##
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 220 left
+    iter 10: 181 left
+    iter 15: 164 left
+    iter 20: 156 left
+    iter 25: 148 left
+    iter 30: 143 left
+    iter 35: 131 left
+    iter 40: 126 left
+    iter 45: 121 left
+    iter 50: 116 left
+    iter 55: 111 left
+    iter 60: 106 left
+    iter 65: 101 left
+    iter 70: 96 left
+    iter 75: 91 left
+    iter 80: 86 left
+    iter 85: 81 left
+    iter 90: 76 left
+    iter 95: 71 left
+    iter 100: 66 left
+    iter 105: 61 left
+    iter 110: 56 left
+    iter 115: 51 left
+    iter 120: 46 left
+    iter 125: 41 left
+    iter 130: 36 left
+    iter 135: 31 left
+    iter 140: 26 left
+    iter 145: 21 left
+    iter 150: 16 left
+    iter 155: 11 left
+[R=6] Balanced: 7/256 (160 iters, 845.4s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   7 #
+Input: 32 active bits
+Solver: SCIP
+    iter 5: 216 left
+    iter 10: 211 left
+    iter 15: 206 left
+    iter 20: 160 left
+    iter 25: 155 left
+    iter 30: 149 left
+    iter 35: 144 left
+    iter 40: 139 left
+    iter 45: 134 left
+    iter 50: 129 left
+    iter 55: 124 left
+    iter 60: 119 left
+    iter 65: 114 left
+    iter 70: 109 left
+    iter 75: 104 left
+    iter 80: 99 left
+    iter 85: 94 left
+    iter 90: 89 left
+    iter 95: 84 left
+    iter 100: 78 left
+    iter 105: 73 left
+    iter 110: 68 left
+    iter 115: 63 left
+    iter 120: 58 left
+    iter 125: 53 left
+    iter 130: 48 left
+    iter 135: 43 left
+    iter 140: 38 left
+    iter 145: 33 left
+    iter 150: 28 left
+    iter 155: 23 left
+    iter 160: 18 left
+    iter 165: 13 left
+    iter 170: 8 left
+[R=6] Balanced: 6/256 (173 iters, 760.6s)
+
+=== SUMMARY ===
+R | balanced
+ 6 |   6 #

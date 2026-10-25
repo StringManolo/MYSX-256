@@ -1,0 +1,6 @@
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=19
+
+  rounds=14 input=63: status=Not Solved (timeout o infactible)
+rounds=14: sin solución
+
+=== Resumen ===

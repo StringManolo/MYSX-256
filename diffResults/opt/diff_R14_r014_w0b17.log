@@ -1,0 +1,6 @@
+Solver=cbc gapRel=0.2 timeLimit=900.0s threads=4 r0=14
+
+rounds= 14: peso mínimo= 267 (prob ≈ 2^-267), input=w0b17
+
+=== Resumen ===
+  r= 14:  267 ANDs (prob ≈ 2^-267), mejor input w0b17

@@ -1,0 +1,22 @@
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=10
+
+rounds= 13: peso mínimo=   0 (prob ≈ 2^-0), input=w1b31
+
+Trail (13 rondas):
+  r= 0:   1 bits  w1=[31]
+  r= 1:   1 bits  w0=[26]
+  r= 2:   1 bits  w1=[22]
+  r= 3:   1 bits  w2=[27]
+  r= 4:   1 bits  w1=[17]
+  r= 5:   1 bits  w2=[24]
+  r= 6:   1 bits  w1=[16]
+  r= 7:   1 bits  w2=[25]
+  r= 8:   1 bits  w1=[19]
+  r= 9:   1 bits  w2=[30]
+  r=10:   1 bits  w1=[26]
+  r=11:   1 bits  w0=[31]
+  r=12:   1 bits  w1=[5]
+  r=13:   1 bits  w4=[12]
+
+=== Resumen ===
+  r= 13:    0 ANDs (prob ≈ 2^-0), mejor input w1b31

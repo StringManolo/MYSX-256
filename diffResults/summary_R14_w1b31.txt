@@ -1,0 +1,31 @@
+r0= 0  peso=?
+r0= 1  peso=?
+r0= 2  peso=?
+r0= 3  peso=?
+r0= 4  peso=?
+r0= 5  peso=?
+r0= 6  peso=96
+r0= 7  peso=?
+r0= 8  peso=178
+r0= 9  peso=50
+r0=10  peso=2
+r0=11  peso=84
+r0=12  peso=24
+r0=13  peso=50
+r0=14  peso=52
+r0=15  peso=?
+r0=16  peso=?
+r0=17  peso=164
+r0=18  peso=?
+r0=19  peso=?
+r0=20  peso=?
+r0=21  peso=?
+r0=22  peso=?
+r0=23  peso=?
+r0=24  peso=?
+r0=25  peso=?
+r0=26  peso=?
+r0=27  peso=?
+r0=28  peso=?
+r0=29  peso=?
+r0=30  peso=?

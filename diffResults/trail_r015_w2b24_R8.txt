@@ -1,0 +1,17 @@
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=15
+
+rounds=  8: peso mínimo=   0 (prob ≈ 2^-0), input=w2b24
+
+Trail (8 rondas):
+  r= 0:   1 bits  w2=[24]
+  r= 1:   1 bits  w1=[16]
+  r= 2:   1 bits  w2=[25]
+  r= 3:   1 bits  w1=[19]
+  r= 4:   1 bits  w2=[30]
+  r= 5:   1 bits  w1=[26]
+  r= 6:   1 bits  w0=[31]
+  r= 7:   1 bits  w1=[5]
+  r= 8:   1 bits  w4=[12]
+
+=== Resumen ===
+  r=  8:    0 ANDs (prob ≈ 2^-0), mejor input w2b24

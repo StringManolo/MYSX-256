@@ -1,0 +1,13 @@
+r0= 0  input=w0b31  peso=227
+r0= 6  input=w0b25  peso=150
+r0= 7  input=w0b31  peso=60
+r0= 8  input=w0b29  peso=73
+r0= 9  input=w0b31  peso=54
+r0=10  input=w1b31  peso=2
+r0=11  input=w0b26  peso=4
+r0=12  input=w1b22  peso=6
+r0=13  input=w0b27  peso=32
+r0=14  input=w0b17  peso=267
+r0=15  input=w2b24  peso=24
+r0=16  input=w0b16  peso=154
+r0=17  input=w0b24  peso=168

@@ -1,0 +1,21 @@
+=== R=13 r0=15 ===
+Solver=cbc gapRel=0.2 timeLimit=1200.0s threads=4 r0=15
+
+rounds= 13: peso mínimo=  38 (prob ≈ 2^-38), input=w2b30
+
+=== Resumen ===
+  r= 13:   38 ANDs (prob ≈ 2^-38), mejor input w2b30
+=== R=14 r0=15 ===
+Solver=cbc gapRel=0.2 timeLimit=1200.0s threads=4 r0=15
+
+rounds= 14: peso mínimo=  77 (prob ≈ 2^-77), input=w2b30
+
+=== Resumen ===
+  r= 14:   77 ANDs (prob ≈ 2^-77), mejor input w2b30
+=== R=15 r0=15 ===
+Solver=cbc gapRel=0.2 timeLimit=1200.0s threads=4 r0=15
+
+rounds= 15: peso mínimo=  86 (prob ≈ 2^-86), input=w2b30
+
+=== Resumen ===
+  r= 15:   86 ANDs (prob ≈ 2^-86), mejor input w2b30

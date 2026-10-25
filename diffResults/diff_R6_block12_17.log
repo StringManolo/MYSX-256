@@ -1,0 +1,42 @@
+=== r0=12, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=12
+
+rounds=  6: peso mínimo=   0 (prob ≈ 2^-0), input=w2b30
+
+=== Resumen ===
+  r=  6:    0 ANDs (prob ≈ 2^-0), mejor input w2b30
+=== r0=13, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=13
+
+rounds=  6: peso mínimo=   0 (prob ≈ 2^-0), input=w2b30
+
+=== Resumen ===
+  r=  6:    0 ANDs (prob ≈ 2^-0), mejor input w2b30
+=== r0=14, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=14
+
+rounds=  6: peso mínimo=   2 (prob ≈ 2^-2), input=w2b30
+
+=== Resumen ===
+  r=  6:    2 ANDs (prob ≈ 2^-2), mejor input w2b30
+=== r0=15, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=15
+
+rounds=  6: peso mínimo=   0 (prob ≈ 2^-0), input=w2b30
+
+=== Resumen ===
+  r=  6:    0 ANDs (prob ≈ 2^-0), mejor input w2b30
+=== r0=16, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=16
+
+rounds=  6: peso mínimo=   4 (prob ≈ 2^-4), input=w2b30
+
+=== Resumen ===
+  r=  6:    4 ANDs (prob ≈ 2^-4), mejor input w2b30
+=== r0=17, R=6, input w2b30 ===
+Solver=cbc gapRel=0.2 timeLimit=300.0s threads=4 r0=17
+
+rounds=  6: peso mínimo=   2 (prob ≈ 2^-2), input=w2b30
+
+=== Resumen ===
+  r=  6:    2 ANDs (prob ≈ 2^-2), mejor input w2b30

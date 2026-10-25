@@ -18,9 +18,9 @@ the cipher.)
 | Specification | [SPEC.md](SPEC.md), [PAPER.md](PAPER.md) §2 |
 | Test vectors | [KAT.json](KAT.json) |
 | Security analysis | [SECURITY.md](SECURITY.md), [PAPER.md](PAPER.md) §3–§5 |
-| Differential cryptanalysis | Upper bounds observed (one input, rotation offset not varied, so the r≈15 extrapolation is likely optimistic); r=4 trail directly verified with clustering factor 2.00× |
+| Differential cryptanalysis | Offset sweep over all 31 rotation offsets (PAPER.md §3.5): the 128-bit threshold is at R≈24 for r0=10 (the best offset) versus R≈15 for r0=0 (one of the worst). At R=14 the best single-trail weight ranges from 2 (r0=10) to about 120 across offsets. **Probability-1 differential weight-0 chains**: 13 rounds at r0=10 (the exact maximum, verified by linear algebra over the 2¹²⁸ left-half differences and empirically with 100% propagation over 262,144 pairs × 8 keys) and 6 rounds at r0=15. The r=4 trail at r0=0 is directly verified with clustering factor 2.00× |
 | Linear cryptanalysis | Exact model of F established; `|corr|=1` chains verified up to 9 rounds; exact signed hulls match the real cipher at r=10–12; beam search over the exact model **in both directions (forward + backward)**, merged over all 31 offsets and up to 128 rounds (achievable single-trail weight 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 with 63, a tie with the threshold; 2248 at R=128, offset 3 backward, a real trail inside the cipher). **Verified linear distinguisher on a 16-round window (rounds 98–113)**: the offset-20 backward trail is isolated in its hull at R=14 (weight 5, empirical correlation 2⁻⁵) and an exact budgeted hull extends it to R=16 (|corr| = 2⁻¹¹, two trails of weight 12 adding; one-key measurement within 1.9σ); it is seven weighted rounds plus a 9-round weight-0 chain, not an attack on the full cipher. At R=17 the best end pairs cancel within the enumerated budget. Other trails cancel or are ≈2× larger. **No 128-round bound** |
-| Integral cryptanalysis | Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency (not an integral); only r0=0 tested |
+| Integral cryptanalysis | Offset sweep over all 31 rotation offsets (PAPER.md §4.9): 6-round (2³² texts) / 5-round (2⁶⁴ texts) distinguishers at r0=0; **extended to 10 rounds for both patterns at r0=15 (shift 16)**. The offsets r0=12 and r0=27 are not special for DP. The R=7/R=6 bits at r0=15 (12 and 15 balanced bits) are verified as consistent with a 2-text / 4-text toggle; the full 2³²/2⁶⁴ integrals were not verified. The 10-round single-bit dependency propagation is not an integral distinguisher. Practical strength at r0=15 is in the 7–8 round range |
 | Related-key cryptanalysis | Heuristic coverage; security unknown |
 | Impossible differential / boomerang / algebraic | Not analyzed |
 | External review | None |
@@ -75,6 +75,9 @@ the cipher:
 ├── generate_kat.py              # KAT generator
 ├── mysx.prod.js                 # Public API (AEAD, KDF, NonceGuard)
 ├── mysx.test.js                 # Functional test suite (17 tests)
+├── diffResults/                 # Raw logs of the differential offset sweep (PAPER.md §3.5)
+├── dpResults/                   # Raw logs of the integral offset sweep (PAPER.md §4.9)
+├── dpResults_v2/                # Raw logs of the r0=15 saturation runs (PAPER.md §4.9)
 ├── cryptanalysis/
 │   └── models/
 │       └── linear/
@@ -98,11 +101,16 @@ the cipher:
     ├── beam_paths_fwd23.json          # Beam re-run, offset 23 forward, --paths 15..22
     ├── scan_R17.log                   # Output of the R=17 end-pair scan
     ├── HULL_R15_R17.md                # Summary and reproduction of the R=15-17 exact hulls
-    ├── mysx_milp.py                   # Differential MILP
+    ├── mysx_milp.py                   # Differential MILP (original, --r0 fixed at 0)
+    ├── mysx_milp2.py                  # Differential MILP with --r0 (PAPER.md §3.5)
+    ├── verify_diff_trail.py           # Empirical check of the 6-round deterministic trail at r0=15 (PAPER.md §3.5)
+    ├── verify_diff_13r.py             # Empirical check of the 13-round deterministic trail at r0=10 (PAPER.md §3.5)
+    ├── diff_free_chain_table.py       # Differential free chain table by offset (PAPER.md §3.5)
     ├── mysx_linear_milp.py            # Previous approximate linear MILPs (superseded)
     ├── mysx_division_property.py      # Bit-based division property MILP (v1)
     ├── mysx_division_property_v2.py   # Bit-based DP MILP, standard (1,1)-invalid XOR rule
     ├── verify_division.py             # Empirical verification of integral distinguishers
+    ├── verify_division_double_toggle.py # Double-toggle check for bits 5:6 and 7:9 at r0=15 (PAPER.md §4.9)
     ├── keyschedule_test.js            # Basic key schedule audit
     ├── keyschedule_test_extended.js   # Exhaustive key schedule audit (22 tests)
     ├── check_trail.js                 # Empirical differential trail at r=4
@@ -195,10 +203,22 @@ node misc/check_mini_nondegenerate.js
 ### Differential
 
 ```bash
-# Differential MILP (observed upper bounds)
+# Differential MILP (observed upper bounds at r0=0)
 python3 misc/mysx_milp.py --rounds 1-14 --input-bit 0
 
-# Empirical differential trail check (r=4, clustering factor 2.00×)
+# Offset sweep: 31 offsets at R=14 with the free-chain-optimal input
+# (see diffResults/ for the full sweep)
+python3 misc/mysx_milp2.py --rounds 14 --input-bit 63 --r0 10   # r0=10, w1b31, weight 2 (best)
+python3 misc/mysx_milp2.py --rounds 14 --input-bit 94 --r0 0    # r0=0, weight 114
+
+# Differential free chain table by offset (PAPER.md §3.5)
+python3 misc/diff_free_chain_table.py
+
+# Deterministic trail verification (100% propagation expected)
+python3 misc/verify_diff_13r.py         # 13-round chain at r0=10, w1b31 -> w4b12
+python3 misc/verify_diff_trail.py       # 6-round chain at r0=15, w2b30 -> w4b5
+
+# Empirical differential trail check at r0=0 (r=4, clustering factor 2.00×)
 node misc/check_trail.js
 
 # Differential verification at w=32
@@ -284,11 +304,11 @@ model is `cryptanalysis/models/linear/mysx_linear_model.py`.
 ### Integral (division property, preliminary)
 
 ```bash
-# 32-bit active input (word 0): 6-round distinguisher, saturates at R=7
+# 32-bit active input (word 0) at r0=0: 6-round distinguisher, saturates at R=7
 python3 misc/mysx_division_property_v2.py \
   --rounds 1-10 --active word0 --solver scip --stop-when-zero
 
-# 64-bit active input (words 0 and 4): 5-round distinguisher, saturates at R=6
+# 64-bit active input (words 0 and 4) at r0=0: 5-round distinguisher, saturates at R=6
 python3 misc/mysx_division_property_v2.py \
   --rounds 1-10 --active word0,word4 --solver scip --stop-when-zero
 
@@ -297,8 +317,26 @@ python3 misc/mysx_division_property_v2.py \
 python3 misc/mysx_division_property_v2.py \
   --rounds 1-15 --active bit0 --solver scip --stop-when-zero
 
-# Empirical verification of the 6-round distinguisher (word 0 active)
+# Offset sweep: all 31 offsets at the saturation round of r0=0
+# (see dpResults/ for the full sweep)
+for r0 in $(seq 0 30); do
+  python3 misc/mysx_division_property_v2.py \
+    --rounds 6 --active word0 --r0 $r0 --solver scip > dp_w0_R6_r0${r0}.log 2>&1
+done
+
+# r0=15 extends the distinguishers to 10 rounds (PAPER.md §4.9)
+# (see dpResults_v2/ for the saturation runs)
+python3 misc/mysx_division_property_v2.py --rounds 11 --active word0 --r0 15 --solver scip
+python3 misc/mysx_division_property_v2.py --rounds 11 --active word0,word4 --r0 15 --solver scip
+
+# Empirical verification of the 6-round distinguisher (word 0 active) at r0=0
 python3 misc/verify_division.py --rounds 6 --balanced-bits "<w:b,...>" --samples 20000
+
+# Empirical verification of the r0=15 bits at R=7 (word0) and R=6 (word0,word4)
+# (see dpResults_v2/balanced_bits_r015.txt for the bit lists)
+python3 misc/verify_division.py --rounds 7 --r0 15 --balanced-bits "<12 bits>" --samples 20000
+python3 misc/verify_division.py --rounds 6 --r0 15 --balanced-bits "<13 bits>" --samples 20000
+python3 misc/verify_division_double_toggle.py     # the two remaining bits (5:6, 7:9)
 ```
 
 Requirements: `pip install pulp` and one of `pyscipopt` (recommended,
@@ -308,9 +346,7 @@ size-limited in the free trial and does **not** fit R ≥ 5 for this
 cipher. The `(1,1)`-invalid XOR rule implemented in
 `mysx_division_property_v2.py` is the sound one; the naive
 `k_c = k_a ⊕ k_b` rule overestimates balanced bits when the XOR
-operands share variables (which they do in `F = C ⊕ D`). Only r0 = 0
-was tested; other round windows (notably r0 = 12 and r0 = 27) are
-unexplored.
+operands share variables (which they do in `F = C ⊕ D`).
 
 ### Related-key
 
@@ -325,12 +361,19 @@ node misc/keyschedule_test_extended.js --thorough
 ## What this paper establishes
 
 - **Observed upper bounds** on the best single-trail differential
-  weight for one input at r=12–14 (weight 114 at r=14, extrapolating
-  to the 128-bit threshold at r≈15). The rotation offset was not
-  varied, so this is likely optimistic. **Not a proof of security.**
-- **Direct verification of the r=4 differential trail at w=32**: the
-  trail exists with observed probability 2⁻⁷ vs MILP prediction 2⁻⁸,
-  giving a clustering factor of **2.00×**.
+  weight, **over all 31 rotation offsets** (PAPER.md §3.5): at R=14 the
+  best weight ranges from 2 (r0=10) to about 120 (r0=1) across offsets;
+  the 128-bit threshold is reached at R≈24 for r0=10 versus R≈15 for
+  r0=0. **Not a proof of security.**
+- **Probability-1 differential weight-0 chains**: 13 rounds at r0=10
+  (the exact maximum, verified by linear algebra over the 2¹²⁸ left-half
+  differences and empirically with 100% propagation over 262,144 pairs
+  × 8 keys; the chain covers rounds 10–22, 41–53, 72–84, 103–115 of the
+  cipher), 6 rounds at r0=15, 3 rounds at r0∈{0–6, 27–29}. These are
+  the differential analogue of the linear weight-0 chains of §4.3.
+- **Direct verification of the r=4 differential trail at w=32** (r0=0):
+  the trail exists with observed probability 2⁻⁷ vs MILP prediction
+  2⁻⁸, giving a clustering factor of **2.00×**.
 - **Diffusion / avalanche ladder**: `r_dif = 15` (worst bit reaches
   all 256 output bits at r=15), `r_sac ≈ 22` (SAC matrix is
   indistinguishable from random with N=2000 at r≈22). Slow diffusion
@@ -404,15 +447,18 @@ node misc/keyschedule_test_extended.js --thorough
   `w=8` case gives |corr| = 0.5 with fixed key, drops to ~0 with
   random keys per sample. Confirms that the earlier "no signal"
   result was a model artifact, not a property of the cipher.
-- **Preliminary integral distinguishers (division property)**:
-  with standard `(1,1)`-invalid rules, 6 rounds with a 2³²-text
-  integral (word 0 active) and 5 rounds with a 2⁶⁴-text integral
-  (words 0,4 active), saturating at R=7 and R=6 respectively. The
-  6-round distinguisher was verified against the real cipher over
-  20,000 samples (predicted balanced bits never flipped; control bits
-  flipped with probabilities 6.5%–87%). A 10-round single-bit
-  dependency propagation is also reported but is **not** an integral
-  distinguisher (2 texts). Only r0 = 0 was tested.
+- **Integral distinguishers (division property), offset sweep**: with
+  standard `(1,1)`-invalid rules, at r0=0: 6 rounds (2³² texts, word 0
+  active) and 5 rounds (2⁶⁴ texts, words 0,4 active). An offset sweep
+  over all 31 rotation offsets (PAPER.md §4.9) shows the round count is
+  offset-dependent: at **r0=15 (shift 16) the distinguishers extend to
+  10 rounds for both patterns** (thin tail: 1 balanced bit at R=10, 0
+  at R=11). The offsets r0=12 and r0=27 are not special for DP. The
+  R=7/R=6 bits at r0=15 (12 and 15 balanced bits) were verified as
+  consistent with a 2-text / 4-text toggle; the full 2³²/2⁶⁴ integrals
+  were not verified. The 10-round single-bit dependency propagation is
+  **not** an integral distinguisher (2 texts). Practical strength at
+  r0=15 is in the 7–8 round range.
 - **Heuristic related-key coverage** up to weight-6: no persistent
   `Δrk[r]=0`, no weak keys, no cycles, no fixed points.
 - A clean specification, reproducible test vectors, and a functional
@@ -421,10 +467,15 @@ node misc/keyschedule_test_extended.js --thorough
 ## What this paper does **not** establish
 
 - No lower bound on differential trail weights (requires gap=0 and
-  multi-bit input search), no differential inputs in the free windows,
-  and no variation of the rotation offset in the differential runs.
+  multi-bit input search), and no differential inputs in the free
+  windows. The rotation offset **was** varied over all 31 values
+  (PAPER.md §3.5); the reported weights are upper bounds from a beam
+  (or time-limited MILP), not proven minima. The exact maximum of
+  weight-0 chains (13 rounds) **is** proven by linear algebra; the
+  non-zero-weight tables are not.
 - No full differential clustering analysis (sum over all trails with
-  the same Δin, Δout).
+  the same Δin, Δout), and in particular the clustering factor at
+  r0 ≠ 0 has not been measured.
 - **No linear bound over 128 rounds.** Beam values are upper bounds
   from single-bit starts only, with the 3 sparsest valid `g` per cell;
   the exact hull at 128 rounds would need a SAT/MILP encoding
@@ -445,12 +496,14 @@ node misc/keyschedule_test_extended.js --thorough
   masks out of 2²⁵⁶, so it is not conclusive for structured multi-bit
   masks. The honest statement is "the multi-bit starts tested do not
   improve on single-bit", not "multi-bit starts do not help".
-- **No integral bound.** The 5–6 round distinguishers reported above
-  are preliminary: only r0 = 0 was tested; full-block inputs (255
-  active bits), other round windows (notably r0 = 12 and r0 = 27),
-  three-subset division property and traceability-enhanced variants
-  are not explored. The 5-round / 2⁶⁴-text distinguisher was not
-  verified empirically.
+- **No integral bound beyond R=10.** All 31 rotation offsets were
+  tested at the saturation rounds of r0=0; at r0=15 the distinguishers
+  extend to 10 rounds. Full 2³²/2⁶⁴ integral verification at r0=15 has
+  not been done (the toggle test is a necessary condition only); the
+  R=8–10 tail is a model prediction. Full-block inputs (255 active
+  bits), the three-subset division property and traceability-enhanced
+  variants are not explored. The 5-round / 2⁶⁴-text distinguisher at
+  r0=0 was not verified empirically.
 - No key-recovery cost estimate from any trail (differential, linear,
   or integral).
 - No related-key bound (heuristic only); the number of consecutive
@@ -490,17 +543,22 @@ node misc/keyschedule_test_extended.js --thorough
   artifact**: the cost of a 14-round trail depends strongly on where it
   sits in the period-31 rotation schedule (backward offsets at R=14:
   weight 5 at offset 20, 17 at offset 0, 61 at offset 6; PAPER.md
-  §4.10.2). This is a property of the rotation schedule combined with
-  the 128 round count, not of F. Changing the round count or the
-  rotation schedule moves the alignment. The differential runs did not
-  vary this offset, which is why their bound is probably optimistic.
-  This is documented as a design decision, not hidden.
-- **Integral distinguishers are short but present**: 6 rounds with
-  2³² texts and 5 rounds with 2⁶⁴ texts. In relative coverage (4–5%
-  of 128 rounds) this is stronger than Simon32/64 (14 rounds, 44% of
-  its 32 rounds, 31 active bits, Todo–Morii FSE 2016; 15 with three
-  subsets), but in absolute rounds Simon reaches further, only r0 = 0
-  was tested and the analysis is preliminary. See PAPER.md §4.9.
+  §4.10.2). The differential offset sweep (PAPER.md §3.5) shows this
+  directly: at R=14 the best weight ranges from 2 (r0=10) to about 120
+  (r0=1) across offsets, and the 128-bit threshold moves from R≈15
+  (r0=0) to R≈24 (r0=10). This is a property of the rotation schedule
+  combined with the 128 round count, not of F. Changing the round count
+  or the rotation schedule moves the alignment. This is documented as
+  a design decision, not hidden.
+- **Integral distinguishers are offset-dependent**: 6 rounds with 2³²
+  texts and 5 rounds with 2⁶⁴ texts at r0=0, extended to **10 rounds
+  (both patterns) at r0=15** (shift 16). In relative coverage at
+  r0=15 (7.8% of 128 rounds; 6.25% at the strongest meaningful round
+  count R=8) this is stronger than Simon32/64 (14 rounds, 44% of its
+  32 rounds, 31 active bits, Todo–Morii FSE 2016; 15 with three
+  subsets), but in absolute rounds Simon reaches further. The R=8–10
+  tail at r0=15 is a model prediction; full 2³²/2⁶⁴ integrals were
+  not verified. See PAPER.md §4.9.
 
 ## Citation
 
