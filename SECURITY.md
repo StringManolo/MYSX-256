@@ -18,7 +18,7 @@ methodology and data) is in [PAPER.md](PAPER.md) §3–§5.
 | Attack family | Status | What this means |
 |---|---|---|
 | Differential (MILP) | **Upper bounds observed + r=4 trail verified** | Weight 114 at r=14, extrapolating to the 128-bit threshold at r≈15. r=4 trail verified at w=32: observed 2⁻⁷ vs MILP 2⁻⁸, clustering factor **2.00×**. Not a proof: single-trail, one input, rotation offset not varied (the linear analysis shows the offset changes weights by an order of magnitude, so the extrapolation is likely optimistic), `gapRel=0.2`, Markov-independence not satisfied. |
-| Linear (exact model) | **Exact F model; beam search both directions on all 31 offsets; verified distinguisher on a 14-round window; hull effects observed; no bound** | LAT of F in closed form (`|corr|=2^{-h}`, `h=rank(A_b)/2`). `|corr|=1` chains verified up to 9 rounds (3 keys). Exact signed hulls match the real cipher at r=10,11,12 (|z|<0.4). Combined forward+backward achievable single-trail weight: 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 (63, tie with threshold), 2248 at R=128 (offset 3 backward). The offset-20 backward trail at R=14 (weight 5, rounds 100–113) is **isolated in its hull** (`hull_count` = 1 trail) and its empirical correlation matches 2⁻⁵ on the real cipher: this is a **verified linear distinguisher on a 14-round window** (five cheap rounds followed by a 9-round weight-0 chain), not an attack on the full cipher. Other trails are ≈2× larger or exactly cancelled, so single-trail weight is not universally a distinguisher length. **No lower bound over 128 rounds.** |
+| Linear (exact model) | **Exact F model; beam search both directions on all 31 offsets; verified distinguisher on a 16-round window; hull effects observed; no bound** | LAT of F in closed form (`|corr|=2^{-h}`, `h=rank(A_b)/2`). `|corr|=1` chains verified up to 9 rounds (3 keys). Exact signed hulls match the real cipher at r=10,11,12 (|z|<0.4). Combined forward+backward achievable single-trail weight: 2 at R=12, 5 at R=14, 38 at R=20, below 64 only up to R=22 (63, tie with threshold), 2248 at R=128 (offset 3 backward). The offset-20 backward trail is **isolated in its hull** at R=14 (weight 5, rounds 100–113, empirical correlation 2⁻⁵) and an exact budgeted hull extends it to R=16 (rounds 98–113, |corr| = 2⁻¹¹, two trails of weight 12 adding; one-key measurement within 1.9σ): this is a **verified linear distinguisher on a 16-round window** (seven weighted rounds followed by a 9-round weight-0 chain), not an attack on the full cipher. At R=17 the best end pairs of offsets 20 backward and 23 forward cancel within the enumerated budget. Other trails are ≈2× larger or exactly cancelled, so single-trail weight is not universally a distinguisher length. **No lower bound over 128 rounds.** |
 | Integral (DP) | **Preliminary: 5–6 round distinguishers (multi-bit inputs); 10-round single-bit dependency** | Standard (1,1)-invalid DP rules. 6-round distinguisher with 2³² texts (word 0 active), 5-round with 2⁶⁴ texts (words 0,4 active). A 10-round single-bit dependency propagation is reported but is **not** an integral distinguisher (2 texts). Only r0=0 tested. No key-recovery attack attempted. |
 | Related-key | **Heuristic coverage** | 22 tests up to weight-6 with no persistent `Δrk=0`. No targeted MILP; security unknown. |
 | Impossible differential | **Not analyzed** | — |
@@ -39,15 +39,16 @@ run in **both directions** (forward and backward) across all 31 rotation
 offsets, up to 128 rounds, and merged — finds that cheap single trails
 end at roughly 20 rounds: weight 38 at R=20, below 64 only up to R=22
 (63, a tie with the threshold), then roughly 12–21 more per round up to
-R=112. The offset-20 backward trail at R=14 (weight 5, rounds 100–113)
-is **isolated in its hull** and its empirical correlation matches the
-prediction: that is a verified linear distinguisher on a 14-round
-window. For other trails, a check against the real cipher shows that
+R=112. The offset-20 backward trail is **isolated in its hull** at R=14
+(weight 5, rounds 100–113), and an exact budgeted hull extends it to
+R=16 (rounds 98–113, |corr| = 2⁻¹¹), with an empirical measurement
+within 1.9σ of the prediction: that is a verified linear distinguisher
+on a 16-round window. For other trails, a check against the real cipher shows that
 single-trail weight can be exact, ≈2× too low, or exactly cancelled
 (r0=23 was observed to cancel from R=8), so these numbers say where
 cheap trails end, not universally how long a distinguisher is. It is
 **not** an attack on the 128-round cipher: no lower bound over 128
-rounds, no hull-aware bound beyond R≈14, no key-recovery estimate.
+rounds, no hull-aware bound beyond R=17, no key-recovery estimate.
 Multi-bit starts (pairs47, rand:5000:4) were explored and did not
 improve on single-bit starts; the random sample is too small to be
 conclusive for structured multi-bit masks. The integral side is
@@ -341,7 +342,7 @@ forward and to the backward end round fitting in the cipher):
 | 10 | 1 | 4 | backward | 2² |
 | 12 | 2 | 20 | backward | 2⁴ |
 | 14 | 5 | 20 | backward | 2¹⁰ |
-| 16 | 8 | 23 | forward | 2¹⁶ |
+| 16 | 8 † | 23 | forward | 2¹⁶ † |
 | 18 | 24 | 20 | backward | 2⁴⁸ |
 | 20 | 38 | 20 | backward | 2⁷⁶ |
 | 22 | 63 | 23 | forward | 2¹²⁶ |
@@ -355,6 +356,11 @@ forward and to the backward end round fitting in the cipher):
 | 96 | 1336 | 21 | backward | 2²⁶⁷² |
 | 112 | 1671 | 21 | backward | 2³³⁴² |
 | 128 | 2248 | 3 | backward | 2⁴⁴⁹⁶ |
+
+† The weight-8 trail of this row cancels once its hull is computed
+(§2.9.1), so 2¹⁶ texts is not a distinguisher cost. The best certified
+correlation at R=16 is the offset-20 backward hull, |corr| = 2⁻¹¹
+(≈2²² texts).
 
 - Largest R with an achievable trail of weight < 32 (≈2⁶⁴ texts): **19**.
 - Largest R with weight < 64 (≈2¹²⁸ texts): **22**, with weight 63
@@ -432,25 +438,65 @@ destructive: some trails survive intact.
 **The offset-20 backward trail at R=14 (weight 5) is therefore a
 verified linear distinguisher on a 14-round window (rounds 100–113)**:
 it is isolated in its hull and its empirical correlation matches the
-prediction on the real cipher. It is the only end mask for which a hull
-check at this weight has been completed. It is a property of that window
-of the cipher, not a distinguisher for a 14-round version starting at
-round 0 and not an attack on the 128-round cipher.
+prediction on the real cipher. It is a property of that window of the
+cipher, not a distinguisher for a 14-round version starting at round 0
+and not an attack on the 128-round cipher. §2.9.1 extends it to 16
+rounds.
+
+### 2.9.1. Exact hull at R=15–17 (budgeted, meet-in-the-middle)
+
+Tools: `misc/hull_bidir.py` (forward and backward frontiers joined in the
+middle; complete for all trails of weight ≤ `wmax`; optional exact signs
+for random keys), `misc/scan_endpairs.py`, `misc/test_signed_dp.py`,
+`misc/emp_check.py`. Inputs: `misc/beam_paths_bwd20.json`,
+`misc/beam_paths_fwd23.json`. Full description: PAPER.md §4.10.5 and
+`misc/HULL_R15_R17.md`. Validation: `selftest` passes; the signed hull
+equals `propagate()` on 40 of 40 end masks (forward windows r0=12 and
+27, R ≤ 12, two keys); at R=14 it reproduces `hull_count.py`.
+
+| trail | R | rounds | w1 | trails u→v found | budget | exact hull |
+|---|---|---|---|---|---|---|
+| offset 20 bwd | 14 | 100–113 | 5 | 1 × w5 | 7 | ±2⁻⁵ (isolated) |
+| offset 20 bwd | 15 | 99–113 | 8 | 2 × w8 | 10 | +2⁻⁷ (two trails add) |
+| offset 20 bwd | 16 | 98–113 | 12 | 2 × w12 | 14 | +2⁻¹¹ (two trails add) |
+| offset 20 bwd | 17 | 97–113 | 16 | 2 × w16 | 18 | 0 (cancellation) |
+| offset 23 fwd | 15 | 23–37 | 8 | 4 × w8 | 10 | 0 |
+| offset 23 fwd | 16 | 23–38 | 8 | 4 × w8 | 10 | 0 |
+| offset 23 fwd | 17 | 23–39 | 14 | 4 × w14 | 16 | 0 |
+
+Empirical check (key `rand_key(1000)`): offset 20 backward, R=16,
+N = 2²⁸: corr = +6.06×10⁻⁴ ± 6.1×10⁻⁵ against a hull prediction of
+4.88×10⁻⁴ (+1.9σ), a single-trail value of 2.44×10⁻⁴ (+5.9σ) and zero
+(+9.9σ); the sign matches. Offset 23 forward, R=16, N = 2²⁴:
++3.7×10⁻⁴ ± 2.4×10⁻⁴, 16σ from the single-trail value ±3.9×10⁻³.
+
+R=17 scan (`scan_R17.log`): the top 8 end pairs of offset 20 backward (7
+computed, 1 over the state cap) and of offset 23 forward all cancel
+exactly within a budget equal to their own weight, for both keys.
+Offsets 19 backward, 24 forward, 3 backward and 2 backward (weights
+23–26) exceeded the cap: undecided.
+
+Limits: a hull of 0 means "no net contribution up to the budget", not a
+correlation of exactly 0; heavier trails (weight ≥ 15 at R=16, ≥ 19 at
+R=17) are not summed; the empirical value at R=16 is 1.9σ above the
+hull; one key only; R≥18 (weights ≥ 24) exceeds the enumeration caps and
+is undecided, including the weight-63 trail at R=22.
 
 ### 2.10. Conclusion
 
 **No linear bound is established over 128 rounds.** What is established
 is an exact model of `F` and of the round, verified short-range linear
-structure, a **verified distinguisher on a 14-round window** (offset 20
-backward, weight 5, isolated hull), and an empirical picture of where
+structure, a **verified distinguisher on a 16-round window** (offset 20
+backward, exact hull 2⁻¹¹ at R=16), and an empirical picture of where
 cheap single trails end (≈20 rounds in the family searched). What is
 not:
 
-1. **A distinguisher length beyond R=14.** R=14 is established for the
-   offset-20 backward trail. R≥16 requires a hull-aware correlation for
-   the chosen end masks; the trails of §2.8 at R=16–22 were not
-   checked. The next step is the exact signed hull (`propagate()`) for
-   the best end-mask pairs at R=16–22.
+1. **A distinguisher length beyond R=16.** R=16 is established for the
+   offset-20 backward trail (exact hull over trails of weight ≤ 14 plus
+   a one-key measurement). At R=17 the best pairs cancel within the
+   budget, which does not exclude a smaller correlation from heavier
+   trails or other end pairs. R≥18 is undecided; the trails of §2.8 at
+   R=18–22, including the weight-63 trail at R=22, were not checked.
 2. **A certified lower bound** on the best trail weight over 128
    rounds. Beam search only gives upper bounds; the truncations
    (`g-keep 3`, beam, single-bit starts, exclusion of `b=0xFFFFFFFF`)
@@ -733,11 +779,13 @@ explicitly reports `CRYPTANALYSIS_STATUS: NOT_ESTABLISHED`.
   R=14, 38 at R=20, below 64 up to R=22 (63, a tie with the
   threshold), 2248 at R=128 (offset 3 backward). The offset-20
   backward trail at R=14 (rounds 100–113) is **isolated in its hull**
-  (`hull_count` = 1) and its empirical correlation matches 2⁻⁵: that is
-  a verified linear distinguisher on a 14-round window. Other trails
-  cancel or are ≈2× larger, so these are not universally distinguisher
-  lengths. **No lower bound over 128 rounds; no hull-aware bound beyond
-  R≈14; no key-recovery cost estimate. Multi-bit starts (pairs47,
+  (`hull_count` = 1) and its empirical correlation matches 2⁻⁵; an exact
+  budgeted hull extends it to R=16 (|corr| = 2⁻¹¹): that is a verified
+  linear distinguisher on a 16-round window. Other trails cancel or are
+  ≈2× larger (the best R=17 pairs cancel within the budget), so these
+  are not universally distinguisher lengths. **No lower bound over 128
+  rounds; no hull-aware bound beyond R=17; hulls are exact only up to a
+  weight budget; no key-recovery cost estimate. Multi-bit starts (pairs47,
   rand:5000:4) were explored and did not improve on single-bit starts,
   but the random sample is too small to be conclusive for structured
   multi-bit masks.**
@@ -775,8 +823,9 @@ merged, finds that cheap single trails end at roughly 20 rounds (weight
 — then roughly 12–21 more per round up to R=112; 2248 at R=128, offset 3
 backward). The offset-20 backward trail at R=14 (weight 5, rounds
 100–113) is isolated in its hull and its empirical correlation matches
-the prediction: **that is a verified linear distinguisher on a 14-round
-window**. For other trails, a check against the real cipher shows that a
+the prediction, and an exact budgeted hull extends it to R=16 (rounds
+98–113, |corr| = 2⁻¹¹): **that is a verified linear distinguisher on a
+16-round window**; at R=17 the best pairs cancel within the budget. For other trails, a check against the real cipher shows that a
 single-trail weight can be exact, ≈2× too low, or exactly cancelled, so
 these numbers say where cheap trails end, not universally how long a
 distinguisher is. No lower bound over 128 rounds has been established,
@@ -795,8 +844,9 @@ The cipher has not been externally audited.
 - **Do not use MYSX in production.** For real data use AES-256-GCM or
   XChaCha20-Poly1305.
 - **If reviewing**, focus on: the exact signed hull for the best
-  end-mask pairs of §2.8 at R=16–22 (the step that turns a weight into
-  a distinguisher length beyond R=14), differential analysis over all
+  end-mask pairs of §2.8 at R=18–22 (R=15–17 are done, §2.9.1; this is
+  the step that turns a weight into a distinguisher length beyond
+  R=16), differential analysis over all
   rotation offsets and with inputs in the free windows, multi-bit starts
   with larger structured samples, a certified lower bound on the linear
   single-trail weight (the MILP/SAT encoding in `LINEAR_MODEL.md` §7),
@@ -804,7 +854,8 @@ The cipher has not been externally audited.
   5–6 round results in Section 3 (r0 ≠ 0, full-block inputs, and
   three-subset DP). The verified 9-round `|corr|=1` chains, the exact
   signed hulls at r=10–12, the isolation of the offset-20 backward trail
-  at R=14, and the cancellation of the r0=23 trail from R=8 are concrete
+  at R=14 and its hull 2⁻¹¹ at R=16, the R=17 cancellations, and the
+  cancellation of the r0=23 trail from R=8 are concrete
   points the new analysis must reproduce.
 - **If extending**, the priorities are documented in PAPER.md §4.7,
   §4.9, §4.10 and §8.
@@ -860,6 +911,12 @@ The cipher has not been externally audited.
 | `misc/beam_pairs47.json` | Output of the pairs47 multi-bit run (merged; not an improvement) |
 | `misc/verify_beam_trail.py` | Prefix-by-prefix check of a saved beam trail against the real cipher, both directions (§2.9) |
 | `misc/hull_count.py` | Counts trails sharing the end masks of a saved beam trail (§2.9) |
+| `misc/hull_bidir.py` | Budgeted exact hull between two end masks, meet-in-the-middle, optional exact signs (§2.9.1) |
+| `misc/scan_endpairs.py` | Exact budgeted hull of the top-K end-mask pairs of a beam (§2.9.1) |
+| `misc/test_signed_dp.py` | Validation of `hull_bidir.py` signs against `propagate()` (§2.9.1) |
+| `misc/emp_check.py` | Empirical correlation of a saved beam trail against the real cipher (§2.9.1) |
+| `misc/beam_paths_bwd20.json`, `misc/beam_paths_fwd23.json` | Beam re-runs (`--paths 15..22`), input of §2.9.1 |
+| `misc/scan_R17.log`, `misc/HULL_R15_R17.md` | R=17 scan output; summary and reproduction of §2.9.1 |
 | `misc/mysx_milp.py` | Differential MILP |
 | `misc/mysx_linear_milp.py` | Previous approximate linear MILPs (historical, superseded) |
 | `misc/mysx_division_property.py` | Bit-based division-property MILP (v1; `--xor-rule` selects XOR or OR) |
