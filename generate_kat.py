@@ -16,6 +16,7 @@ esté en el mismo directorio.
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 
@@ -135,6 +136,10 @@ def main():
     )
     ap.add_argument("--output", default="-",
                     help="Archivo de salida (default stdout)")
+    ap.add_argument("--kat-version", dest="kat_version", default=None,
+                    help="Versión del KAT. Prioridad: --kat-version > "
+                         "$MYSX_KAT_VERSION > '0.2-rot-cal' si $MYSX_ROT_CAL "
+                         "está definido > '0.1-experimental'")
     args = ap.parse_args()
 
     # Ejecutar Node con el script embebido
@@ -162,9 +167,18 @@ def main():
         sys.exit(1)
 
     # Añadir metadatos (fijos para reproducibilidad)
+    if args.kat_version:
+        version = args.kat_version
+    elif os.environ.get('MYSX_KAT_VERSION'):
+        version = os.environ['MYSX_KAT_VERSION']
+    elif os.environ.get('MYSX_ROT_CAL'):
+        version = '0.2-experimental'
+    else:
+        version = '0.1-experimental'
+
     data = {
         "algorithm": "MYSX-256/512",
-        "version": "0.1-experimental",
+        "version": version,
         "block_size_bits": 256,
         "key_size_bits": 512,
         "rounds": 128,

@@ -1,6 +1,6 @@
 {
   "algorithm": "MYSX-256/512",
-  "version": "0.1-experimental",
+  "version": "0.2-experimental",
   "block_size_bits": 256,
   "key_size_bits": 512,
   "rounds": 128,
@@ -111,5 +111,5 @@
       "macKey": "f746b4078b79fdceb10b895b84887454aed6224d858efbdbfe0c6caef4f69e86"
     }
   ],
-  "digest": "8fb449803bebe01fcb274ce2c8ff03d12678f4e63490844ca978348542915f14"
+  "digest": "fc3ce078814e918be289e8408d2161e109300a6604b610412bdbc613f0623255"
 }
