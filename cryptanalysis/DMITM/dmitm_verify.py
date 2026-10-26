@@ -55,10 +55,22 @@ def desc(ws):
 # =============================================================================
 # Capa lineal parametrizable (permutacion de bytes + periodo de rotacion)
 # =============================================================================
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
 class Lin:
     def __init__(self, perm=MYZ_PERM, period=31, step=1):
         self.perm = list(perm); self.period = period; self.step = step
-    def sh(self, r): return (r * self.step) % self.period + 1
+    def sh(self, r):
+        if ROT_CAL is not None and self.step == 1 and self.period == 31:
+            return ROT_CAL[r % 31]
+        return (r * self.step) % self.period + 1
     def transp(self, ws):
         b = w2b(ws); return b2w([b[self.perm[j]] for j in range(32)])
     def untransp(self, ws):
@@ -453,6 +465,9 @@ def cmd_design(a):
 # kat
 # =============================================================================
 def cmd_kat(a):
+    if ROT_CAL is not None:
+        print('='*70); print('KAT skipped: MYSX_ROT_CAL set, KAT.json is for k=1'); print('='*70)
+        return
     print("="*70); print("KAT: conformidad de esta reimplementacion con KAT.json"); print("="*70)
     path = a.kat or "KAT.json"
     if not os.path.exists(path):
