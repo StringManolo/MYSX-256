@@ -11,6 +11,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dmitm_impossible import rotl, rotr, words_to_bytes, bytes_to_words, MYZ_PERM
 
 
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
+def shift_at(r):
+    return ROT_CAL[r % 31] if ROT_CAL else ((r % 31) + 1)
+
 def unique_bit(state):
     """Devuelve (word, bit) del único bit activo, o None."""
     active = [(w, b) for w in range(8) for b in range(32) if (state[w] >> b) & 1]
@@ -19,7 +31,7 @@ def unique_bit(state):
 
 def step_forward(state, r, verbose=True):
     """Una ronda forward: Feistel → Transpose → Rotl."""
-    shift = (r % 31) + 1
+    shift = shift_at(r)
     if verbose:
         print(f"\n  Ronda {r} (shift={shift}):")
     # Feistel (ΔR=0 → w0-3 a w4-7)
@@ -42,7 +54,7 @@ def step_forward(state, r, verbose=True):
 
 def step_backward(state, r, verbose=True):
     """Una ronda backward: Rotr → Transpose_inv → Feistel_inv."""
-    shift = (r % 31) + 1
+    shift = shift_at(r)
     if verbose:
         print(f"\n  Ronda {r} (shift={shift}):")
     # Rotr
