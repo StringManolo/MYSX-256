@@ -1,0 +1,24 @@
+{
+  "name": "mysx-256",
+  "version": "1.0.0",
+  "description": "Experimental block cipher with a 256-bit block and 512-bit key. **Proprietary design, NOT externally audited, NOT for production use.** For real data: AES-256-GCM or XChaCha20-Poly1305.",
+  "main": "mysx.prod.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StringManolo/MYSX-256.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/StringManolo/MYSX-256/issues"
+  },
+  "homepage": "https://github.com/StringManolo/MYSX-256#readme",
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  }
+}

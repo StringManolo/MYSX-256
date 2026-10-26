@@ -1,0 +1,89 @@
+# =============================================================================
+# MYSX-256/512 — .gitignore
+# =============================================================================
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Backups de parches (creados durante desarrollo) ---
+*.bak
+*.v01
+*.v02
+*.orig
+*.rej
+
+# --- Search artifacts (regenerables con search_mysx_deep.py) ---
+top-all/
+top_all*.json
+!top50_fixed.json
+deep_seed*.json
+deep_*.json
+!cryptanalysis/DMITM/wf2_deep_summary.json
+screen_results/
+screen-all/
+screen_summary*.json
+crosstest_results.json
+test5_results.json
+dp_deep_results.json
+dp_deep*.json
+beam_*.json
+result_*.json
+
+# --- Workflow outputs ---
+deep/
+screen/
+artifacts/
+all/
+
+# --- Temp / local ---
+*.log
+*.tmp
+/tmp/
+.local/
+cal.env
+*.cal
+nohup.out
+
+# --- Backups de calendario (mantener solo el vigente) ---
+old.CALENDAR_v02.txt
+CALENDAR_v02.txt.old
+
+# --- Scratch / one-off (descomentar si no los quieres tracked) ---
+# gen_rand_s9_45430.sh
+testV2.js
+
+# =============================================================================
+# Ficheros que NO se ignoran (deben estar en git):
+#   KAT.json                 — vectores v0.1 (referencia del paper)
+#   KAT_v02.json             — vectores block v0.2 (calendario nuevo)
+#   KAT_v2.json              — vectores API v2 completa (raw, argon2, scrypt, pbkdf2)
+#   CALENDAR_v02.txt         — calendario reproducible
+#   top50_fixed.json         — candidatos finalistas (usado por CI workflows)
+#   cryptanalysis/DMITM/wf2_deep_summary.json — datos §4.12.2
+#   generate_kat.py / generate_kat_v2.py — generadores de KAT
+#   set_calendar.js          — inyector de calendario
+#   verify_v2_usage.js       — test de humo v2
+#   package.json / package-lock.json — deps npm (reproducibilidad)
+# =============================================================================
