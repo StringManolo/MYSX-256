@@ -34,23 +34,6 @@ yarn-error.log*
 *.orig
 *.rej
 
-# --- Search artifacts (regenerables con search_mysx_deep.py) ---
-top-all/
-top_all*.json
-!top50_fixed.json
-deep_seed*.json
-deep_*.json
-!cryptanalysis/DMITM/wf2_deep_summary.json
-screen_results/
-screen-all/
-screen_summary*.json
-crosstest_results.json
-test5_results.json
-dp_deep_results.json
-dp_deep*.json
-beam_*.json
-result_*.json
-
 # --- Workflow outputs ---
 deep/
 screen/

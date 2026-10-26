@@ -91,12 +91,15 @@ def search(lin, max_fwd, max_bwd, n_bits, top_k_per_round, top_k_results):
         if (r_end + 1) % 32 == 0:
             print(f"  bwd {r_end+1}/128  {time.time()-t0:.0f}s", file=sys.stderr)
 
-    # Cap per round
+    # Cap per round: keep the most INFORMATIVE chains (fewest unknown bits),
+    # tie-break by earliest start (forward) or latest end (backward).
+    # The previous heuristic (sort by r_start only) discarded the useful
+    # chains because there are thousands of chains from r_start=32,33,...
     for r in F:
-        F[r].sort(key=lambda x: x[0])
+        F[r].sort(key=lambda x: (bin(x[3]).count('1'), x[0]))
         F[r] = F[r][:top_k_per_round]
     for r in B:
-        B[r].sort(key=lambda x: -x[0])
+        B[r].sort(key=lambda x: (bin(x[3]).count('1'), -x[0]))
         B[r] = B[r][:top_k_per_round]
 
     nF = sum(len(v) for v in F.values())

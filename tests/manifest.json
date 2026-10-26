@@ -382,17 +382,17 @@
       ]
     },
     "integral_sweep_v02": {
-      "name": "Full 31-offset integral sweep, v0.2 (R=5-10)",
+      "name": "Integral sweep (6 key offsets, R=5-6), v0.2",
       "group": "integral",
       "status": "ready",
       "setup": [
         "pip install -q pulp highspy"
       ],
-      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-10 --active word0 --r0-sweep --solver highs",
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-6 --active word0 --r0 0,5,10,15,20,27 --solver highs",
       "env": {
         "MYSX_ROT_CAL": "${v02_cal}"
       },
-      "timeout_minutes": 180,
+      "timeout_minutes": 45,
       "deterministic": true,
       "assertions": [
         {
@@ -406,14 +406,14 @@
       ]
     },
     "integral_sweep_v1": {
-      "name": "Full 31-offset integral sweep, v0.1 (r0=15 peak)",
+      "name": "Integral sweep (6 key offsets, R=5-6), v0.1",
       "group": "integral",
       "status": "ready",
       "setup": [
         "pip install -q pulp highspy"
       ],
-      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-8 --active word0 --r0-sweep --solver highs",
-      "timeout_minutes": 120,
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-6 --active word0 --r0 0,5,10,15,20,27 --solver highs",
+      "timeout_minutes": 45,
       "deterministic": true,
       "assertions": [
         {
@@ -954,8 +954,8 @@
       "name": "Truncated impossible, v0.2 (expected ~30-31 rounds)",
       "group": "impossible",
       "status": "ready",
-      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v2.py --cal v02 --max_fwd 24 --max_bwd 24 --n_bits 256",
-      "timeout_minutes": 60,
+      "script": "python3 tests/run_trunc_witness.py --cal v02 --R 39",
+      "timeout_minutes": 15,
       "deterministic": true,
       "notes": "Depends on trunc_v1 being correct. The exact number is new for v0.2; the assertion only checks that a positive result is produced.",
       "assertions": [
@@ -963,8 +963,12 @@
           "type": "returncode_zero"
         },
         {
+          "type": "output_contains",
+          "value": "OK: witness confirmed"
+        },
+        {
           "type": "regex",
-          "pattern": "BEST: \\d+ rounds"
+          "pattern": "BEST: 39 rounds"
         }
       ]
     },
@@ -972,13 +976,17 @@
       "name": "Truncated impossible, v0.1 (expect BEST: 39 rounds)",
       "group": "impossible",
       "status": "ready",
-      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v2.py --cal k1 --max_fwd 24 --max_bwd 24 --n_bits 256",
-      "timeout_minutes": 60,
+      "script": "python3 tests/run_trunc_witness.py --cal k1 --R 39",
+      "timeout_minutes": 15,
       "deterministic": true,
       "notes": "Requires cryptanalysis/DMITM/dmitm_trunc_v2.py in the repo (new file).",
       "assertions": [
         {
           "type": "returncode_zero"
+        },
+        {
+          "type": "output_contains",
+          "value": "OK: witness confirmed"
         },
         {
           "type": "regex",

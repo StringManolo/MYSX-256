@@ -60,6 +60,9 @@ jobs:
         with: { node-version: '20' }
       - name: Install npm deps
         run: npm ci --silent || npm install --silent
+      - name: Install Python deps
+        run: |
+          python3 -m pip install --quiet pulp highspy pexpect numpy
       - name: Run test
         run: |
           mkdir -p results
