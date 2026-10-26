@@ -110,6 +110,16 @@ def run_test(test_id, spec, manifest, repo_root):
         result["elapsed_s"] = 0
         return result
 
+    # requires_file: skip gracefully if the required file is absent
+    req = spec.get("requires_file")
+    if req:
+        import os as _os
+        if not _os.path.exists(_os.path.join(repo_root, req)):
+            result["status"] = "skipped"
+            result["reason"] = f"requires_file not present: {req}"
+            result["elapsed_s"] = 0
+            return result
+
     env = os.environ.copy()
     for k, v in expand_env(spec.get("env"), manifest).items():
         if v == "":
