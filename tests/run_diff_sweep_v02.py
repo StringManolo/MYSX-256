@@ -7,7 +7,7 @@ os.environ['MYSX_ROT_CAL'] = V02_CAL
 
 results = {}
 for r0 in range(31):
-    cmd = f"python3 misc/mysx_milp2.py --rounds 14 --input-bit 63 --r0 {r0} --solver highs --time-limit 120"
+    cmd = f"python3 misc/mysx_milp2.py --rounds 14 --input-bit 63 --r0 {r0} --solver cbc --time-limit 120"
     p = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     # Parse "peso mínimo= X"
     import re
@@ -19,4 +19,8 @@ for r0 in range(31):
 print("\n=== Summary ===")
 for r0, w in sorted(results.items()):
     print(f"r0={r0:2d}: {w}")
-print(f"\nBest: r0={min(results, key=results.get)} weight={min(results.values())}")
+valid = {k: v for k, v in results.items() if v is not None}
+if not valid:
+    print("FAIL: all offsets returned None", file=sys.stderr)
+    sys.exit(1)
+print(f"\nBest: r0={min(valid, key=valid.get)} weight={min(valid.values())}")

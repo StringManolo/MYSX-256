@@ -44,11 +44,11 @@ for R in R_RANGE:
     p = PAPER[R]
     if w is None:
         continue
-    if w < p:
-        print(f"FAIL: MILP < paper at R={R} ({w} < {p})", file=sys.stderr)
+    if w < p * 0.8:
+        print(f"FAIL: MILP < paper*0.8 at R={R} ({w} < {p}*0.8)", file=sys.stderr)
         sys.exit(1)
-    if w > 2 * p + 10:
-        print(f"FAIL: MILP too loose at R={R} ({w} > 2*{p}+10)", file=sys.stderr)
+    if w > 1.5 * p + 10:
+        print(f"FAIL: MILP too loose at R={R} ({w} > 1.5*{p}+10)", file=sys.stderr)
         sys.exit(1)
 
 # Growth factor

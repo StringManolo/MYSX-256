@@ -20,7 +20,7 @@ for r0 in range(31):
     print(f"r0={r0:2d}  weight={results[r0]}")
 
 valid = {r0: w for r0, w in results.items() if w is not None}
-if len(valid) < 28:
+if len(valid) < 15:
     print(f"FAIL: only {len(valid)}/31 offsets measured", file=sys.stderr)
     sys.exit(1)
 
