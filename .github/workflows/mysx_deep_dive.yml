@@ -1,0 +1,153 @@
+name: Deep dive (8 candidates, full analysis)
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: 'JSON array of names'
+        required: true
+        default: '["rand_s9_33719","rand_s5_92657","rand_s9_45430","rand_s6_74172","rand_s9_40593","affine_k22","affine_k1","affine_k2"]'
+
+jobs:
+  deep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        candidate: ${{ fromJSON(github.event.inputs.candidates) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install pulp scipy numpy
+
+      - name: Prepare calendar
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys
+          sys.path.insert(0, 'cryptanalysis/DMITM')
+          from search_mysx_deep import cal_affine_k
+          name = "${{ matrix.candidate }}"
+          cands = json.load(open('top50_fixed.json'))
+          c = next((x for x in cands if x['name'] == name), None)
+          if c is None:
+              k = int(name.replace('affine_k', ''))
+              c = {'name': name, 'cal': cal_affine_k(k)}
+          json.dump([c], open('/tmp/cand.json', 'w'))
+          cal = ','.join(str(x) for x in c['cal'][:31])
+          open('/tmp/cal.env', 'w').write(f'MYSX_ROT_CAL={cal}\n')
+          PYEOF
+
+      - name: DP R=8 (stop-when-zero)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 misc/mysx_division_property_v2.py --rounds 8 --active word0 --r0 0 \
+            --solver scip 2>&1 | tee /tmp/dp8.log
+
+      - name: DP offset sweep R=5 (r0 ∈ {0,10,20,27})
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          for r0 in 0 10 20 27; do
+            echo "=== r0=$r0 ==="
+            python3 misc/mysx_division_property_v2.py --rounds 5 --active word0 --r0 $r0 \
+              --solver scip 2>&1 | tee -a /tmp/dp_sweep.log
+          done
+
+      - name: Linear fwd R=12, R=14
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          for R in 12 14; do
+            python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+              --offsets 0-30 --rounds $R --beam 2000 --jobs 1 \
+              --out /tmp/beam_fwd$R.json 2>&1 | tee -a /tmp/lin_fwd.log
+          done
+
+      - name: Linear bwd R=12, R=14
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          for R in 12 14; do
+            python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+              --offsets 0-30 --rounds $R --beam 2000 --jobs 1 --direction backward \
+              --out /tmp/beam_bwd$R.json 2>&1 | tee -a /tmp/lin_bwd.log
+          done
+
+      - name: MILP R=10,12,14 (r0 ∈ {0,10,20})
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          for R in 10 12 14; do
+            for r0 in 0 10 20; do
+              echo "=== R=$R r0=$r0 ==="
+              timeout 180 python3 misc/mysx_milp2.py --cal_file /tmp/cand.json --cal_idx 0 \
+                --rounds $R --input-bit 63 --r0 $r0 --solver cbc \
+                --gap-rel 0.2 --time-limit 150 2>&1 | tee -a /tmp/milp_deep.log
+            done
+          done
+
+      - name: DMITM trunc deep (max=24, n=128)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 cryptanalysis/DMITM/dmitm_trunc.py search \
+            --cal_file /tmp/cand.json --cal_idx 0 \
+            --max_fwd 24 --max_bwd 24 --n_bits 128 --top 1 2>&1 | tee /tmp/trunc_deep.log
+
+      - name: DMITM exact + weight-0 chains
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 cryptanalysis/DMITM/dmitm_verify.py exact 2>&1 | tee /tmp/exact.log
+          python3 cryptanalysis/DMITM/dmitm_impossible.py 2>&1 | tee /tmp/chains.log
+
+      - name: Collect results
+        run: |
+          python3 - <<'PYEOF'
+          import json, re
+          name = "${{ matrix.candidate }}"
+          out = {'name': name}
+          files = {'dp8':'/tmp/dp8.log','sweep':'/tmp/dp_sweep.log',
+                   'lin_fwd':'/tmp/lin_fwd.log','lin_bwd':'/tmp/lin_bwd.log',
+                   'milp':'/tmp/milp_deep.log','trunc':'/tmp/trunc_deep.log',
+                   'exact':'/tmp/exact.log','chains':'/tmp/chains.log'}
+          def read(f):
+              try: return open(f).read()
+              except FileNotFoundError: return ''
+          dp8 = read(files['dp8'])
+          m = re.search(r'\[R=8\]\s+Balanced:\s+(\d+)/256', dp8)
+          if m: out['dp8'] = int(m.group(1))
+          sweep = read(files['sweep'])
+          for r0 in (0,10,20,27):
+              section = sweep.split(f'=== r0={r0} ===')[1].split('===')[0] if f'=== r0={r0} ===' in sweep else ''
+              m = re.search(r'\[R=5\]\s+Balanced:\s+(\d+)/256', section)
+              if m: out[f'dp5_r0_{r0}'] = int(m.group(1))
+          for R in (12,14):
+              lin = read(files['lin_fwd'])
+              vals = [int(x) for x in re.findall(rf'ub\[R={R}\]=(\d+)', lin)]
+              if vals: out[f'lin_fwd{R}'] = min(vals)
+              lin = read(files['lin_bwd'])
+              vals = [int(x) for x in re.findall(rf'ub\[R={R}\]=(\d+)', lin)]
+              if vals: out[f'lin_bwd{R}'] = min(vals)
+          milp = read(files['milp'])
+          for R in (10,12,14):
+              for r0 in (0,10,20):
+                  pattern = rf'R={R} r0={r0}.*?peso mínimo=\s*(\d+)'
+                  m = re.search(pattern, milp, re.DOTALL)
+                  if m: out[f'milp{R}_r0_{r0}'] = int(m.group(1))
+          trunc = read(files['trunc'])
+          m = re.search(r'(\d+) imposibles', trunc)
+          if m: out['trunc24'] = int(m.group(1))
+          exact = read(files['exact'])
+          m = re.search(r'total=(\d+)', exact)
+          if m: out['dmitm_exact'] = int(m.group(1))
+          chains = read(files['chains'])
+          m = re.search(r'max_rounds\s+esperado.*?\n\s*(\d+)\s+\|\s+(\d+)', chains, re.DOTALL)
+          if m: out['chain_max'] = int(m.group(2))
+          with open(f'deep_{name}.json', 'w') as f:
+              json.dump(out, f, indent=2)
+          print(json.dumps(out, indent=2))
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deep-${{ matrix.candidate }}
+          path: deep_${{ matrix.candidate }}.json
+          retention-days: 30

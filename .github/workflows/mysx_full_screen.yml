@@ -1,0 +1,168 @@
+name: Full screen (13 candidates, DP + linear + MILP)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    outputs:
+      candidates: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          python3 - <<'EOF' >> $GITHUB_OUTPUT
+          import json, sys
+          sys.path.insert(0, 'cryptanalysis/DMITM')
+          from search_mysx_deep import cal_affine_k
+          cands = json.load(open('top50_fixed.json'))
+          top10 = [c['name'] for c in cands[:10]]
+          names = top10 + ['affine_k22', 'affine_k1', 'affine_k2']
+          print(f'list={json.dumps(names)}')
+          EOF
+
+  screen:
+    needs: load
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        candidate: ${{ fromJSON(needs.load.outputs.candidates) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install pulp scipy numpy
+
+      - name: Prepare calendar
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, os
+          sys.path.insert(0, 'cryptanalysis/DMITM')
+          from search_mysx_deep import cal_affine_k
+          name = "${{ matrix.candidate }}"
+          cands = json.load(open('top50_fixed.json'))
+          c = next((x for x in cands if x['name'] == name), None)
+          if c is None:
+              k = int(name.replace('affine_k', ''))
+              c = {'name': name, 'cal': cal_affine_k(k)}
+          with open('/tmp/cand.json', 'w') as f:
+              json.dump([c], f)
+          cal = ','.join(str(x) for x in c['cal'][:31])
+          with open('/tmp/cal.env', 'w') as f:
+              f.write(f'MYSX_ROT_CAL={cal}\n')
+          PYEOF
+
+      - name: DP R=5-7 (stop-when-zero)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 misc/mysx_division_property_v2.py --rounds 5-7 --active word0 --r0 0 \
+            --solver scip --stop-when-zero 2>&1 | tee /tmp/dp.log
+
+      - name: Linear fwd R=10 (31 offsets)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+            --offsets 0-30 --rounds 10 --beam 2000 --jobs 1 \
+            --out /tmp/beam_fwd10.json 2>&1 | tee /tmp/lin_fwd10.log
+
+      - name: Linear bwd R=10 (31 offsets)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+            --offsets 0-30 --rounds 10 --beam 2000 --jobs 1 --direction backward \
+            --out /tmp/beam_bwd10.json 2>&1 | tee /tmp/lin_bwd10.log
+
+      - name: MILP R=6,8 (r0=0,10)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          for R in 6 8; do
+            for r0 in 0 10; do
+              echo "=== R=$R r0=$r0 ==="
+              python3 misc/mysx_milp2.py --cal_file /tmp/cand.json --cal_idx 0 \
+                --rounds $R --input-bit 63 --r0 $r0 --solver cbc \
+                --gap-rel 0.2 --time-limit 60 2>&1 | tee -a /tmp/milp.log
+            done
+          done
+
+      - name: DMITM trunc (max_fwd=20, max_bwd=20)
+        run: |
+          set -a; source /tmp/cal.env; set +a
+          python3 cryptanalysis/DMITM/dmitm_trunc.py search \
+            --cal_file /tmp/cand.json --cal_idx 0 \
+            --max_fwd 20 --max_bwd 20 --n_bits 64 --top 1 2>&1 | tee /tmp/trunc.log
+
+      - name: Collect results
+        run: |
+          python3 - <<'PYEOF'
+          import json, re, os
+          name = "${{ matrix.candidate }}"
+          out = {'name': name}
+          try:
+              dp = open('/tmp/dp.log').read()
+              for R in (5,6,7):
+                  m = re.search(rf'\[R={R}\]\s+Balanced:\s+(\d+)/256', dp)
+                  if m: out[f'dp{R}'] = int(m.group(1))
+          except FileNotFoundError: pass
+          try:
+              lin = open('/tmp/lin_fwd10.log').read()
+              vals = [int(x) for x in re.findall(r'ub\[R=10\]=(\d+)', lin)]
+              if vals: out['lin_fwd10'] = min(vals)
+          except FileNotFoundError: pass
+          try:
+              lin = open('/tmp/lin_bwd10.log').read()
+              vals = [int(x) for x in re.findall(r'ub\[R=10\]=(\d+)', lin)]
+              if vals: out['lin_bwd10'] = min(vals)
+          except FileNotFoundError: pass
+          try:
+              milp = open('/tmp/milp.log').read()
+              for R in (6,8):
+                  ws = [int(x) for x in re.findall(rf'R={R}.*peso mínimo=\s*(\d+)', milp)]
+                  if ws: out[f'milp{R}'] = min(ws)
+          except FileNotFoundError: pass
+          try:
+              trunc = open('/tmp/trunc.log').read()
+              m = re.search(r'(\d+) imposibles', trunc)
+              if m: out['trunc_max'] = int(m.group(1))
+          except FileNotFoundError: pass
+          with open(f'result_{name}.json', 'w') as f:
+              json.dump(out, f, indent=2)
+          print(json.dumps(out, indent=2))
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screen-${{ matrix.candidate }}
+          path: result_${{ matrix.candidate }}.json
+          retention-days: 14
+
+  merge:
+    needs: screen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: all, pattern: 'screen-*' }
+      - name: Merge and rank
+        run: |
+          python3 - <<'PYEOF'
+          import json, glob
+          results = [json.load(open(f)) for f in glob.glob('all/**/result_*.json', recursive=True)]
+          results.sort(key=lambda r: (r.get('dp6',999), -r.get('milp8',0), r.get('trunc_max',0)))
+          with open('screen_summary.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          hdr = f"{'name':<22} {'dp5':>4} {'dp6':>4} {'dp7':>4} {'linF10':>7} {'linB10':>7} {'milp6':>6} {'milp8':>6} {'trunc':>6}"
+          print(hdr); print('-'*len(hdr))
+          for r in results:
+              print(f"{r['name']:<22} {str(r.get('dp5','?')):>4} {str(r.get('dp6','?')):>4} "
+                    f"{str(r.get('dp7','?')):>4} {str(r.get('lin_fwd10','?')):>7} "
+                    f"{str(r.get('lin_bwd10','?')):>7} {str(r.get('milp6','?')):>6} "
+                    f"{str(r.get('milp8','?')):>6} {str(r.get('trunc_max','?')):>6}")
+          PYEOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screen-summary
+          path: screen_summary.json
+          retention-days: 30
