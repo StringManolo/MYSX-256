@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       candidates:
-        description: 'JSON array of names'
+        description: 'JSON array of candidate names'
         required: true
-        default: '["rand_s9_33719","rand_s5_92657","rand_s9_45430","rand_s6_74172","rand_s9_40593","affine_k22","affine_k1","affine_k2"]'
+        default: '["rand_s9_33719","rand_s9_45430","rand_s5_92657","rand_s6_74172","rand_s8_33902","affine_k22","affine_k1","affine_k2"]'
 
 jobs:
   deep:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       max-parallel: 8
@@ -19,9 +19,13 @@ jobs:
         candidate: ${{ fromJSON(github.event.inputs.candidates) }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install pulp scipy numpy
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install pulp highspy numpy
 
       - name: Prepare calendar
         run: |
@@ -38,50 +42,48 @@ jobs:
           json.dump([c], open('/tmp/cand.json', 'w'))
           cal = ','.join(str(x) for x in c['cal'][:31])
           open('/tmp/cal.env', 'w').write(f'MYSX_ROT_CAL={cal}\n')
+          print(f"calendar {name}: {cal}")
           PYEOF
 
-      - name: DP R=8 (stop-when-zero)
+      - name: DP R=5,6 (highs)
         run: |
           set -a; source /tmp/cal.env; set +a
-          python3 misc/mysx_division_property_v2.py --rounds 8 --active word0 --r0 0 \
-            --solver scip 2>&1 | tee /tmp/dp8.log
+          python3 misc/mysx_division_property_v2.py \
+            --rounds 5-6 --active word0 --r0 0 \
+            --solver highs --time 900 2>&1 | tee /tmp/dp.log
 
-      - name: DP offset sweep R=5 (r0 ∈ {0,10,20,27})
+      - name: Linear fwd R=10,14 (31 offsets)
         run: |
           set -a; source /tmp/cal.env; set +a
-          for r0 in 0 10 20 27; do
-            echo "=== r0=$r0 ==="
-            python3 misc/mysx_division_property_v2.py --rounds 5 --active word0 --r0 $r0 \
-              --solver scip 2>&1 | tee -a /tmp/dp_sweep.log
-          done
-
-      - name: Linear fwd R=12, R=14
-        run: |
-          set -a; source /tmp/cal.env; set +a
-          for R in 12 14; do
-            python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+          for R in 10 14; do
+            echo "=== LIN FWD R=$R ==="
+            python3 misc/mysx_linear_beam.py run \
+              --cal_file /tmp/cand.json --cal_idx 0 \
               --offsets 0-30 --rounds $R --beam 2000 --jobs 1 \
               --out /tmp/beam_fwd$R.json 2>&1 | tee -a /tmp/lin_fwd.log
           done
 
-      - name: Linear bwd R=12, R=14
+      - name: Linear bwd R=10,14 (31 offsets)
         run: |
           set -a; source /tmp/cal.env; set +a
-          for R in 12 14; do
-            python3 misc/mysx_linear_beam.py run --cal_file /tmp/cand.json --cal_idx 0 \
+          for R in 10 14; do
+            echo "=== LIN BWD R=$R ==="
+            python3 misc/mysx_linear_beam.py run \
+              --cal_file /tmp/cand.json --cal_idx 0 \
               --offsets 0-30 --rounds $R --beam 2000 --jobs 1 --direction backward \
               --out /tmp/beam_bwd$R.json 2>&1 | tee -a /tmp/lin_bwd.log
           done
 
-      - name: MILP R=10,12,14 (r0 ∈ {0,10,20})
+      - name: MILP R=8,10,12 (r0=0,10)
         run: |
           set -a; source /tmp/cal.env; set +a
-          for R in 10 12 14; do
-            for r0 in 0 10 20; do
-              echo "=== R=$R r0=$r0 ==="
-              timeout 180 python3 misc/mysx_milp2.py --cal_file /tmp/cand.json --cal_idx 0 \
+          for R in 8 10 12; do
+            for r0 in 0 10; do
+              echo "=== MILP R=$R r0=$r0 ==="
+              timeout 200 python3 misc/mysx_milp2.py \
+                --cal_file /tmp/cand.json --cal_idx 0 \
                 --rounds $R --input-bit 63 --r0 $r0 --solver cbc \
-                --gap-rel 0.2 --time-limit 150 2>&1 | tee -a /tmp/milp_deep.log
+                --gap-rel 0.2 --time-limit 180 2>&1 | tee -a /tmp/milp.log
             done
           done
 
@@ -90,7 +92,7 @@ jobs:
           set -a; source /tmp/cal.env; set +a
           python3 cryptanalysis/DMITM/dmitm_trunc.py search \
             --cal_file /tmp/cand.json --cal_idx 0 \
-            --max_fwd 24 --max_bwd 24 --n_bits 128 --top 1 2>&1 | tee /tmp/trunc_deep.log
+            --max_fwd 24 --max_bwd 24 --n_bits 128 --top 1 2>&1 | tee /tmp/trunc.log
 
       - name: DMITM exact + weight-0 chains
         run: |
@@ -104,45 +106,54 @@ jobs:
           import json, re
           name = "${{ matrix.candidate }}"
           out = {'name': name}
-          files = {'dp8':'/tmp/dp8.log','sweep':'/tmp/dp_sweep.log',
-                   'lin_fwd':'/tmp/lin_fwd.log','lin_bwd':'/tmp/lin_bwd.log',
-                   'milp':'/tmp/milp_deep.log','trunc':'/tmp/trunc_deep.log',
-                   'exact':'/tmp/exact.log','chains':'/tmp/chains.log'}
-          def read(f):
+
+          def rd(f):
               try: return open(f).read()
               except FileNotFoundError: return ''
-          dp8 = read(files['dp8'])
-          m = re.search(r'\[R=8\]\s+Balanced:\s+(\d+)/256', dp8)
-          if m: out['dp8'] = int(m.group(1))
-          sweep = read(files['sweep'])
-          for r0 in (0,10,20,27):
-              section = sweep.split(f'=== r0={r0} ===')[1].split('===')[0] if f'=== r0={r0} ===' in sweep else ''
-              m = re.search(r'\[R=5\]\s+Balanced:\s+(\d+)/256', section)
-              if m: out[f'dp5_r0_{r0}'] = int(m.group(1))
-          for R in (12,14):
-              lin = read(files['lin_fwd'])
+
+          # DP: [R=N] Balanced: X/256
+          dp = rd('/tmp/dp.log')
+          for R in (5, 6):
+              m = re.search(rf'\[R={R}\]\s+Balanced:\s+(\d+)/256', dp)
+              if m: out[f'dp{R}'] = int(m.group(1))
+
+          # Linear fwd
+          lin = rd('/tmp/lin_fwd.log')
+          for R in (10, 14):
               vals = [int(x) for x in re.findall(rf'ub\[R={R}\]=(\d+)', lin)]
               if vals: out[f'lin_fwd{R}'] = min(vals)
-              lin = read(files['lin_bwd'])
+
+          # Linear bwd
+          lin = rd('/tmp/lin_bwd.log')
+          for R in (10, 14):
               vals = [int(x) for x in re.findall(rf'ub\[R={R}\]=(\d+)', lin)]
               if vals: out[f'lin_bwd{R}'] = min(vals)
-          milp = read(files['milp'])
-          for R in (10,12,14):
-              for r0 in (0,10,20):
-                  pattern = rf'R={R} r0={r0}.*?peso mínimo=\s*(\d+)'
-                  m = re.search(pattern, milp, re.DOTALL)
-                  if m: out[f'milp{R}_r0_{r0}'] = int(m.group(1))
-          trunc = read(files['trunc'])
-          m = re.search(r'(\d+) imposibles', trunc)
-          if m: out['trunc24'] = int(m.group(1))
-          exact = read(files['exact'])
-          m = re.search(r'total=(\d+)', exact)
+
+          # MILP: por bloque
+          milp = rd('/tmp/milp.log')
+          for R in (8, 10, 12):
+              for r0 in (0, 10):
+                  marker = f'=== MILP R={R} r0={r0} ==='
+                  if marker in milp:
+                      block = milp.split(marker)[1].split('===')[0]
+                      m = re.search(r'peso mínimo=\s*(\d+)', block)
+                      if m: out[f'milp{R}_r0{r0}'] = int(m.group(1))
+
+          # Trunc: primera fila de la tabla (longitud del imposible más largo)
+          trunc = rd('/tmp/trunc.log')
+          m = re.search(r'len\s+R\s+rs.*?\n\s*(\d+)\s+', trunc, re.DOTALL)
+          if m: out['trunc_len'] = int(m.group(1))
+
+          # Exact: total del mejor imposible exact
+          m = re.search(r'total=(\d+)', rd('/tmp/exact.log'))
           if m: out['dmitm_exact'] = int(m.group(1))
-          chains = read(files['chains'])
-          m = re.search(r'max_rounds\s+esperado.*?\n\s*(\d+)\s+\|\s+(\d+)', chains, re.DOTALL)
-          if m: out['chain_max'] = int(m.group(2))
-          with open(f'deep_{name}.json', 'w') as f:
-              json.dump(out, f, indent=2)
+
+          # Chains: max_rounds forward (tabla de free chains)
+          ch = rd('/tmp/chains.log')
+          vals = [int(m) for m in re.findall(r'^\s*\d+\s+\|\s+(\d+)', ch, re.MULTILINE)]
+          if vals: out['chain_max'] = max(vals)
+
+          json.dump(out, open(f'deep_{name}.json', 'w'), indent=2)
           print(json.dumps(out, indent=2))
           PYEOF
 
@@ -150,4 +161,68 @@ jobs:
         with:
           name: deep-${{ matrix.candidate }}
           path: deep_${{ matrix.candidate }}.json
+          retention-days: 30
+
+  merge:
+    needs: deep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: all
+          pattern: 'deep-*'
+
+      - name: Merge and rank
+        run: |
+          python3 - <<'PYEOF'
+          import json, glob
+
+          results = []
+          for f in glob.glob('all/**/deep_*.json', recursive=True):
+              try:
+                  results.append(json.load(open(f)))
+              except Exception as e:
+                  print(f"skip {f}: {e}")
+
+          def score(r):
+              # maximizar: milp12 alto, lin bajos, dp6 bajo, trunc bajo
+              s = 0
+              s += -r.get('dp5', 999)
+              s += -r.get('dp6', 999) * 2
+              s += -r.get('lin_fwd10', 999)
+              s += -r.get('lin_bwd10', 999)
+              s += -r.get('lin_fwd14', 999) // 2
+              s += -r.get('lin_bwd14', 999) // 2
+              s += r.get('milp12_r0_0', 0) * 2
+              s += r.get('milp12_r0_10', 0)
+              s += -r.get('trunc_len', 999)
+              s += -r.get('dmitm_exact', 99) * 3
+              return s
+
+          results.sort(key=score, reverse=True)
+
+          with open('deep_summary.json', 'w') as f:
+              json.dump(results, f, indent=2)
+
+          hdr = (f"{'name':<22} {'dp5':>4} {'dp6':>4} "
+                 f"{'lF10':>5} {'lB10':>5} {'lF14':>5} {'lB14':>5} "
+                 f"{'m8':>3} {'m10':>4} {'m12':>4} {'trunc':>5} {'exact':>5}")
+          print(hdr)
+          print('-' * len(hdr))
+          for r in results:
+              m8 = r.get('milp8_r0_0', r.get('milp8_r0_10', '-'))
+              m10 = r.get('milp10_r0_0', r.get('milp10_r0_10', '-'))
+              m12 = r.get('milp12_r0_0', r.get('milp12_r0_10', '-'))
+              print(f"{r['name']:<22} "
+                    f"{str(r.get('dp5','-')):>4} {str(r.get('dp6','-')):>4} "
+                    f"{str(r.get('lin_fwd10','-')):>5} {str(r.get('lin_bwd10','-')):>5} "
+                    f"{str(r.get('lin_fwd14','-')):>5} {str(r.get('lin_bwd14','-')):>5} "
+                    f"{str(m8):>3} {str(m10):>4} {str(m12):>4} "
+                    f"{str(r.get('trunc_len','-')):>5} {str(r.get('dmitm_exact','-')):>5}")
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deep-summary
+          path: deep_summary.json
           retention-days: 30
