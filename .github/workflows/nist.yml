@@ -23,13 +23,24 @@ jobs:
       - name: Install pexpect
         run: pip install pexpect
 
-      - name: Download NIST STS 2.1.2
+      - name: Download and build NIST STS 2.1.2
         run: |
-          curl -L -o sts.zip https://csrc.nist.gov/CSRC/media/Projects/Random-Bit-Generation/documents/sts-2_1_2.zip
+          set -euo pipefail
+          curl -L --retry 3 --max-time 300 -o sts.zip \
+            "https://csrc.nist.gov/CSRC/media/Projects/Random-Bit-Generation/documents/sts-2_1_2.zip"
           unzip -q sts.zip
-          mv sts-2.1.2/sts-2.1.2 ./sts-2.1.2 || mv sts-2.1.2 ./sts-2.1.2
-          cd sts-2.1.2
-          make -j4
+          # The ZIP may extract to sts-2.1.2/ directly, or to sts-2.1.2/sts-2.1.2/.
+          # Locate the directory that contains a Makefile (that is the STS root).
+          MAKEFILE=$(find . -maxdepth 3 -name Makefile | grep -v node_modules | head -1)
+          if [ -z "$MAKEFILE" ]; then
+            echo "ERROR: no Makefile found after unzip"; find . -maxdepth 3 -type f | head -20; exit 1
+          fi
+          STS_DIR=$(dirname "$MAKEFILE")
+          echo "STS_DIR=$STS_DIR" >> "$GITHUB_ENV"
+          echo "Building STS in $STS_DIR"
+          (cd "$STS_DIR" && make -j4)
+          ls -la "$STS_DIR/assess"
+          echo "Built: $STS_DIR/assess"
 
       - name: Generate input (v0.1 or v0.2)
         run: |

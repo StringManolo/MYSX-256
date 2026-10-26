@@ -38,8 +38,9 @@ jobs:
               print(f"ERROR: no tests matched '{selection}'", file=sys.stderr)
               sys.exit(1)
           print(f"Selected {len(ids)} tests: {ids}")
-          print(f"matrix={json.dumps({'test_id': ids})}", file=os.environ['GITHUB_OUTPUT'])
-          print(f"n={len(ids)}", file=os.environ['GITHUB_OUTPUT'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as gh_out:
+              print(f"matrix={json.dumps({'test_id': ids})}", file=gh_out)
+              print(f"n={len(ids)}", file=gh_out)
           EOF
 
   test:
