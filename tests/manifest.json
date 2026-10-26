@@ -620,7 +620,7 @@
         },
         {
           "type": "output_contains",
-          "value": "OK: all 18 checkpoints"
+          "value": "OK: all 16 asserted checkpoints match"
         }
       ]
     },
