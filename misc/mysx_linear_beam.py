@@ -271,7 +271,7 @@ def end_round(o):
     return o + PERIOD * ((TOTAL_ROUNDS - 1 - o) // PERIOD)
 
 
-def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=(), direction="forward"):
+def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=(), direction="forward", cal=None):
     """forward : o = index (mod 31) of the first round; starts are masks on s[r0];
                  trail covers rounds r0..r0+R-1.
     backward: o = index (mod 31) of the last round e; starts are masks on s[e+1];
@@ -285,10 +285,10 @@ def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=(), directio
     died = None
     for r in range(rounds):
         if bwd:
-            sh = ((o - r) % PERIOD) + 1
+            sh = cal[(o - r) % PERIOD] if cal else ((o - r) % PERIOD) + 1
             gen = expand_backward
         else:
-            sh = ((o + r) % PERIOD) + 1
+            sh = cal[(o + r) % PERIOD] if cal else ((o + r) % PERIOD) + 1
             gen = expand
         st, wt, _ = layers[-1]
         nxt = {}
@@ -582,8 +582,14 @@ def run(args):
     offsets = parse_offsets(args.offsets)
     want = tuple(int(v) for v in args.paths.split(",")) if args.paths else ()
     starts = make_starts(args.starts)
+    cal = None
+    if args.cal_file:
+        cands = json.load(open(args.cal_file))
+        c = cands[args.cal_idx]
+        cal = [c["cal"][r % 31] for r in range(31)]
+        print(f"cal: {c.get('name', args.cal_idx)}")
     jobs = [(o, args.rounds, starts, args.beam, args.cell_h, args.round_cost, args.g_keep, want,
-             args.direction) for o in offsets]
+             args.direction, cal) for o in offsets]
     print("direction=%s offsets=%s rounds=%d beam=%d starts=%s (%d) cell-h<=%d g-keep=%d jobs=%d"
           % (args.direction, offsets, args.rounds, args.beam, args.starts, len(starts),
              args.cell_h, args.g_keep, args.jobs), flush=True)
@@ -641,6 +647,8 @@ def main():
     p.add_argument("--jobs", type=int, default=cpu_count())
     p.add_argument("--paths", default="14,32,64,128", help="R values whose best trail masks are saved")
     p.add_argument("--out", default="beam_results.json")
+    p.add_argument("--cal_file", default=None)
+    p.add_argument("--cal_idx", type=int, default=0)
     args = ap.parse_args()
     sys.exit({"selftest": lambda: selftest(), "reproduce": lambda: reproduce(args),
               "run": lambda: run(args), "merge": lambda: merge(args)}[args.cmd]())

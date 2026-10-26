@@ -42,6 +42,7 @@ Interpretación:
     Plateau ⇒ debilidad estructural.
 """
 import argparse
+import json
 import sys
 
 try:
@@ -116,7 +117,7 @@ def and_diff(prob, dx, dy, dz, name, a=None):
 # =============================================================================
 # Construcción del MILP
 # =============================================================================
-def build_milp(rounds, input_diff, solver_cmd, cutoff=None, r0=0):
+def build_milp(rounds, input_diff, solver_cmd, cutoff=None, r0=0, cal=None):
     """
     input_diff: dict {(i, j): 1} con los bits activos en la entrada.
     cutoff: si no es None, modo factibilidad (peso <= cutoff).
@@ -164,7 +165,7 @@ def build_milp(rounds, input_diff, solver_cmd, cutoff=None, r0=0):
                 prob += s_perm[ni][nj] == s_mid[i][j]
 
         # --- Rotación por palabra ---
-        shift = ((r + r0) % SHIFT_MOD) + 1
+        shift = cal[(r + r0) % SHIFT_MOD] if cal else ((r + r0) % SHIFT_MOD) + 1
         for i in range(NUM_WORDS):
             for j in range(WORD_BITS):
                 prob += s[r + 1][i][j] == s_perm[i][(j - shift) % WORD_BITS]
@@ -342,6 +343,8 @@ def main():
                          "((r + r0) mod 31) + 1 (default 0)")
     ap.add_argument("--validate", action="store_true",
                     help="Solo ejecutar tests de validación")
+    ap.add_argument("--cal_file", default=None)
+    ap.add_argument("--cal_idx", type=int, default=0)
     args = ap.parse_args()
 
     if args.validate:
@@ -362,6 +365,12 @@ def main():
     else:
         input_bits = [args.input_bit]
 
+    cal = None
+    if args.cal_file:
+        cands = json.load(open(args.cal_file))
+        c = cands[args.cal_idx]
+        cal = [c["cal"][r % 31] for r in range(31)]
+        print(f"cal: {c.get('name', args.cal_idx)}")
     solver_cmd = make_solver(args.solver, args.gap_rel,
                              args.time_limit, args.threads)
 
@@ -385,7 +394,7 @@ def main():
             try:
                 prob, s, _ = build_milp(rounds, {(i, j): 1},
                                         solver_cmd, cutoff=args.cutoff,
-                                        r0=args.r0)
+                                        r0=args.r0, cal=cal)
             except Exception as e:
                 print(f"  Error rounds={rounds} input={input_bit}: {e}")
                 continue

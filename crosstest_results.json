@@ -1,0 +1,191 @@
+[
+{
+"name": "rand_s4_59063",
+"dmitm": 9,
+"chain31": 5,
+"idx": 0,
+"trunc": 5,
+"lin14": 34,
+"milp14": 5
+},
+{
+"name": "rand_s9_9585",
+"dmitm": 9,
+"chain31": 5,
+"idx": 1,
+"trunc": 5,
+"lin14": 42,
+"milp14": 5
+},
+{
+"name": "rand_s9_33719",
+"dmitm": 9,
+"chain31": 5,
+"idx": 2,
+"trunc": 5,
+"lin14": 13,
+"milp14": 5
+},
+{
+"name": "rand_s9_40593",
+"dmitm": 9,
+"chain31": 5,
+"idx": 3,
+"trunc": 5,
+"lin14": 22,
+"milp14": 5
+},
+{
+"name": "rand_s9_45430",
+"dmitm": 9,
+"chain31": 5,
+"idx": 4,
+"trunc": 5,
+"lin14": 33,
+"milp14": 5
+},
+{
+"name": "rand_s10_64106",
+"dmitm": 9,
+"chain31": 5,
+"idx": 5,
+"trunc": 5,
+"lin14": 22,
+"milp14": 5
+},
+{
+"name": "rand_s8_33902",
+"dmitm": 9,
+"chain31": 5,
+"idx": 6,
+"trunc": 5,
+"lin14": 33,
+"milp14": 5
+},
+{
+"name": "rand_s5_92657",
+"dmitm": 9,
+"chain31": 5,
+"idx": 7,
+"trunc": 5,
+"lin14": 22,
+"milp14": 5
+},
+{
+"name": "rand_s6_74172",
+"dmitm": 9,
+"chain31": 5,
+"idx": 8,
+"trunc": 5,
+"lin14": 45,
+"milp14": 5
+},
+{
+"name": "rand_s7_9269",
+"dmitm": 9,
+"chain31": 5,
+"idx": 9,
+"trunc": 5,
+"lin14": 33,
+"milp14": 5
+},
+{
+"name": "rand_s2_77037",
+"dmitm": 9,
+"chain31": 5,
+"idx": 10,
+"trunc": 5,
+"lin14": 26,
+"milp14": 5
+},
+{
+"name": "rand_s2_87104",
+"dmitm": 9,
+"chain31": 5,
+"idx": 11,
+"trunc": 5,
+"lin14": 21,
+"milp14": 5
+},
+{
+"name": "rand_s4_17414",
+"dmitm": 10,
+"chain31": 5,
+"idx": 12,
+"trunc": 5,
+"lin14": 34,
+"milp14": 5
+},
+{
+"name": "rand_s1_29913",
+"dmitm": 10,
+"chain31": 5,
+"idx": 13,
+"trunc": 5,
+"lin14": 34,
+"milp14": 5
+},
+{
+"name": "rand_s9_28003",
+"dmitm": 10,
+"chain31": 5,
+"idx": 14,
+"trunc": 5,
+"lin14": 33,
+"milp14": 5
+},
+{
+"name": "rand_s10_54830",
+"dmitm": 10,
+"chain31": 5,
+"idx": 15,
+"trunc": 5,
+"lin14": 33,
+"milp14": 5
+},
+{
+"name": "rand_s8_27785",
+"dmitm": 10,
+"chain31": 5,
+"idx": 16,
+"trunc": 5,
+"lin14": 41,
+"milp14": 5
+},
+{
+"name": "rand_s5_68459",
+"dmitm": 10,
+"chain31": 5,
+"idx": 17,
+"trunc": 5,
+"lin14": 13,
+"milp14": 5
+},
+{
+"name": "rand_s6_63293",
+"dmitm": 10,
+"chain31": 5,
+"idx": 18,
+"trunc": 5,
+"lin14": 35,
+"milp14": 5
+},
+{
+"name": "rand_s7_77476",
+"dmitm": 10,
+"chain31": 5,
+"idx": 19,
+"trunc": 5,
+"lin14": 22,
+"milp14": 5
+},
+{
+"name": "affine_k22",
+"dmitm": 10,
+"chain31": 6,
+"idx": 20,
+"trunc": 6,
+"lin14": 10,
+"milp14": 6
+}
+]

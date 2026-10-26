@@ -106,7 +106,7 @@ def fwd_spaces(lin, r0, kmax=30):
     return res
 
 def exact_ids(lin, S):
-    P = lin.cal.__len__() if hasattr(lin.cal, '__len__') else 31
+    P = PERIOD  # 31: el calendario tiene 128 entradas, pero el período es 31
     m = {r0: max(S[r0]) for r0 in S}
     out = []
     for R in range(P):
