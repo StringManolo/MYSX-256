@@ -1,0 +1,118 @@
+name: Paper reproducibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: |
+          Selection: "quick" (default), "all", "all+pending",
+          "group=linear|impossible|differential|integral|related_key|basic",
+          or comma-separated IDs like "dmitm_v02,trunc_v1".
+        required: true
+        default: 'quick'
+      include_pending:
+        description: 'Also run tests marked PENDING (expected to fail until implemented)'
+        type: boolean
+        default: false
+
+jobs:
+  discover:
+    name: Discover
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+      n: ${{ steps.gen.outputs.n }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gen
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          sys.path.insert(0, 'tests')
+          from run_test import load_manifest, filter_tests
+          m = load_manifest('tests/manifest.json')
+          selection = "${{ github.event.inputs.tests }}"
+          include_pending = "${{ github.event.inputs.include_pending }}" == "true"
+          ids = filter_tests(m, selection, include_pending)
+          if not ids:
+              print(f"ERROR: no tests matched '{selection}'", file=sys.stderr)
+              sys.exit(1)
+          print(f"Selected {len(ids)} tests: {ids}")
+          print(f"matrix={json.dumps({'test_id': ids})}", file=os.environ['GITHUB_OUTPUT'])
+          print(f"n={len(ids)}", file=os.environ['GITHUB_OUTPUT'])
+          EOF
+
+  test:
+    name: Test ${{ matrix.test_id }}
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install npm deps
+        run: npm ci --silent || npm install --silent
+      - name: Run test
+        run: |
+          mkdir -p results
+          python3 tests/run_test.py \
+            --manifest tests/manifest.json \
+            --id "${{ matrix.test_id }}" \
+            ${{ github.event.inputs.include_pending == 'true' && '--include-pending' || '' }} \
+            --out "results/result_${{ matrix.test_id }}.json" \
+            --repo-root .
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.test_id }}
+          path: results/result_${{ matrix.test_id }}.json
+          retention-days: 30
+
+  merge:
+    name: Merge
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-results
+          pattern: 'result-*'
+      - name: Merge
+        run: python3 tests/merge_results.py all-results results.json
+      - name: Summary
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          r = json.load(open('results.json'))
+          print(f"\n=== Paper reproducibility: "
+                f"{r['n_pass']} pass, {r['n_fail']} fail, "
+                f"{r['n_skipped']} skipped, {r['n_other']} other ===\n")
+          print(f"{'ID':30s} {'STATUS':10s} {'ELAPSED':>8s}  NAME")
+          print("-" * 90)
+          for t in r['tests']:
+              print(f"{t.get('id','?'):30s} {t.get('status','?'):10s} "
+                    f"{t.get('elapsed_s','?'):>8}s  {t.get('name','')}")
+          print()
+          if r['n_fail'] > 0:
+              print("FAILED ASSERTIONS:")
+              for t in r['tests']:
+                  if t.get('status') == 'fail':
+                      for a in t.get('assertions', []):
+                          if not a.get('passed'):
+                              print(f"  {t['id']}: {a['type']} {a.get('spec', '')}")
+          sys.exit(0 if r['n_fail'] == 0 and r['n_other'] == 0 else 1)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paper-results
+          path: results.json
+          retention-days: 90

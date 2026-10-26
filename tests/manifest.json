@@ -1,0 +1,409 @@
+{
+  "version": 1,
+  "v02_cal": "22,5,8,7,17,10,30,1,11,26,6,3,12,23,25,13,28,20,21,19,24,2,18,9,4,15,29,27,16,14,31",
+  "groups": {
+    "basic": "KAT, API surface, functional tests (fast, <5 min total)",
+    "impossible": "Exact DMITM, truncated impossible",
+    "differential": "Free chain, MILP, empirical trails, offset sweep",
+    "linear": "Exact LAT, beam search, hulls",
+    "integral": "Division property, offset sweep",
+    "related_key": "Key schedule audit",
+    "nist": "NIST SP 800-22 (separate workflow, non-deterministic)"
+  },
+  "tests": {
+
+    "v2_smoke": {
+      "name": "v2 API smoke test (12 checks)",
+      "group": "basic",
+      "status": "ready",
+      "script": "MYSX_ENABLE_TEST=1 node verify_v2_usage.js",
+      "timeout_minutes": 3,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "\"calendar_injected\": true"},
+        {"type": "output_contains", "value": "\"roundtrip_raw\": true"},
+        {"type": "output_contains", "value": "\"packet_version\": 2"},
+        {"type": "output_contains", "value": "\"packet_cal\": 1"},
+        {"type": "output_contains", "value": "\"v1_compat\": true"}
+      ]
+    },
+
+    "functional": {
+      "name": "Functional tests (mysx.test.js, 17 tests)",
+      "group": "basic",
+      "status": "ready",
+      "script": "MYSX_ENABLE_TEST=1 node mysx.test.js",
+      "timeout_minutes": 5,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "GLOBAL RESULT: PASS"}
+      ]
+    },
+
+    "kat_v1": {
+      "name": "KAT v0.1 (public digest 5c9ca63d...)",
+      "group": "basic",
+      "status": "ready",
+      "script": "python3 -c \"import json; d=json.load(open('LEGACY_V1/KAT.json')); exp='5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee'; assert d['digest']==exp, 'digest mismatch: '+d['digest']; print('KAT_v1 OK', d['digest'])\"",
+      "timeout_minutes": 2,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "KAT_v1 OK"}
+      ]
+    },
+
+    "kat_v2": {
+      "name": "KAT v0.2 (block_digest_cal0 == KNOWN_KAT_DIGEST)",
+      "group": "basic",
+      "status": "ready",
+      "script": "python3 -c \"import json; d=json.load(open('KAT_v2.json')); exp='3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3'; assert d['block_digest_cal0']==exp, 'cal0 mismatch: '+d['block_digest_cal0']; assert len(d.get('block_v02') or [])==8, 'expected 8 block_v02'; assert d.get('block_digest_cal1'), 'missing cal1'; print('KAT_v2 OK', d['block_digest_cal0'][:16], d['block_digest_cal1'][:16])\"",
+      "timeout_minutes": 2,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "KAT_v2 OK"}
+      ]
+    },
+
+    "dmitm_v1": {
+      "name": "Exact DMITM, v0.1 (expect total=17, max=13)",
+      "group": "impossible",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 cryptanalysis/DMITM/dmitm_verify.py exact",
+      "timeout_minutes": 15,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "maximo global =\\s+13\\b"},
+        {"type": "regex", "pattern": "total=17\\b"}
+      ]
+    },
+
+    "dmitm_v02": {
+      "name": "Exact DMITM, v0.2 (expect total=9, max=5)",
+      "group": "impossible",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 cryptanalysis/DMITM/dmitm_verify.py exact",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 15,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "maximo global =\\s+5\\b"},
+        {"type": "regex", "pattern": "total=9\\b"}
+      ]
+    },
+
+    "trunc_v1": {
+      "name": "Truncated impossible, v0.1 (expect BEST: 39 rounds)",
+      "group": "impossible",
+      "status": "ready",
+      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v2.py --cal k1 --max_fwd 24 --max_bwd 24 --n_bits 256",
+      "timeout_minutes": 60,
+      "deterministic": true,
+      "notes": "Requires cryptanalysis/DMITM/dmitm_trunc_v2.py in the repo (new file).",
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "BEST: 39 rounds"}
+      ]
+    },
+
+    "trunc_v02": {
+      "name": "Truncated impossible, v0.2 (expected ~30-31 rounds)",
+      "group": "impossible",
+      "status": "ready",
+      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v2.py --cal v02 --max_fwd 24 --max_bwd 24 --n_bits 256",
+      "timeout_minutes": 60,
+      "deterministic": true,
+      "notes": "Depends on trunc_v1 being correct. The exact number is new for v0.2; the assertion only checks that a positive result is produced.",
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "BEST: \\d+ rounds"}
+      ]
+    },
+
+    "diff_free_chain_v1": {
+      "name": "Differential free chain, v0.1 (r0=10 -> 13)",
+      "group": "differential",
+      "status": "ready",
+      "script": "python3 misc/diff_free_chain_table.py",
+      "timeout_minutes": 5,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "^\\s*10\\s+13\\b", "flags": "MULTILINE"}
+      ]
+    },
+
+    "diff_free_chain_v02": {
+      "name": "Differential free chain, v0.2 (max=5, no 13)",
+      "group": "differential",
+      "status": "ready",
+      "script": "python3 misc/diff_free_chain_table.py",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 5,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "^\\s*10\\s+(?!13)\\d+\\s", "flags": "MULTILINE"},
+        {"type": "output_not_contains", "value": " 13          "}
+      ]
+    },
+
+    "diff_r4_v1": {
+      "name": "r=4 empirical trail, v0.1 (clustering 2.00x)",
+      "group": "differential",
+      "status": "ready",
+      "script": "node misc/check_trail.js",
+      "timeout_minutes": 20,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    },
+
+    "diff_milp_v02_R6_R14": {
+      "name": "MILP differential R=6-14, v0.2 (r0=0,10,20)",
+      "group": "differential",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 tests/run_diff_milp_v02.py",
+      "timeout_minutes": 90,
+      "deterministic": true,
+      "notes": "Requires tests/run_diff_milp_v02.py wrapper (see notes below).",
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "peso mínimo=\\s*\\d+"}
+      ]
+    },
+
+    "diff_offset_sweep_v02": {
+      "name": "Differential offset sweep, v0.2 (31 offsets at R=14)",
+      "group": "differential",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 tests/run_diff_sweep_v02.py",
+      "timeout_minutes": 90,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "Best: r0=\\d+ weight=\\d+"}
+      ]
+    },
+
+    "lin_model_selftest": {
+      "name": "Exact LAT model selftest",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 cryptanalysis/models/linear/mysx_linear_model.py selftest",
+      "timeout_minutes": 20,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "ALL PASS"}
+      ]
+    },
+
+    "lin_beam_v1_reproduce": {
+      "name": "Beam reproduce, v0.1 (paper §4.5 table)",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py reproduce",
+      "timeout_minutes": 30,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "output_contains", "value": "r0=12 ours"},
+        {"type": "output_contains", "value": "r0=12 paper"},
+        {"type": "output_contains", "value": "r0=27 ours"},
+        {"type": "output_contains", "value": "r0=27 paper"}
+      ]
+    },
+
+    "lin_beam_v02_R10_fwd": {
+      "name": "Beam R=10 forward, v0.2 (expect ub[R=10]=1)",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 10 --beam 2000 --jobs 1",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 30,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "ub\\[R=10\\]=1(?!\\d)"}
+      ]
+    },
+
+    "lin_beam_v02_R14_fwd": {
+      "name": "Beam R=14 forward, v0.2 (expect ub[R=14]=8)",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 14 --beam 2000 --jobs 1",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 45,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "ub\\[R=14\\]=8(?!\\d)"}
+      ]
+    },
+
+    "lin_beam_v02_R14_bwd": {
+      "name": "Beam R=14 backward, v0.2 (expect ub[R=14]=11)",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 14 --beam 2000 --jobs 1 --direction backward",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 45,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "ub\\[R=14\\]=11(?!\\d)"}
+      ]
+    },
+
+    "lin_hull_v02": {
+      "name": "Exact hulls at r=10-12, v0.2 (uses propagate())",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 tests/run_hull_v02.py",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 30,
+      "deterministic": true,
+      "notes": "Requires tests/run_hull_v02.py (self-contained: generates beam_v02_r12.json if missing).",
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    },
+
+    "lin_beam_v02_R128": {
+      "name": "Full beam to R=128, v0.2 (forward, all 31 offsets)",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 128 --beam 2000 --jobs 2 --out beam_v02_full.json",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 300,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "ub\\[R=128\\]=\\d+"}
+      ]
+    },
+
+    "integral_v1_R6": {
+      "name": "Integral DP R=6, v0.1 (expect 4/256 balanced)",
+      "group": "integral",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 6 --active word0 --r0 0 --solver highs",
+      "timeout_minutes": 45,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "\\[R=6\\]\\s+Balanced:\\s+4/256"}
+      ]
+    },
+
+    "integral_v02_R5": {
+      "name": "Integral DP R=5, v0.2 (expect 9/256 balanced)",
+      "group": "integral",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 5 --active word0 --r0 0 --solver highs",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 45,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "\\[R=5\\]\\s+Balanced:\\s+9/256"}
+      ]
+    },
+
+    "integral_v02_R6": {
+      "name": "Integral DP R=6, v0.2 (expect 4/256 balanced)",
+      "group": "integral",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 6 --active word0 --r0 0 --solver highs",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 60,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "\\[R=6\\]\\s+Balanced:\\s+4/256"}
+      ]
+    },
+
+    "integral_sweep_v02": {
+      "name": "Full 31-offset integral sweep, v0.2 (R=5-10)",
+      "group": "integral",
+      "status": "ready",
+      "setup": ["pip install -q pulp highspy"],
+      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-10 --active word0 --r0-sweep --solver highs",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 180,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"},
+        {"type": "regex", "pattern": "r0=15.*max R", "flags": "DOTALL"}
+      ]
+    },
+
+    "rk_basic": {
+      "name": "Key schedule audit (basic)",
+      "group": "related_key",
+      "status": "ready",
+      "script": "node misc/keyschedule_test.js",
+      "timeout_minutes": 10,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    },
+
+    "rk_extended": {
+      "name": "Key schedule audit (exhaustive, 22 tests)",
+      "group": "related_key",
+      "status": "ready",
+      "script": "node misc/keyschedule_test_extended.js --thorough",
+      "timeout_minutes": 45,
+      "deterministic": true,
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    },
+
+    "nist_v1": {
+      "name": "NIST SP 800-22, v0.1 (separate workflow: nist.yml)",
+      "group": "nist",
+      "status": "ready",
+      "script": "python3 tests/run_nist.py",
+      "timeout_minutes": 180,
+      "deterministic": false,
+      "notes": "Requires sts-2.1.2/assess built locally. In CI, use .github/workflows/nist.yml instead (downloads + builds + runs automatically).",
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    },
+
+    "nist_v02": {
+      "name": "NIST SP 800-22, v0.2 (separate workflow: nist.yml)",
+      "group": "nist",
+      "status": "ready",
+      "script": "python3 tests/run_nist.py",
+      "env": {"MYSX_ROT_CAL": "${v02_cal}"},
+      "timeout_minutes": 180,
+      "deterministic": false,
+      "notes": "Same as nist_v1. Use nist.yml workflow for CI.",
+      "assertions": [
+        {"type": "returncode_zero"}
+      ]
+    }
+
+  }
+}
