@@ -50,6 +50,20 @@ const {
   BLOCK_BYTES, KEY_BYTES, ROUNDS, NONCE_BYTES, MAC_KEY_BYTES, TAG_BYTES, VERSION
 } = CONFIG;
 
+const ROT_CAL = process.env.MYSX_ROT_CAL
+  ? process.env.MYSX_ROT_CAL.split(',').map(Number)
+  : null;
+if (ROT_CAL) {
+  if (ROT_CAL.length !== 31) throw new Error('MYSX_ROT_CAL: 31 values expected');
+  const sorted = [...ROT_CAL].sort((a,b)=>a-b);
+  for (let i = 0; i < 31; i++) if (sorted[i] !== i+1) throw new Error('MYSX_ROT_CAL: not a permutation of 1..31');
+}
+function shiftAt(r) {
+  return ROT_CAL ? ROT_CAL[r % 31] : ((r % 31) + 1);
+}
+
+
+
 // =============================================================================
 // Cipher internals (not exported in PROD)
 // =============================================================================
@@ -126,7 +140,7 @@ function _roundEncrypt(st, rk, r, sc) {
     st[i] = ((tmp2[i*4] << 24) | (tmp2[i*4+1] << 16) |
              (tmp2[i*4+2] << 8) | tmp2[i*4+3]) >>> 0;
   }
-  const sh = ((r % 31) + 1) | 0;
+  const sh = shiftAt(r) | 0;
   for (let i = 0; i < 8; i++) st[i] = rotl32(st[i], sh);
 }
 
@@ -478,6 +492,10 @@ if (ENABLE_TEST) {
   }
 
   async function verifyKAT({ strict = true } = {}) {
+    if (ROT_CAL) {
+      if (strict) throw new Error('KAT skipped: MYSX_ROT_CAL is set (KNOWN_KAT_DIGEST is for the original schedule)');
+      return null;
+    }
     const digest = await generateKAT();
     if (KNOWN_KAT_DIGEST === null) {
       if (strict) throw new Error(`KAT not configured. Computed digest: ${digest}`);

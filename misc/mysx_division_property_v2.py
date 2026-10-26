@@ -36,6 +36,15 @@ MYZ_PERM = [4, 12, 20, 28, 0, 8, 16, 24, 5, 13, 21, 29,
             1, 9, 17, 25, 3, 11, 19, 27]
 
 
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
 def add_xor(model, z, x, y, name):
     """Standard DP: z = x + y (integer), with (1,1) invalid."""
     model += z <= x + y, f"{name}_1"
@@ -96,7 +105,7 @@ def build(R, active_set, r0=0):
                 s_mid[(i + 4, b)] = sm4
                 add_xor(model, sm4, k[(r, i, b)], kF, f"sm4_{r}_{i}_{b}")
 
-        shift = ((r + r0) % 31) + 1
+        shift = ROT_CAL[r % 31] if ROT_CAL is not None else ((r + r0) % 31) + 1
         for i in range(8):
             for b in range(32):
                 b_rot = (b - shift) % 32
