@@ -19,6 +19,15 @@ import sys, os, json, random, argparse, time, heapq
 from functools import lru_cache
 from multiprocessing import Pool, cpu_count
 
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
 M32 = 0xFFFFFFFF
 PERIOD = 31
 TOTAL_ROUNDS = 128
@@ -277,6 +286,8 @@ def beam_run(o, rounds, starts, beam, hmax, rcap, gkeep, want_paths=(), directio
     backward: o = index (mod 31) of the last round e; starts are masks on s[e+1];
                  trail covers rounds e-R+1..e (rounds are inverted one by one).
     Paths are always returned in forward order (mask on s[first] .. s[last+1])."""
+    if cal is None and ROT_CAL is not None:
+        cal = ROT_CAL
     bwd = direction == "backward"
     e = end_round(o) if bwd else None
     st0 = list(dict.fromkeys(starts))
