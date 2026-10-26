@@ -42,13 +42,25 @@ FAST_KEYS,  FAST_PAIRS  = 4, 1 << 14      # 65536 pares totales
 # =============================================================================
 # Ronda inversa (inversa exacta de round_enc, SPEC §7)
 # =============================================================================
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
+def shift_at(r):
+    return ROT_CAL[r % 31] if ROT_CAL else ((r % 31) + 1)
+
 def simonF(x):
     return (rotl(x, 1) & rotl(x, 8)) ^ rotl(x, 2)
 
 
 def round_dec(s, rk, r):
     """Inversa de round_enc: rot⁻¹ → transp⁻¹ → feistel⁻¹ → addkey⁻¹."""
-    shift = (r % 31) + 1
+    shift = shift_at(r)
     s = [rotr(s[i], shift) for i in range(8)]
     bs = words_to_bytes(s)
     unperm = [0] * 32

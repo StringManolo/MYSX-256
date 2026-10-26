@@ -44,6 +44,7 @@ Interpretación:
 import argparse
 import json
 import sys
+import os as _os
 
 try:
     from pulp import (LpProblem, LpVariable, LpMinimize, LpStatus,
@@ -64,6 +65,14 @@ except ImportError:
 # =============================================================================
 # Parámetros congelados del cifrador
 # =============================================================================
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
 WORD_BITS = 32
 NUM_WORDS = 8
 NUM_PAIRS = 4
@@ -371,6 +380,9 @@ def main():
         c = cands[args.cal_idx]
         cal = [c["cal"][r % 31] for r in range(31)]
         print(f"cal: {c.get('name', args.cal_idx)}")
+    elif ROT_CAL is not None:
+        cal = ROT_CAL
+        print("cal: from MYSX_ROT_CAL env var")
     solver_cmd = make_solver(args.solver, args.gap_rel,
                              args.time_limit, args.threads)
 

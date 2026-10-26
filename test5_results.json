@@ -1,0 +1,119 @@
+[
+{
+"name": "rand_s4_59063",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 2,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 61
+},
+{
+"name": "rand_s9_9585",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 4,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 63
+},
+{
+"name": "rand_s9_33719",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 10,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 42
+},
+{
+"name": "rand_s9_40593",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 2,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 41
+},
+{
+"name": "rand_s9_45430",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 4,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 40
+},
+{
+"name": "rand_s10_64106",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 6,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 83
+},
+{
+"name": "rand_s8_33902",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 4,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 55
+},
+{
+"name": "rand_s5_92657",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 6,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 47
+},
+{
+"name": "rand_s6_74172",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 2,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 29
+},
+{
+"name": "rand_s7_9269",
+"dmitm14": 9,
+"chain31": 5,
+"milp_w5": 2,
+"lin_w5": 0,
+"dmitm_len": 9,
+"dp3_balanced": 66
+},
+{
+"name": "affine_k22",
+"dmitm14": 10,
+"chain31": 6,
+"milp_w5": 8,
+"lin_w5": 0,
+"dmitm_len": 10,
+"dp3_balanced": 68
+},
+{
+"name": "affine_k1",
+"dmitm14": null,
+"chain31": null,
+"milp_w5": 0,
+"lin_w5": 0,
+"dmitm_len": 17,
+"dp3_balanced": 63
+},
+{
+"name": "affine_k2",
+"dmitm14": null,
+"chain31": null,
+"milp_w5": 0,
+"lin_w5": 0,
+"dmitm_len": 12,
+"dp3_balanced": 69
+}
+]

@@ -43,6 +43,18 @@ MYZ_PERM = [4,12,20,28, 0,8,16,24, 5,13,21,29,
             1,9,17,25, 3,11,19,27]
 
 
+import os as _os
+_ROT_CAL_STR = _os.environ.get('MYSX_ROT_CAL', '')
+if _ROT_CAL_STR:
+    ROT_CAL = [int(x) for x in _ROT_CAL_STR.split(',')]
+    assert len(ROT_CAL) == 31, f"MYSX_ROT_CAL: 31 valores, tiene {len(ROT_CAL)}"
+    assert sorted(ROT_CAL) == list(range(1, 32)), "MYSX_ROT_CAL: permutación de 1..31"
+else:
+    ROT_CAL = None
+
+def shift_at(r):
+    return ROT_CAL[r % 31] if ROT_CAL else ((r % 31) + 1)
+
 def rotl(x, n):
     n &= 31
     return ((x << n) | (x >> (32 - n))) & 0xFFFFFFFF
@@ -69,13 +81,13 @@ def lin_fwd(s, r):
     bytes_ = words_to_bytes(s)
     permuted = [bytes_[MYZ_PERM[j]] for j in range(32)]
     s_perm = bytes_to_words(permuted)
-    shift = (r % 31) + 1
+    shift = shift_at(r)
     return [rotl(s_perm[i], shift) for i in range(8)]
 
 
 def lin_bwd(s, r):
     """Inversa: rotación inversa + transposición inversa. s = estado s[r+1]."""
-    shift = (r % 31) + 1
+    shift = shift_at(r)
     unrot = [rotr(s[i], shift) for i in range(8)]
     bytes_ = words_to_bytes(unrot)
     unperm = [0] * 32
