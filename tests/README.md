@@ -527,4 +527,3 @@ git commit -m "release: reproducible paper results for v0.2-draft"
   tests in this suite reproduce its numbers.
 - `calendar/` — the rotation-schedule selection artifacts
   (`CALENDAR_v02.txt`, `top50_fixed.json`, `wf2_deep_summary.json`).
-```
