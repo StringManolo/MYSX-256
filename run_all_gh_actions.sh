@@ -118,14 +118,31 @@ fi
 PAPER_RC=0
 if [ "$WAIT" = 1 ]; then
   echo "==> Waiting for paper.yml to finish..."
-  if ! gh run watch "$RUN_ID" --repo "$REPO"; then
-    PAPER_RC=1
+  WATCH_OK=0
+  for attempt in 1 2 3; do
+    if gh run watch "$RUN_ID" --repo "$REPO"; then
+      WATCH_OK=1; break
+    fi
+    sleep 15
+  done
+
+  if [ "$WATCH_OK" = 0 ]; then
+    # Could be HTTP 500 transient; ask GH for the real conclusion
     echo
-    echo "paper.yml FAILED. Failed logs (last 200 lines):"
-    echo "---"
-    gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null | tail -200 || \
-      echo "(could not fetch failed logs)"
-    echo "---"
+    echo "WARNING: 'gh run watch' failed 3x (likely HTTP 500 on /jobs)."
+    echo "         Querying the run status directly..."
+    CONCLUSION=$(gh run view "$RUN_ID" --repo "$REPO" --json conclusion --jq '.conclusion' 2>/dev/null || echo "unknown")
+    echo "         conclusion: $CONCLUSION"
+    if [ "$CONCLUSION" = "success" ]; then
+      echo "         OK (the watch failed but the run succeeded)."
+    else
+      PAPER_RC=1
+      echo "         FAILED. Failed logs (last 200 lines):"
+      echo "---"
+      gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null | tail -200 || \
+        echo "(could not fetch failed logs)"
+      echo "---"
+    fi
   fi
 fi
 

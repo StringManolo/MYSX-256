@@ -16,8 +16,11 @@ Feeds the interactive prompts automatically:
 """
 import os, sys, pexpect, subprocess
 
-STS = "./sts-2.1.2/assess"
-INPUT = "./misc/nist_input/all_data.bin"
+# STS_DIR is set by .github/workflows/nist.yml after building STS.
+# For local runs, default to ./sts-2.1.2/assess.
+STS_DIR = os.environ.get("STS_DIR", "sts-2.1.2")
+STS = os.path.join(STS_DIR, "assess")
+INPUT = os.environ.get("NIST_INPUT", "misc/nist_input/all_data.bin")
 N_BITS = 1000000
 N_STREAMS = 100
 
@@ -51,7 +54,13 @@ def main():
     child.expect(pexpect.EOF, timeout=3600)
     child.close()
 
-    report = "sts-2.1.2/experiments/AlgorithmTesting/finalAnalysisReport.txt"
+    report = os.environ.get("NIST_REPORT",
+        os.path.join(STS_DIR, "experiments", "AlgorithmTesting", "finalAnalysisReport.txt"))
+    # Also check cwd-relative (some STS builds write to <cwd>/experiments)
+    if not os.path.exists(report):
+        alt = os.path.join("experiments", "AlgorithmTesting", "finalAnalysisReport.txt")
+        if os.path.exists(alt):
+            report = alt
     if os.path.exists(report):
         print(f"\nReport: {report}")
         # Busca FAIL / * en el reporte
