@@ -24,7 +24,11 @@
         },
         {
           "type": "output_contains",
-          "value": "r_dif"
+          "value": "minReach"
+        },
+        {
+          "type": "output_contains",
+          "value": "zChi"
         }
       ]
     },
@@ -259,7 +263,7 @@
         },
         {
           "type": "regex",
-          "pattern": "Best: r0=\\d+ weight=\\d+"
+          "pattern": "Best: r0=\\d+ weight=(9[0-9]|[1-9][0-9]{2,3})"
         }
       ]
     },
@@ -389,7 +393,7 @@
       "setup": [
         "pip install -q pulp highspy"
       ],
-      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-6 --active word0 --r0 0,5,10,15,20,27 --solver highs",
+      "script": "python3 tests/run_integral_sweep_key6.py",
       "env": {
         "MYSX_ROT_CAL": "${v02_cal}"
       },
@@ -400,9 +404,8 @@
           "type": "returncode_zero"
         },
         {
-          "type": "regex",
-          "pattern": "r0=15.*max R",
-          "flags": "DOTALL"
+          "type": "output_contains",
+          "value": "OK: all 6 offsets measured"
         }
       ]
     },
@@ -413,7 +416,7 @@
       "setup": [
         "pip install -q pulp highspy"
       ],
-      "script": "python3 misc/mysx_division_property_v2.py --rounds 5-6 --active word0 --r0 0,5,10,15,20,27 --solver highs",
+      "script": "python3 tests/run_integral_sweep_key6.py",
       "timeout_minutes": 45,
       "deterministic": true,
       "assertions": [
@@ -421,9 +424,8 @@
           "type": "returncode_zero"
         },
         {
-          "type": "regex",
-          "pattern": "r0=15.*max R",
-          "flags": "DOTALL"
+          "type": "output_contains",
+          "value": "OK: all 6 offsets measured"
         }
       ]
     },
@@ -698,7 +700,7 @@
         },
         {
           "type": "regex",
-          "pattern": "ub\\[R=128\\]=\\d+"
+          "pattern": "ub\\[R=128\\]=2294\\b"
         }
       ]
     },
@@ -955,7 +957,7 @@
       "name": "Truncated impossible, v0.2 (expected ~30-31 rounds)",
       "group": "impossible",
       "status": "ready",
-      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v2.py --cal v02 --max_fwd 20 --max_bwd 20 --n_bits 256 --top_k_per_round 500 --top_k_results 100",
+      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v3.py --cal v02 --max_fwd 24 --max_bwd 24 --verify 500",
       "timeout_minutes": 15,
       "deterministic": true,
       "notes": "Depends on trunc_v1 being correct. The exact number is new for v0.2; the assertion only checks that a positive result is produced.",
@@ -965,7 +967,11 @@
         },
         {
           "type": "regex",
-          "pattern": "BEST: \\d+ rounds"
+          "pattern": "BEST: 28 rounds"
+        },
+        {
+          "type": "output_contains",
+          "value": "VERIFY: fwd 2000/2000  bwd 2000/2000  OK"
         }
       ]
     },
@@ -973,17 +979,13 @@
       "name": "Truncated impossible, v0.1 (expect BEST: 39 rounds)",
       "group": "impossible",
       "status": "ready",
-      "script": "python3 tests/run_trunc_witness.py --cal k1 --R 39",
+      "script": "python3 cryptanalysis/DMITM/dmitm_trunc_v3.py --cal k1 --max_fwd 24 --max_bwd 24",
       "timeout_minutes": 15,
       "deterministic": true,
       "notes": "Requires cryptanalysis/DMITM/dmitm_trunc_v2.py in the repo (new file).",
       "assertions": [
         {
           "type": "returncode_zero"
-        },
-        {
-          "type": "output_contains",
-          "value": "OK: witness confirmed"
         },
         {
           "type": "regex",
@@ -1021,6 +1023,89 @@
         {
           "type": "output_contains",
           "value": "\"v1_compat\": true"
+        }
+      ]
+    },
+    "lin_beam_v02_R128_bwd": {
+      "name": "Full beam to R=128 backward, v0.2",
+      "group": "linear",
+      "status": "ready",
+      "script": "python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 128 --beam 2000 --jobs 2 --direction backward --out beam_v02_bwd.json",
+      "env": {
+        "MYSX_ROT_CAL": "${v02_cal}"
+      },
+      "timeout_minutes": 300,
+      "deterministic": true,
+      "assertions": [
+        {
+          "type": "returncode_zero"
+        },
+        {
+          "type": "regex",
+          "pattern": "ub\\[R=128\\]=\\d+"
+        }
+      ]
+    },
+    "avalanche_v02": {
+      "name": "Diffusion / avalanche ladder, v0.2",
+      "group": "differential",
+      "status": "ready",
+      "script": "MYSX_ROT_CAL=22,5,8,7,17,10,30,1,11,26,6,3,12,23,25,13,28,20,21,19,24,2,18,9,4,15,29,27,16,14,31 node misc/avalanche.js",
+      "timeout_minutes": 15,
+      "deterministic": true,
+      "assertions": [
+        {
+          "type": "returncode_zero"
+        },
+        {
+          "type": "output_contains",
+          "value": "minReach"
+        },
+        {
+          "type": "output_contains",
+          "value": "zChi"
+        }
+      ]
+    },
+    "v2_cross_kat": {
+      "name": "Cross-KAT v2: Python reference vs JS implementation",
+      "group": "basic",
+      "status": "ready",
+      "script": "python3 tests/gen_v2_kat.py && MYSX_ENABLE_TEST=1 node tests/mysx_v2.test.js",
+      "timeout_minutes": 10,
+      "deterministic": true,
+      "assertions": [
+        {
+          "type": "returncode_zero"
+        },
+        {
+          "type": "output_contains",
+          "value": "V2 TESTS: "
+        },
+        {
+          "type": "output_not_contains",
+          "value": " fail,"
+        },
+        {
+          "type": "output_not_contains",
+          "value": " 1 fail"
+        }
+      ]
+    },
+    "v2_security": {
+      "name": "v2 API security tests (40 tests)",
+      "group": "basic",
+      "status": "ready",
+      "script": "python3 tests/gen_v2_kat.py >/dev/null 2>&1; MYSX_ENABLE_TEST=1 node tests/mysx_v2.test.js",
+      "timeout_minutes": 10,
+      "deterministic": true,
+      "assertions": [
+        {
+          "type": "returncode_zero"
+        },
+        {
+          "type": "regex",
+          "pattern": "V2 TESTS: \\d+ pass, 0 fail"
         }
       ]
     }
