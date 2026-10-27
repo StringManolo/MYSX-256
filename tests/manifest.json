@@ -1079,16 +1079,8 @@
           "type": "returncode_zero"
         },
         {
-          "type": "output_contains",
-          "value": "V2 TESTS: "
-        },
-        {
-          "type": "output_not_contains",
-          "value": " fail,"
-        },
-        {
-          "type": "output_not_contains",
-          "value": " 1 fail"
+          "type": "regex",
+          "pattern": "V2 TESTS: \\d+ pass, 0 fail"
         }
       ]
     },
