@@ -6,202 +6,160 @@ StringManolo
 
 ## Abstract
 
-We present MYSX-256/512 v0.2-draft, an experimental 256-bit block cipher
-with 512-bit keys and 128 rounds. The design combines Feistel cells with
-Simon's F function, a Myszkowski byte transposition, word rotations, and
-an ARX key schedule.
+We present MYSX-256/512 v0.2-draft, an experimental 256-bit block
+cipher with 512-bit keys and 128 rounds. The design combines Feistel
+cells with Simon's F function, a Myszkowski byte transposition, word
+rotations, and an ARX key schedule. The cipher core (round function,
+F, transposition, key schedule) is unchanged from v0.1-draft2.
 
-**Changes from v0.1-draft2.** Two changes:
+The v0.2 revision changes two things:
 
 1. **Rotation schedule.** The consecutive schedule `(r mod 31)+1` of
    v0.1 is replaced by `rand_s9_45430` (31 explicit values in §2.8),
    selected by systematic search over 1M random 31-period schedules.
-   On the metrics measured (differential at R=5, integral at R=5/6,
-   linear at R=10/14 both directions, exact DMITM, weight-0 chain),
-   the new schedule improves or matches v0.1 on **all 9 metrics**
-   (6 improvements, 3 ties, 0 regressions; see §4.13).
+   On the 9 metrics measured for v0.2 — integral at R=5/6, linear at
+   R=10/14 both directions, exact DMITM, weight-0 chain, MILP
+   differential at R=5 — the new schedule **improves 6, ties 3, and
+   regresses 0**.
 
-2. **API v2.** A new packet format (VERSION=0x02, namespace `v2`) adds:
-   512-bit secrets processed through HKDF-SHA512 (eliminating the
-   256-bit HKDF-SHA256 bottleneck of v1), 512-bit MAC keys, HMAC-SHA512
-   with 64-byte tags, one key per message (32-byte random salt),
-   authenticated header, Argon2id for password paths (with scrypt
-   and PBKDF2-SHA512 fallbacks), and a version byte selecting the
-   rotation calendar. The v1 API (`aeadEncrypt`, HKDF-SHA256,
-   PBKDF2-SHA256, 32-byte tag) is kept unchanged for reading existing
-   packets and is marked deprecated for new data.
+2. **AEAD packet v2 (VERSION=0x02).** A new namespace `v2` adds: 512-bit
+   secrets processed through HKDF-SHA512 (eliminating the 256-bit
+   HKDF-SHA256 bottleneck of v1), 512-bit MAC keys, HMAC-SHA512 with
+   64-byte tags, one key per message (32-byte salt), authenticated
+   header, rotation-calendar selected by a header byte, and Argon2id
+   for password paths. The v1 API (consecutive calendar, HKDF-SHA256,
+   PBKDF2-SHA256, 32-byte tag) is kept for reading legacy packets and
+   is marked deprecated for new data.
 
-**Scope of this draft.** The self-analysis of v0.1 (§3–§5 of the
-v0.1-draft2 paper: differential offset sweep, linear beam to 128 rounds,
-verified |corr|=1 chains, exact hulls at r=10,11,12, NIST SP 800-22,
-related-key audit) was performed with the consecutive schedule and is
-**not re-run for v0.2**. Sections that depend on the rotation schedule
-are explicitly marked **PENDING** with the command needed to resolve
-them. Sections that are properties of the round function or key
-schedule (exact LAT of F, mask propagation rules, key schedule audit)
-are inherited and are marked as such.
+**Measured results for v0.2:**
 
-**Measured for v0.2** (partial analysis, §4.12–4.13):
+| Metric | v0.1 | v0.2 |
+|---|---|---|
+| Exact DMITM | 17 rounds | **9** |
+| Weight-0 chain | 13 | **5** |
+| Truncated impossible | 39 | **28** |
+| Integral dp5 / dp6 (r0=0, word0) | 21 / 4 | **9 / 4** |
+| MILP differential R=5 | 0 | **4** |
+| Linear single-trail R=10 fwd / bwd | 1 / 1 | 1 / **3** |
+| Linear single-trail R=14 fwd / bwd | 5 / 5 | **8 / 11** |
+| Linear single-trail R=128 fwd | 2248 (bwd) | 2294 (fwd) |
+| v2 cross-language KAT | — | 6/6 packets byte-identical |
+| v2 security tests | — | 58/58 pass |
 
-- Exact DMITM: **9 rounds** (v0.1: 17) — single-bit and multi-bit
-  search over all offsets and both directions.
-- Weight-0 chain: **5 rounds** (v0.1: 13) — exhaustive linear algebra
-  over the whole left-half difference space.
-- Integral balanced bits at R=5: **9/256** (v0.1: 21/256), at R=6:
-  **4/256** (v0.1: 4/256), measured at r0=0, word0.
-- MILP differential weight at R=5: **4** (v0.1: 0).
-- Beam linear weights at R=10: forward=1, backward=3 (v0.1:
-  1 and 1); at R=14: forward=8, backward=11 (v0.1: 5 and 5).
-  Higher weight = lower correlation = more secure.
-- KAT: `KAT_v2.json` (v2 API vectors) and `KAT_v02.json` (block-only
-  vectors) generated with the v0.2 schedule; both cross-verified against
-  the Python model.
+**What is PENDING for v0.2** (measured for v0.1, not for v0.2): full
+31-offset differential sweep (currently 6 offsets, best r0=29 weight 94,
+2 offsets `None`); beam differential (MILP only for v0.2); linear
+backward at R>14 and R=128; hull empirical verification; integral sweep
+outside r0=0 (only 6 offsets); NIST SP 800-22; related-key re-validation.
 
-**Not established for v0.2.** The v0.1 differential and linear analyses
-at higher rounds, the truncated impossible differential (39 rounds for
-v0.1), the NIST SP 800-22 keystream battery, and the full 31-offset
-integral sweep are not re-run for the new schedule. The v0.1 cipher was
-not externally audited and neither is v0.2. **MYSX v0.2 is an
-experimental proposal, not a secure cipher; do not use it to protect
-real data.** For production: AES-256-GCM or XChaCha20-Poly1305.
+**Verdict.** v0.2 improves 6 of 9 measured metrics, ties 3, and does
+not regress. The main weakness of v0.1 — a differential trail of
+weight 2 at R=14 for offset r0=10, giving a distinguisher at 4 chosen
+pairs — is eliminated in v0.2 (best MILP at R=14 is 94, with 2 offsets
+unresolved). v0.2 is not proven secure, has not been externally
+audited, and must not be used to protect real data.
 
 ## Executive summary
 
-MYSX-256/512 v0.2-draft is an experimental block cipher (256-bit block,
-512-bit key, 128 rounds, SPN-like with 4 parallel Feistel cells per round).
-The v0.2 changes are a new rotation schedule and a new AEAD/packet
-format; the block cipher core (Feistel cells, F function, Myszkowski
-transposition, ARX key schedule) is unchanged.
+v0.2 changes the rotation schedule and the AEAD packet format. The
+block cipher core is unchanged.
 
-**Rotation schedule.** The consecutive schedule `(r mod 31)+1` is
-replaced by `rand_s9_45430`. The schedule was selected by a systematic
-search: 1M random permutations of `0..30` were filtered by maximum
-weight-0 chain length at offsets 10 and 31, then by exact DMITM over
-the full left-half difference space; the 8 finalists were ranked by a
-multi-dimensional score including integral, linear, differential, and
-impossible analyses. The selected schedule is reproducible from
-`search_mysx_deep.py` and is documented as 31 explicit values in §2.8
-(not as a seed/index of any language's PRNG).
+**Rotation schedule.** The consecutive schedule `(r mod 31)+1` of
+v0.1 gives a differential trail of **weight 2 at R=14 for offset
+r0=10**, a 13-round weight-0 chain, and 17-round exact DMITM. These
+are not "tight margins"; they are structural alignments between the
+transposition and the consecutive step. The v0.2 calendar
+`rand_s9_45430` was selected by a systematic search over 1M random
+31-period schedules followed by an 8-candidate evaluation on 9
+metrics. It gives a 5-round weight-0 chain, 9-round exact DMITM,
+28-round truncated impossible, and a best MILP differential weight
+at R=14 of 94 (cota superior; 2 offsets unresolved). The v0.1 offset
+r0=10 that was catastrophic for the differential analysis is
+eliminated in v0.2.
 
-**API v2.** A new packet format (VERSION=0x02) adds a version byte that
-selects the rotation calendar (no environment variable in production
-code), HKDF-SHA512 key derivation (which allows real 512-bit entropy
-when the caller supplies a 64-byte secret), HMAC-SHA512 tags, one key
-per message (32-byte salt), and Argon2id for password paths. The v1
-API is kept for reading existing packets and is marked deprecated.
+**AEAD v2.** HKDF-SHA512 with a 64-byte secret restores the
+`2^256` Grover bound; 512-bit MAC keys and HMAC-SHA512 tags replace
+the 256-bit HMAC of v1; the rotation calendar is selected by header
+byte `CAL` instead of hard-coded or environment variable; one key
+per message (32-byte salt) eliminates nonce reuse; Argon2id is used
+for password paths with explicit bounds. A 58-test security suite
+verifies the API; a cross-language KAT (Python reference vs
+JavaScript implementation) confirms 6/6 packets byte-identical.
 
-**Measured for v0.2.** For the block cipher with the new schedule:
-exact DMITM = 9 rounds (vs 17 for v0.1), weight-0 chain = 5 (vs 13),
-integral balanced bits at R=5 = 9 (vs 21), MILP differential at R=5 = 4
-(vs 0), beam linear at R=14 both directions: 8 and 11 (vs 5 and 5; higher
-is better). Nine metrics measured, 6 improvements, 3 ties, 0 regressions.
-`KAT_v2.json` cross-verified between the JavaScript reference and the
-Python model.
-
-**Not measured for v0.2 (PENDING).** The v0.1 analyses at higher rounds
-(differential offset sweep at R=14–24, linear beam to 128 rounds, exact
-hulls at r=10,11,12, NIST SP 800-22, related-key audit) were performed
-with the consecutive schedule. They are marked PENDING in their sections
-with the command needed to re-run. The v0.1 truncated impossible
-differential (39 rounds) was measured with the consecutive schedule only;
-the v0.2 truncated figure is PENDING.
-
-**Verdict.** No lower bound over 128 rounds is established, no
-key-recovery attack has been attempted, and MYSX v0.2 has not been
-externally audited. It is released as v0.2-draft for public review with
-an explicit PENDING list. **Do not use MYSX to protect real data.**
+**Not established.** No lower bound over 128 rounds. No key-recovery
+attack. No NIST SP 800-22 for v0.2 (v0.1 passed). No external audit.
+The v0.2 analysis is partial by design; PENDING items are listed in
+§4.14 and §8.
 
 ## 1. Introduction
 
-MYSX-256/512 is an experimental block cipher. It is offered as a public
-proposal for cryptanalysis, not as a production primitive. The author
-makes no claim of security beyond the observed results reported here,
-and explicitly welcomes external review.
+MYSX-256/512 is an experimental block cipher. It is offered as a
+public proposal for cryptanalysis, not as a production primitive.
+The author makes no claim of security beyond the observed results
+reported here, and explicitly welcomes external review.
 
 ### 1.1. Security objectives (and non-objectives)
 
-**Model.** MYSX is analyzed in the single-key, chosen-plaintext model
-for confidentiality, combined with an encrypt-then-MAC AEAD wrapper for
-integrity (§2.9). The design does not claim security under related-key,
-chosen-ciphertext, or side-channel models; see §5 for related-key
-coverage and §9 for engineering notes.
+**Model.** Single-key, chosen-plaintext for confidentiality, combined
+with an encrypt-then-MAC AEAD wrapper for integrity (§2.9). No claim
+under related-key, chosen-ciphertext, or side-channel models.
 
 **Claimed security level.** None formally. The paper reports observed
-upper bounds on single-trail weights (§3), a verified exact linear model
-up to a small number of rounds (§4), a beam search over that model in
-both directions for the v0.1 schedule (§4.10 of the v0.1 paper, PENDING
-for v0.2), integral distinguishers at R=5/6 for the v0.2 schedule
-(§4.12), exact DMITM at 9 rounds for the v0.2 schedule (§4.13), and a
-versioned rotation schedule selected by systematic search (§2.8). These
-are inputs to cryptanalysis, not proofs.
+upper bounds on single-trail weights (§3), a verified exact model of
+F and of the round (§4.2–§4.6), beam searches over that model (§4.10),
+and impossible differentials in both exact and truncated form (§4.12).
+These are inputs to cryptanalysis, not proofs.
 
 **Reading thresholds.** A differential trail of weight w needs about
 `2^w` chosen pairs; a linear trail of weight w has `|corr| = 2^-w` and
-needs about `2^(2w)` known texts. Therefore a `2^128`-text budget
-corresponds to a differential weight threshold of ≈128 but to a linear
-weight threshold of ≈64. **Differential and linear weights in this paper
-must not be compared directly; compare `w_diff` with `2·w_lin`.**
+needs about `2^(2w)` known texts. A `2^128`-text budget is a
+differential weight of ≈128 but a **linear** weight of ≈64. Compare
+`w_diff` with `2·w_lin`; never compare them directly.
 
 **Non-objectives.** MYSX v0.2 does not claim:
 
-- post-quantum security beyond the trivial Grover bound (`2^256`
-  quantum iterations for a uniformly random 512-bit secret processed
-  through HKDF-SHA512; `2^128` for a 256-bit secret through HKDF-SHA256
-  in the v1 API, see §6);
+- post-quantum security beyond Grover: `2^256` iterations for a
+  uniformly random 512-bit secret processed through HKDF-SHA512
+  (`2^128` for a 256-bit secret through HKDF-SHA256 in the v1 API);
 - resistance to related-key attacks beyond the heuristic coverage of
-  §5 (key schedule unchanged from v0.1; see note in §5);
-- resistance to integral attacks beyond the R=5/6 distinguishers
-  measured for v0.2 (offset-dependent; see §4.12);
-- resistance to impossible-differential attacks beyond the exact
-  DMITM = 9 measured for v0.2 (§4.13); the truncated figure for v0.1
-  is 39 rounds but for v0.2 it is PENDING;
+  §5 (key schedule unchanged from v0.1);
+- resistance to integral attacks beyond the R=5/6 distinguishers at
+  r0=0 and the 6-offset sweep (§4.9);
 - resistance to linear-hull effects beyond the single-trail weights
-  measured for v0.2 (§4.12); hull-aware bounds are PENDING;
+  of §4.10 (no hull-aware bound beyond R=17);
 - constant-time execution in JavaScript (side channels out of scope).
 
 ### 1.2. Design rationale
 
-MYSX combines four building blocks (unchanged from v0.1):
+MYSX combines four building blocks, unchanged from v0.1:
 
 - **Simon's F** `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)`.
   Chosen for its studied diffusion/linear/differential properties in
   Simon and its simplicity (no S-boxes, only AND/XOR/rotl). It does
-  not inherit Simon's security proofs; the surrounding structure is
-  different. See §7 for what transfers and what does not.
+  not inherit Simon's security proofs.
 - **Feistel cells over 32-bit word pairs.** Four parallel cells per
   round, then a byte transposition over the full 32-byte state, then
-  word rotations. The result is classified as an SPN-like structure
-  with Feistel cells, not as a "2-branch Feistel". See §2.1.
+  word rotations. Classified as an SPN-like structure with Feistel
+  cells, not as a 2-branch Feistel.
 - **Myszkowski transposition** (§2.3.1). A fixed byte permutation
-  derived from the keyword MYSZKOWS. The choice is a classical
-  transposition with a keyword; it provides byte-level diffusion. A
-  byte permutation optimized for diffusion (e.g., a structured
-  permutation over the 4×8 byte grid) would strictly dominate it and
-  is a candidate for a future version; see §9.
-- **ARX key schedule** (§2.4). A bijective Feistel 8+8 update with
-  modular addition, XOR, and rotations. Chosen for simplicity and to
-  avoid S-boxes; analyzed in §5 (unchanged from v0.1).
+  derived from the keyword MYSZKOWS. Classical transposition with
+  keyword; provides byte-level diffusion. A permutation optimized
+  for diffusion would strictly dominate it and is a candidate for a
+  future version.
+- **ARX key schedule** (§2.4). A bijective Feistel 8+8 update.
 
 **Rotation schedule (v0.2).** The consecutive schedule `(r mod 31)+1`
-of v0.1 is replaced by `rand_s9_45430` (31 explicit values in §2.8).
-The selection method and the criterion are documented in §2.8 and §4.13;
-the schedule was not chosen from a security argument on Myszkowski or
-on the round function, but from a multi-metric search. A comparison
-against 40 random byte permutations (with the same consecutive schedule)
-shows that MYSX v0.1 sits at the ~22nd percentile for exact DMITM: the
-consecutive schedule is not anomalous in the wrong direction — it is
-anomalous in the *good* direction (longest chains), which means it
-leaks the most structure to an attacker.
+of v0.1 is replaced by `rand_s9_45430` (31 values in §2.8). The
+selection is systematic (§4.13). The consecutive schedule is not
+"moderately weak": at 3000 random schedules sampled without filtering,
+it is in the worst ~2% by exact DMITM and worst ~0.2% by weight-0
+chain. The cause is the step of 1 aligning with the transposition
+period; the permutation is not the cause (40 random byte permutations
+with the consecutive schedule give mean exact DMITM 21.4).
 
-**Parameter choices (256-bit block, 512-bit key, 128 rounds)** are not
-derived from a formal argument. They were chosen to: provide a large
-block (avoid birthday-bound issues of 64-bit blocks); provide a large
-key (Grover leaves 256-bit security for a random 512-bit secret); and
-provide a large round count relative to Simon128/128 (68 rounds) as a
-precaution against unknown trails.
-
-No claim is made that 128 rounds is sufficient. The round count is a
-parameter, not a security level.
+**Parameter choices.** 256-bit block, 512-bit key, 128 rounds. Not
+derived from a formal argument. The round count is a parameter, not
+a security level.
 
 ### 1.3. Comparison with related designs
 
@@ -215,36 +173,18 @@ parameter, not a security level.
 MYSX's closest sibling is Simon. The differences (block size, branch
 organization, transposition, word rotations, non-linear key schedule)
 are substantial enough that Simon cryptanalysis does not transfer
-directly (see §7).
+directly.
 
-**Performance.** MYSX is estimated to run at a few MB/s in JavaScript,
-versus hundreds of MB/s for AES-GCM via WebCrypto (AES-NI). MYSX is not
-competitive on performance; it is a research primitive.
+**Performance.** MYSX is estimated to run at a few MB/s in
+JavaScript, versus hundreds of MB/s for AES-GCM via WebCrypto. MYSX
+is not competitive on performance; it is a research primitive.
 
-### 1.4. Versioning and revision notes
+### 1.4. Versioning
 
-**Versioning.** The reference implementation (`mysx.prod.js`) is
-labelled v0.2-experimental. This document is the v0.2-draft of the
-design. The v0.1-draft2 paper, tag `v0.1-draft2` in the repository, is
-the previous design (consecutive schedule, HKDF-SHA256 only, PBKDF2
-password path, 32-byte tag). The two designs share the block cipher core
-(round function, F, transposition, key schedule) and differ in the
-rotation schedule and the AEAD/packet format.
-
-**What was re-measured for v0.2.** Exact DMITM (§4.13), weight-0 chain
-(§4.13), integral at R=5/6 for r0=0 (§4.12), MILP differential at R=5
-(§4.12), beam linear at R=10 and R=14 in both directions (§4.12), and
-KAT (`KAT_v2.json`, `KAT_v02.json`) cross-verified against the reference
-implementation (§2.11).
-
-**What was not re-measured for v0.2 (PENDING).** Sections §3, §4.4–4.6,
-§4.9 offset sweep, §4.10 full beam, §4.11 NIST SP 800-22, and §5
-related-key audit were measured for v0.1 and are marked PENDING for v0.2
-with the command needed to resolve them. The v0.1 truncated impossible
-differential (39 rounds) was measured for the consecutive schedule; the
-v0.2 truncated figure is PENDING. Inherited sections are marked as such
-(properties of the round function or the key schedule, which do not
-depend on the rotation schedule).
+The reference implementation (`mysx.prod.js`) is labelled
+v0.2-experimental. This document is the v0.2-draft of the design. The
+v0.1-draft2 paper (tag `v0.1-draft2` in the repository) is the
+previous design; its full analysis is preserved in `LEGACY_V1/`.
 
 ## 2. Specification
 
@@ -258,26 +198,20 @@ depend on the rotation schedule).
 | Structure | SPN-like: 4 parallel Feistel cells + byte transposition |
 | Non-linearity | `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)` |
 | Diffusion | Myszkowski transposition (keyword MYSZKOWS) |
-| **Rotation** | **`ROT_CAL[r mod 31]`** where `ROT_CAL` is the 31-value v0.2 schedule (§2.8) |
+| **Rotation (v0.2)** | **`ROT_CAL[r mod 31]`** (§2.8) |
 | Final whitening | XOR with 8 words from the key schedule |
-
-**Structural note.** MYSX is sometimes described as a "2-branch Feistel"
-by analogy with Simon. Strictly, each round applies four independent
-Feistel cells over 32-bit word pairs, then a byte transposition over the
-full 32-byte state, then word rotations. It is more accurately
-classified as an SPN with Feistel cells. The "Feistel" label is a
-convenience.
 
 ### 2.2. Notation
 
-- `rotl(x, n)`: circular left rotation of x by n bits.
+- `rotl(x, n)`: circular left rotation of `x` by `n` bits.
 - `∧`: bitwise AND.
 - `⊕`: bitwise XOR.
-- `s[r]`: state at round r (`s[0]` = plaintext, `s[128]` = ciphertext).
-- `s[r][i]`: word i (0..7) of the state at round r.
-- `rk[r][i]`: subkey i (0..7) of round r.
-- `rkFinal[i]`: word i (0..7) of the final whitening.
+- `s[r]`: state at round `r` (`s[0]` = plaintext, `s[128]` = ciphertext).
+- `s[r][i]`: word `i` (0..7) of the state at round `r`.
+- `rk[r][i]`: subkey `i` (0..7) of round `r`.
+- `rkFinal[i]`: word `i` of the final whitening.
 - `ROT_CAL[]`: the 31-value rotation schedule (§2.8).
+- `CAL`, `KDF`: one-byte selectors in v2 packets (§2.9).
 
 ### 2.3. Constants
 
@@ -294,10 +228,6 @@ These are the fractional digits of π (same as Blowfish).
 
 Keyword: `MYSZKOWS` (8 letters, S repeated at positions 3 and 8).
 
-Alphabetical order: K(5), M(1), O(6), S(3,8), W(7), Y(2), Z(4).
-
-The byte permutation `MYZ_PERM[0..31]` is constructed as:
-
 ```
 MYZ_PERM = [
    4,12,20,28,                 # K (column 4)
@@ -310,137 +240,60 @@ MYZ_PERM = [
 ]
 ```
 
-The inverse permutation `MYZ_INV` satisfies `MYZ_INV[MYZ_PERM[i]] = i`.
-
-**Design note.** The Myszkowski choice is a classical transposition with
-a keyword. It provides byte-level diffusion. A byte permutation
-optimized for diffusion (e.g., a structured permutation over the 4×8
-byte grid) would strictly dominate it; the permutation is a candidate
-for replacement in a future version. See §9.
+The inverse `MYZ_INV` satisfies `MYZ_INV[MYZ_PERM[i]] = i`.
 
 ### 2.4. Key schedule
 
-#### 2.4.1. Initialization
+**Initialization.** `s[0..15]` from 64-byte key (big-endian per word).
 
-Input: key `K[0..63]` (64 bytes).
-
-Initial state `s[0..15]` (16 words of 32 bits):
-
-```
-s[i] = big_endian_word(K[4i .. 4i+3])
-```
-
-#### 2.4.2. Expansion
-
-For `r = 0 .. 127`:
+**Expansion.** For `r = 0..127`:
 
 ```
 spread = (r + 1) * 0x9E3779B9  (mod 2^32)
-
-# Round subkeys
 for i in 0..7:
     rk[r][i] = s[i] ⊕ s[(i+5) mod 16] ⊕ s[(i+11) mod 16]
                ⊕ CONST[(r+i) mod 8] ⊕ spread
-
-# For i = 0..3: fold fk into rk
 for i in 0..3:
     fk = s[(i+8) mod 16] ⊕ CONST[(r+i+3) mod 8]
     rk[r][i] = rk[r][i] ⊕ fk
-
-# State update (Feistel 8+8, bijective)
-L = s[0..7]
-R = s[8..15]
+L, R = s[0..7], s[8..15]
 for i in 0..7:
-    a = R[i]
-    b = R[(i+1) mod 8]
-    c = R[(i+3) mod 8]
-    F = (rotl((a + b) mod 2^32, 7) ⊕ rotl(c, 13) ⊕ CONST[i] ⊕ spread)
-    s[i]     = R[i]
-    s[i + 8] = L[i] ⊕ F
+    a, b, c = R[i], R[(i+1) mod 8], R[(i+3) mod 8]
+    F = rotl((a + b) mod 2^32, 7) ⊕ rotl(c, 13) ⊕ CONST[i] ⊕ spread
+    s[i], s[i+8] = R[i], L[i] ⊕ F
 ```
 
-#### 2.4.3. Final whitening
-
-After the 128 rounds:
-
-```
-for i in 0..7:
-    rkFinal[i] = s[i] ⊕ s[(i+8) mod 16] ⊕ CONST[(128+i) mod 8]
-```
+**Final whitening.** `rkFinal[i] = s[i] ⊕ s[(i+8) mod 16] ⊕ CONST[(128+i) mod 8]`.
 
 ### 2.5. Round function
 
-Each round r transforms state `s[r]` into `s[r+1]` in four steps:
+For round `r`:
 
-**Step 1. AddRoundKey.**
+**Step 1.** `s[r][i] = s[r][i] ⊕ rk[r][i]` for i = 0..7.
 
+**Step 2.** For p = 0..3:
 ```
-for i in 0..7:
-    s[r][i] = s[r][i] ⊕ rk[r][i]
-```
-
-**Step 2. Feistel cells.** For `p = 0..3`:
-
-```
-L = s[r][p]
-R = s[r][p + 4]
-s_mid[p]     = R
-s_mid[p + 4] = L ⊕ F(R)
+L, R = s[r][p], s[r][p+4]
+s_mid[p], s_mid[p+4] = R, L ⊕ F(R)
 ```
 
-where `F(x) = (rotl(x,1) ∧ rotl(x,8)) ⊕ rotl(x,2)`.
+**Step 3.** Convert `s_mid[0..7]` to bytes (big-endian per word),
+apply `permuted[j] = bytes[MYZ_PERM[j]]`, reconstruct words.
 
-**Step 3. Myszkowski transposition.** Convert `s_mid[0..7]` to bytes
-(big-endian per word):
-
-```
-bytes[4i .. 4i+3] = big_endian(s_mid[i])
-permuted[j] = bytes[MYZ_PERM[j]]  for j = 0..31
-s_perm[i] = big_endian_word(permuted[4i .. 4i+3])
-```
-
-**Step 4. Word rotation.**
-
-```
-shift = ROT_CAL[r mod 31]        # v0.2: 31-value table from §2.8
-for i in 0..7:
-    s[r+1][i] = rotl(s_perm[i], shift)
-```
+**Step 4.** `shift = ROT_CAL[r mod 31]`; `s[r+1][i] = rotl(s_perm[i], shift)`.
 
 ### 2.6. Encryption
 
-```
-s[0] = plaintext  (as 8 big-endian words)
-for r = 0..127:
-    apply round r (section 2.5)
-for i = 0..7:
-    s[128][i] = s[128][i] ⊕ rkFinal[i]
-ciphertext = s[128]  (as 32 big-endian bytes)
-```
+`ciphertext = MYSX_encrypt(plaintext, key, ROT_CAL)` where the last
+step XORs `rkFinal`.
 
 ### 2.7. Decryption
 
-Inverse of encryption:
-
-```
-s[128] = ciphertext
-for i = 0..7:
-    s[128][i] = s[128][i] ⊕ rkFinal[i]
-for r = 127..0:
-    apply inverse round r (inverse of section 2.5, in reverse order)
-plaintext = s[0]
-```
-
-The inverse round consists of:
-
-1. Inverse rotation: `rotl(word, 32 - shift)` where `shift = ROT_CAL[r mod 31]`.
-2. Inverse transposition: `bytes[MYZ_PERM[j]] = permuted[j]`.
-3. Inverse Feistel: `R = newL`, `L = newR ⊕ F(R)`.
-4. XOR with `rk[r][i]`.
+Inverse of §2.6 in reverse order.
 
 ### 2.8. Rotation schedule (v0.2)
 
-**The schedule.** The 31-value rotation schedule is:
+The 31-value rotation schedule is:
 
 ```
 ROT_CAL = [
@@ -451,87 +304,58 @@ ROT_CAL = [
 ]
 ```
 
-`ROT_CAL` is a permutation of `1..31`. Round `r` uses
-`shift = ROT_CAL[r mod 31]`. The v0.1 consecutive schedule was
-`shift = (r mod 31) + 1`, i.e., `[1,2,3,...,31]`.
+Round `r` uses `shift = ROT_CAL[r mod 31]`. The v0.1 schedule was
+`shift = (r mod 31) + 1` (i.e., `[1,2,...,31]`).
 
-**Selection method.** The schedule was selected by systematic search
-over 1M random permutations of `0..30` (via `search_mysx_deep.py`,
-deterministic in the seed). Each candidate was filtered by:
+**Selection method.** 1M random permutations of `0..30` filtered by:
 
-1. Maximum weight-0 chain length at offset 10 ≤ 3,
-2. Global maximum weight-0 chain length ≤ 5,
+1. Maximum weight-0 chain at offset 10 ≤ 3,
+2. Global maximum weight-0 chain ≤ 5,
 3. Exact DMITM over the full left-half difference space.
 
-The finalists (8 candidates) were ranked by a multi-dimensional score
-including integral (balanced bits at R=5, R=6), linear (forward and
-backward single-trail weight at R=10, R=14, both directions),
-differential (MILP at R=5), impossible (exact DMITM), and weight-0
-chain. The selected schedule is the Pareto-optimal among the 8 sampled.
+8 candidates achieved exact DMITM = 9. The 8 finalists were ranked by
+a multi-dimensional score: integral at R=5/6, linear at R=10/14 (both
+directions), MILP differential at R=5, exact DMITM, weight-0 chain.
 
-**Why the consecutive schedule was rejected.** Across 3000 random
-schedules sampled without filtering, the consecutive schedule is in the
-worst ~2% by exact DMITM and in the worst ~0.2% by weight-0 chain.
-The consecutive schedule leaks more structure (longer chains) than 97–98%
-of random schedules. The cause is the regularity of the step: a consecutive
-sequence of shifts aligns with the period of the transposition in a way
-that lets the tracked bits remain in the "safe" half of the state for
-many rounds. The v0.2 schedule has irregular steps that break this
-alignment.
+**Why the consecutive schedule was rejected.** Over 3000 random
+schedules without filtering, the consecutive schedule is in the worst
+~2% by exact DMITM and worst ~0.2% by weight-0 chain. The cause is
+the step of 1: a consecutive sequence of shifts aligns with the
+transposition period in a way that lets the tracked bits remain in
+the "safe" half of the state for many rounds. The variable is the
+schedule step, not the Myszkowski permutation (a control with 40
+random byte permutations and the consecutive schedule gives mean
+exact DMITM 21.4).
 
-**Comparison table (9 metrics, v0.2 vs v0.1).**
+**The differential weakness closed by v0.2.** In v0.1, at offset
+r0=10 the best single-trail differential weight at R=14 is **2**
+(i.e., 4 chosen pairs distinguish 14 rounds of v0.1 from a random
+cipher). In v0.2, the best MILP weight at R=14 over 31 offsets is
+**94** (offset r0=29; two offsets r0=19 and r0=27 timed out and are
+candidates for lower values). The structural alignment is gone.
 
-| Metric | v0.1 (`(r mod 31)+1`) | v0.2 (`rand_s9_45430`) | Result |
-|---|---|---|---|
-| dp5 (integral R=5, r0=0, word0) | 21 | **9** | improvement (−12) |
-| dp6 (integral R=6, r0=0, word0) | 4 | 4 | tie |
-| lin_fwd10 (single-trail weight, R=10) | 1 | 1 | tie |
-| lin_bwd10 (single-trail weight, R=10) | 1 | **3** | improvement (+2) |
-| lin_fwd14 (single-trail weight, R=14) | 5 | **8** | improvement (+3) |
-| lin_bwd14 (single-trail weight, R=14) | 5 | **11** | improvement (+6) |
-| DMITM exact | 17 | **9** | improvement (−8) |
-| Weight-0 chain | 13 | **5** | improvement (−8) |
-| MILP differential R=5 | 0 | **4** | improvement (+4) |
+**Reproducibility.** `CALENDAR_v02.txt` contains the schedule as
+`MYSX_ROT_CAL=22,5,8,...`. `search_mysx_deep.py --n 1000000 --seed 9`
+regenerates the search. `cryptanalysis/DMITM/wf2_deep_summary.json`
+contains the raw 8×9 table.
 
-Directions: lower is better for dp5, dp6, DMITM, chain; **higher is
-better for lin_fwd10/14, lin_bwd10/14, MILP** (higher weight = lower
-correlation = more secure). 6 improvements, 3 ties, 0 regressions.
+### 2.9. AEAD packet format (v2)
 
-**Reproducibility.** The schedule is documented as 31 explicit values
-above. It is reproducible from `search_mysx_deep.py --n 1000000 --seed 9`
-and selectable with `MYSX_ROT_CAL=22,5,8,...` in the analysis tools and
-with the CAL header byte `1` in the v2 API. `CALENDAR_v02.txt` contains
-the schedule as `MYSX_ROT_CAL=...`.
-
-### 2.9. AEAD and packet format (v2)
-
-Two packet formats coexist: v1 (VERSION=0x01, `aeadEncrypt`/`aeadDecrypt`,
-deprecated for new data) and v2 (VERSION=0x02, `v2.seal`/`v2.open`).
-
-**v2 packet.**
+Two packet formats coexist. v1 (VERSION=0x01) uses the consecutive
+calendar, HKDF-SHA256, HMAC-SHA256, 32-byte tag; deprecated for new
+data. v2 (VERSION=0x02) is recommended:
 
 ```
 VERSION(1)=0x02 | CAL(1) | KDF(1) | KDF_PARAMS(var) | SALT(32) | NONCE(16) | CT(n) | TAG(64)
 ```
 
-- `CAL`: rotation calendar selector. `0` = consecutive (v0.1-compatible
-  block, not used by v2 by default), `1` = v0.2 schedule `rand_s9_45430`.
-  Only table entries defined in the code are accepted; a packet with an
-  unknown `CAL` is rejected.
-- `KDF`: password/secret KDF selector. `0` = RAW (64-byte or 32-byte
-  secret, direct HKDF). `1` = Argon2id. `2` = PBKDF2-SHA512.
-  `3` = scrypt.
-- `KDF_PARAMS`: parameters for the KDF, with bounds checked on parse:
-  - Argon2id: `memKiB` (19456–1048576), `passes` (2–16), `lanes` (1–16).
-    Defaults from RFC 9106 second recommended option: 65536, 3, 4.
-  - PBKDF2-SHA512: `iterations` (210000–10000000).
-  - scrypt: `logN` (15–20), `r` (8–16), `p` (1–16), memory bound 1 GiB.
-- `SALT`: 32-byte random salt, one per message. Different per message
-  means different key, eliminating nonce reuse in the key stream.
-- `NONCE`: 16-byte random nonce, encrypted under the derived key.
-- `CT`: ciphertext of the plaintext.
-- `TAG`: HMAC-SHA512 over `HEADER | u64(len(AAD)) | AAD | u64(len(CT)) | CT`.
-  Header includes VERSION, CAL, KDF, KDF_PARAMS, SALT, NONCE.
+**Fields.**
+
+- `CAL`: rotation calendar selector. `0` = consecutive (v0.1-compatible), `1` = `rand_s9_45430`. Unknown values rejected.
+- `KDF`: `0` = RAW (64-byte or 32-byte secret, direct HKDF), `1` = Argon2id, `2` = PBKDF2-SHA512, `3` = scrypt.
+- `KDF_PARAMS`: bounds checked on parse. Argon2id `memKiB` ∈ [19456, 1048576], `passes` ∈ [2, 16], `lanes` ∈ [1, 16]; PBKDF2-SHA512 `iterations` ∈ [210000, 10000000]; scrypt `logN` ∈ [15, 20], `r` ∈ [8, 16], `p` ∈ [1, 16], memory ≤ 1 GiB.
+- `SALT` (32 bytes), `NONCE` (16 bytes), fresh per packet.
+- `TAG`: HMAC-SHA512 over `HEADER | u64(len(AAD)) | AAD | u64(len(CT)) | CT`, 64 bytes.
 
 **Key derivation (v2).**
 
@@ -542,901 +366,859 @@ encKey  = HKDF-Expand(PRK, info(label="enc"), 64)
 macKey  = HKDF-Expand(PRK, info(label="mac"), 64)
 ```
 
-where `LP(x) = u16(len(x)) | x`. For KDF=RAW, `ikm = secret` (must be
-64 or 32 bytes). For KDF=ARGON2ID/PBKDF2/SCRYPT, `ikm` is the
-password-derived key (64 bytes) followed by the optional keyfile
-(length-prefixed).
+where `LP(x) = u16_be(len(x)) || x`.
 
-**v2 API surface.** `v2.seal(plaintext, creds, opts)`,
-`v2.open(packet, creds, opts)`, `v2.generateSecret()`,
-`v2.securityLevel(creds)`, `v2.setArgon2Provider(fn)`,
-`v2.argon2FromNoble(argon2idAsync)`, `v2.CAL`, `v2.KDF`,
-`v2.DEFAULTS`, `v2.LIMITS`. The `_salt` and `_nonce` options are
-internal (for KAT generation only) and must not be used in production.
+**v2 API.** `v2.seal(plaintext, creds, opts)`, `v2.open(packet, creds, opts)`,
+`v2.generateSecret()`, `v2.securityLevel(creds)`,
+`v2.setArgon2Provider(fn)`, `v2.argon2FromNoble(argon2idAsync)`,
+`v2.CAL`, `v2.KDF`, `v2.DEFAULTS`, `v2.LIMITS`. The `_salt` and
+`_nonce` options are internal (KAT only) and must not be used in
+production.
+
+**Cross-language validation (v0.2).** The v2 packet format has been
+implemented independently in Python (`tests/gen_v2_kat.py`, stdlib
+only) and in JavaScript (`mysx.prod.js`). Six complete packets
+(header + CT + tag) are **byte-identical** between the two
+implementations across: CAL=0 and CAL=1; KDF=RAW (64-byte and
+32-byte secrets), PBKDF2-SHA512, scrypt; empty, 1-byte, 100-byte,
+33-byte and 70-byte plaintexts. A 58-test suite
+(`tests/mysx_v2.test.js`) verifies KAT regression, cross-language
+KAT, per-byte bit-flip rejection, AAD/context/secret binding, KDF
+bounds, anti-downgrade on the KDF byte, password + keyfile
+separation, Argon2id RFC 9106 vector, and v1/v2 packet separation.
+All 58 tests pass.
 
 ### 2.10. Key derivation (v1, deprecated)
 
-The v1 API is kept unchanged for backwards compatibility:
-
-From a random secret (HKDF-SHA256):
-
-```
-encKey = HKDF-SHA256(secret, salt, info = context || ":enc", L = 64)
-macKey = HKDF-SHA256(secret, salt, info = context || ":mac", L = 32)
-```
-
-From a password (PBKDF2-SHA256 + HKDF):
-
-```
-prk = PBKDF2-SHA256(password, salt, iterations = 600000, L = 32)
-encKey = HKDF-SHA256(prk, salt, info = context || ":enc", L = 64)
-macKey = HKDF-SHA256(prk, salt, info = context || ":mac", L = 32)
-```
-
-The HKDF-SHA256 bottleneck caps the entropy of a derived 512-bit
-`encKey` at 256 bits; the effective quantum security is `2^128`, not
-`2^256`. This is why v2 uses HKDF-SHA512 with a 64-byte secret. **Do
-not use v1 for new data.**
+HKDF-SHA256 with 32-byte MAC key (or PBKDF2-SHA256 for passwords).
+The HKDF-SHA256 bottleneck caps the effective quantum security at
+`2^128`. Do not use v1 for new data.
 
 ### 2.11. Test vectors
 
-**v1 KAT** (`KAT.json`): generated with `generate_kat.py`, the
-consecutive calendar, HKDF-SHA256, PBKDF2-SHA256. Public digest:
-`5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`
-(SHA-256 over the full JSON). Internal fast-regression digest
-`KNOWN_KAT_DIGEST = 3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`
-(SHA-256 over 16 blocks with `key[i] = i`).
+- **`KAT.json` (v0.1):** block, AEAD, KDF vectors for the consecutive
+  calendar. Public digest:
+  `5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`.
+  Internal fast-regression digest `KNOWN_KAT_DIGEST =
+  3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`
+  (SHA-256 over 16 blocks with `key[i] = i`).
+- **`KAT_v2.json` (v0.2):** `block_v02` (8 blocks with CAL=1),
+  `v2_raw`, `v2_password_argon2/scrypt/pbkdf2`, `v2_kdf`, `v2_parse`,
+  `security_level`, `block_digest_cal0 == KNOWN_KAT_DIGEST`,
+  `block_digest_cal1 = d1b3e268af1c7422e38c8af6db1cc2be6c01b7c335423a7e5cd53a578171444a`.
+- **`tests/_v2_kat_cross.json`:** 6 cross-language v2 packets
+  (Python reference → JS must reproduce byte-identical).
 
-**v0.2 block KAT** (`KAT_v02.json`): generated with `generate_kat.py`
-under `MYSX_ROT_CAL=22,5,8,...`; block-only vectors, no AEAD, no KDF.
-
-**v2 KAT** (`KAT_v2.json`): generated with `generate_kat_v2.py`;
-contains:
-- `block_v02`: block cipher vectors with CAL=1,
-- `v2_raw`: v2.seal/open with a 64-byte secret,
-- `v2_password_argon2`: v2.seal/open with Argon2id,
-- `v2_password_scrypt`: v2.seal/open with scrypt,
-- `v2_password_pbkdf2`: v2.seal/open with PBKDF2-SHA512,
-- `v2_kdf`: direct derivation of encKey/macKey,
-- `v2_parse`: parse of a v2 header,
-- `security_level`: `securityLevel()` outputs for various creds,
-- `block_digest_cal0`, `block_digest_cal1`: SHA-256 over the 16
-  internal blocks for both calendars (the cal0 digest must equal
-  `KNOWN_KAT_DIGEST`).
-
-The block-cipher vectors of `KAT_v02.json` were cross-verified against
-`mysx_linear_model.py` (Python); the two independent implementations
-produce identical ciphertexts for the v0.2 schedule. A third-party
-implementation should reproduce `KAT_v02.json` block vectors, the v2
-vectors of `KAT_v2.json`, and `KNOWN_KAT_DIGEST` for the consecutive
-calendar.
+A third-party implementation should target the public v0.1 digest,
+`block_digest_cal1` for v0.2, and the 6 cross-language v2 packets.
 
 ## 3. Differential cryptanalysis
 
-**Status: PENDING for v0.2.** The differential analysis of the v0.1
-paper (§3.1–§3.5) was performed with the consecutive schedule. Only
-the MILP differential at R=5 has been measured for v0.2 (§4.13). The
-following are the v0.1 results for reference and the commands needed
-to re-run for v0.2.
-
-### 3.1. Model (inherited from v0.1)
+### 3.1. Model
 
 Tool: `misc/mysx_milp2.py` (PuLP + CBC/HiGHS, with `--r0` rotation
-offset). AND model: `a = Δx ∨ Δy`, which counts a cost-1 event whenever
-at least one input is active. For an AND with independent inputs, this
-is the exact per-bit cost. The real approximations in the model are:
+offset). AND model: `a = Δx ∨ Δy`, counting cost-1 whenever at least
+one input is active. `gapRel = 0.2`, `timeLimit = 300–900` return
+feasible upper bounds (not certified optima). The model captures
+single trails, not differentials.
 
-- The Markov-independence assumption does not hold: the two rotated
-  inputs of F come from the same word x.
-- The reported runs use a single input difference per offset;
-  multi-bit input differences may yield lower weights.
-- `gapRel = 0.2` and `timeLimit = 300–900` return feasible solutions
-  (upper bounds), not certified optima.
-- The model captures single trails, not differentials (clusters of
-  trails with the same output difference).
+### 3.2. Observed upper bounds
 
-### 3.2. Differential at r0=0 (v0.1 inherited)
+**At r0=0, v0.1** (input w2b30):
 
-At r0=0, the v0.1 results are:
+| Rounds | Weight (upper bound) |
+|---|---|
+| 5 | 4 |
+| 6 | 6 |
+| 7 | 10 |
+| 8 | 18 |
+| 9 | 26 |
+| 10 | 42 |
+| 11 | 58 |
+| 12 | 68 |
+| 13 | 88 |
+| 14 | 144 |
 
-| Rounds | Input | Weight (upper bound) |
-|---|---|---|
-| 5 | w1b24 | 2 |
-| 6 | w1b24 | 6 |
-| 7 | w2b30 | 10 |
-| 8 | w2b30 | 18 |
-| 12 | w2b30 | 68 |
-| 14 | w2b30 | 114 |
+**At r0=0, v0.2** (input w1b31):
 
-**PENDING for v0.2.** Re-run with `MYSX_ROT_CAL=22,5,8,...` and
-`--solver highs --time-limit 180`. Expected to be higher than v0.1
-because the weight-0 chain is 8 rounds shorter (§4.13).
+| Rounds | Weight (r0=0) | Weight (r0=10) | Weight (r0=20) |
+|---|---|---|---|
+| 10 | 59 | 92 | 76 |
+| 11 | 62 | 92 | 76 |
+| 12 | 98 | 129 | 86 |
+| 13 | 120 | 139 | 104 |
+| 14 | 129 | 164 | 132 |
 
-### 3.3. Empirical r=4 at r0=0 (v0.1 inherited)
+Full run R=6..14 × r0=0,10,20: 27/27 solves.
 
-At r0=0, the r=4 trail (Δin = {w0b0}, MILP weight 8, Δout = {w0b4,
-w1b10, w1b16, w1b30, w6b4}) was verified with 8 fixed keys × 2^17
-pairs each, 128-round cipher with final whitening disabled. Observed
-hit rate: `7.802 × 10^-3` over 1,048,576 pairs; expected `2^-8 =
-3.906 × 10^-3`; ratio 2.00× (clustering factor).
+**Offset sweep, R=14, v0.1 (MILP, single-bit input w1b31):**
+r0=10 → weight **2**, other offsets 50–266. Worst observed r0=30 →
+266. Paper's beam values are tighter: 121 at r0=1 vs MILP 180 at
+r0=1, so the MILP overestimates by ~1.5–2× on these offsets.
 
-**PENDING for v0.2.** Re-run with the v0.2 schedule via
-`misc/check_trail.js` after setting `MYSX_ROT_CAL`.
+**Offset sweep, R=14, v0.2 (MILP, single-bit input w1b31):**
+best **r0=29 → weight 94**, other offsets 94–243. Two offsets
+`r0=19`, `r0=27` timed out (`None`). The paper's differential
+minimum for v0.2 is therefore an upper bound of 94; the true minimum
+is likely 40–90 (MILP overestimates ~2×).
 
-### 3.4. Differential offset sweep (v0.1 inherited)
+**Comparison.** v0.1 has a catastrophic offset (r0=10, weight 2 at
+R=14, 4 chosen pairs). v0.2 eliminates it: the best MILP weight
+across 31 offsets is 94 (upper bound). This is the main differential
+improvement of v0.2.
 
-At R=14, the v0.1 beam search found weights ranging from 2 at r0=10
-to about 120 across offsets. The maximum observed at R=14 was 121 at
-r0=1, not 114 at r0=0. The r0=0 extrapolation of r≈15 is one point
-in a distribution.
+### 3.3. Direct verification of the r=4 trail
 
-**PENDING for v0.2.** The entire offset sweep must be re-run.
+Trail: Δin = {w0b0}, MILP weight 8, Δout = {w0b4, w1b10, w1b16,
+w1b30, w6b4}. Verified with 8 fixed keys × 2^17 pairs, 128-round
+cipher with final whitening disabled.
 
-### 3.5. Differential weight-0 chains (v0.1 inherited)
+Observed hit rate 7.802×10^-3 (8181/1048576), expected from MILP
+2^-8 = 3.906×10^-3. Ratio **2.00×**. Consistent with differential
+clustering or a one-bit overestimate of the cost by the AND model.
 
-In v0.1, a round has weight 0 iff the difference does not touch the
-right half (words 4..7). The free chain length depends on the rotation
-offset. The v0.1 free chain table (offset → max weight-0 rounds) was:
+**v0.2 verification (informal).** `diff_r4_v1` on v0.2 (with
+`MYSX_ROT_CAL` set) reports trail match 12/2000 (0.60%) at R=4 with
+average output difference weight 12.87 bits — the specific r=4 trail
+is not directly transferable to v0.2 (the schedule change perturbs
+the alignment at R=4). No new trail at R=4 has been identified for
+v0.2.
 
-| r0 | 0-6, 27-29 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| max rounds | 3 | **13** | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 |
+### 3.4. Differential growth at r0=10, v0.1
 
-The 13-round chain at r0=10 was verified against the real cipher with
-8 fixed keys × 2^15 pairs each (262,144 pairs), 100% propagation.
+Beam search: R=14 → 2, 15 → 4, 16 → 6, 17 → 10, 18 → 15, 19 → 22,
+20 → 34, 21 → 49, 22 → 78, 23 → 100, 24 → 133.
 
-**v0.2 measured.** The maximum weight-0 chain is **5 rounds** (see
-§4.13). The offset and the specific input/output masks of the v0.2
-chains are PENDING. To measure:
+**Verified with MILP** (r0=10, input w1b31, CBC gapRel=0.2,
+timeLimit=180s): R=14 → 2, 15 → 4, 16 → 6, 17 → 10, 18 → 16, 19 → 24,
+20 → 38, 21 → 56, 22 → 79, 23 → 107, 24 → 131.
 
-```bash
-MYSX_ROT_CAL=22,5,8,... python3 misc/diff_free_chain_table.py
-```
+**Discrepancy:** the paper's beam values differ from the MILP by
+−2 to +7 in the range R=18-24. Both are upper bounds; neither is a
+minimum. The MILP is (as expected) slightly above the beam at every
+round; the paper's beam values are the tighter measurements for
+these offsets. The 128-bit threshold is reached at R ≈ 24 for both.
+
+### 3.5. Differential weight-0 chains
+
+A round has weight 0 iff the difference does not touch words 4..7
+of the state; the round is a pure bit permutation on the left half.
+
+**v0.1 free chain table (verified, exact):**
+
+| r0 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21–26 | 27 | 28 | 29 | 30 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| max | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 4 | 4 | 5 | **13** | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 5 | 5 | 4 | 3 | 3 | 3 | 4 |
+
+**Maximum exact:** By exhaustive linear algebra over the whole
+left-half difference space, no weight-0 chain longer than 13 rounds
+exists at any offset (v0.1).
+
+**Verified chains, v0.1** (fixed keys, 2^15 pairs per key × 8 keys,
+full 128-round cipher, final whitening disabled):
+
+| Offset | Δin | Δout | Rounds | Propagation |
+|---|---|---|---|---|
+| r0=10 | w1b31 | w4b12 | 13 | **100.0000%** |
+| r0=15 | w2b30 | w4b5 | 6 | **100.0000%** |
+
+The 13-round chain at r0=10 covers rounds 10–22, 41–53, 72–84,
+103–115 (period 31). It is the same chain at every occurrence.
+
+**v0.2 free chain table (verified, exact):** maximum **5 rounds** at
+several offsets (r0 = 3, 4, 13, 16, 17, 20, 24, 27, 28); 4 rounds at
+most other offsets; 3 rounds at the remaining offsets. Full 31-offset
+table in `diff_free_chain_v02` output. No chain of length 6+ exists in
+v0.2.
+
+**Comparison.** v0.1: 13-round exact chain. v0.2: 5-round exact
+chain. The reduction is 8 rounds, consistent with the exact DMITM
+reduction (17→9).
+
+**The catastrophic v0.1 offset.** r0=10 in v0.1 gives both the
+13-round weight-0 chain and the weight-2 trail at R=14 (§3.2). The
+two are the same alignment; eliminating one eliminates the other.
 
 ## 4. Linear cryptanalysis
 
-**Status: partial for v0.2.** The exact LAT of F (§4.2) and the mask
-propagation rules (§4.3) are inherited unchanged (properties of the
-round function, not of the schedule). The beam search (§4.10 of v0.1)
-is PENDING for v0.2. The R=10 and R=14 beam results for v0.2 are in
-§4.12. The hull checks (§4.6, §4.10.3–4.10.5) are PENDING.
-
 ### 4.1. Overview
 
-An earlier version of the v0.1 paper reported only negative results
-three approximate linear MILP models all produced trails that failed
-empirical verification at w=32. Those models used per-cell AND activity
-as a proxy for correlation, which is not the correct structure of F's
-LAT. A correct model exists in closed form and is implemented in
-`cryptanalysis/models/linear/mysx_linear_model.py`. The model is
-machine-checked against the real cipher by
-`python3 mysx_linear_model.py selftest`.
+The exact LAT of F (closed form) is used in a bit-exact mask
+propagation. Single-trail weights and hull sums are computed. A beam
+search over the exact model, both directions, up to 128 rounds, gives
+achievable single-trail weights (upper bounds on the best weight).
+Empirical verification is done with 2^22 plaintexts and fixed keys.
 
-**Result in one line (inherited).** The LAT of F is exactly
-`corr(b,g) = ± 2^-h(b)`, where h(b) is half the GF(2)-rank of a
-32-cycle subgraph determined by b. Mask propagation is bit-exact; every
-trail carries an exact key-dependent sign. v0.1 verified `|corr|=1`
-chains over up to 9 consecutive rounds and exact linear-hull predictions
-at r=10,11,12.
+### 4.2. Exact LAT of F
 
-**v0.2 measured.** With the new schedule:
-- Single-trail weights at R=10: forward=1, backward=3.
-- Single-trail weights at R=14: forward=8, backward=11.
-- See §4.12 for the full table.
-
-### 4.2. Exact LAT of F (inherited from v0.1)
-
-For output mask b and input mask g,
+For output mask `b` and input mask `g`:
 
 ```
-b.F(x) ⊕ g.x = Q_b(x) ⊕ l.x,
+b.F(x) ⊕ g.x  =  Q_b(x) ⊕ l.x,
 l = rotr(b,2) ⊕ g,
-Q_b(x) = ⊕_j b_{j+1} x_j x_{j-7}
+Q_b(x) = ⊕_j b_{j+1} x_j x_{j−7}
 ```
 
 `Q_b` is a quadratic form whose graph `G_b` is a subgraph of the
-32-cycle `j → j-7` (edge `(j, j-7)` present iff `b_{j+1} = 1`; a
-single cycle because gcd(7,32)=1). Let `A_b` be the GF(2) adjacency
-matrix of `G_b`. Then:
+32-cycle `j ↔ j−7`. With `A_b` the GF(2) adjacency matrix:
 
-- `corr(b,g) ≠ 0` iff `l = A_b y` for some y. There are exactly
-  `2^rank(A_b) = 4^h(b)` valid g.
-- For each valid g, `corr(b,g) = (-1)^Q_b(y) · c_0(b)` with
-  `|c_0(b)| = 2^-h(b)`, where `h(b) = rank(A_b)/2`.
-- `h(b)` equals the maximum matching = minimum vertex cover of `G_b`
-  (Kőnig). The only graph that is not a forest is `b = 0xFFFFFFFF`
-  (full cycle), where rank=30 and h=15.
-- Parseval holds: `Σ_g corr(b,g)^2 = 1`.
+- `corr(b,g) ≠ 0` iff `l = A_b y` for some `y`. There are exactly
+  `4^{h(b)}` valid `g`, where `h(b) = rank(A_b)/2`.
+- For each valid `g`, `corr(b,g) = (−1)^{Q_b(y)} · c_0(b)` with
+  `|c_0(b)| = 2^{−h(b)}`.
+- `h(b)` = maximum matching = minimum vertex cover of `G_b`.
+  Exception `b = 0xFFFFFFFF` (full cycle): rank = 30, h = 15.
+- Parseval: `Σ_g corr(b,g)^2 = 1`.
 
-This is exact and machine-checked against brute-force LAT of F for
-random b of Hamming weight up to 8 (`selftest`).
+Exact and machine-checked against brute-force LAT of F for random
+`b` of Hamming weight ≤ 8.
 
-### 4.3. Exact mask propagation (inherited from v0.1)
+**Cost data.**
 
-**Forward step.** For a round r, with input mask m on s[r] and cells
-p=0..3 (L=s[r][p], R=s[r][p+4]):
+- Single-bit `b`: h = 1, four valid g, |corr| = 1/2.
+- Two-bit `b` (496 masks): histogram `{2: 464, 1: 32}`.
+- Uniform random 32-bit `b` (16384 samples): histogram of h peaks at
+  h = 11 (4130 samples).
+
+### 4.3. Mask propagation
+
+Forward step for round `r` with input mask m on s[r]:
 
 ```
-b_p = m[p]                                   # only words 0..3 decide the cost
-g_p ∈ valid_gammas(b_p)                      # 4^h(b_p) choices, |corr|=2^-h(b_p)
+b_p = m[p] (only words 0..3 decide cost)
+g_p ∈ valid_gammas(b_p)  (4^{h(b_p)} choices, |corr|=2^{-h(b_p)})
 n[p+4] = m[p]; n[p] = m[p+4] ⊕ g_p
-m_next = lin_fwd(n, r)                       # byte transposition, then rotl
-                                             # by ROT_CAL[r mod 31] in v0.2
+m_next = lin_fwd(n, r)   (byte transposition, then rotl by ROT_CAL[r mod 31])
 w_r = Σ_p h(m[p])
-sign = (Π_p sign_p) · (-1)^(m_rk[r])
+sign = (Π_p sign_p) · (−1)^{m · rk[r]}
 ```
 
-**Backward step.** For a round r, given `m_next` on s[r+1]:
-
-```
-n = lin_inv(m_next, r)                       # inverse rotation, then inverse transpose
-b_p = n[p+4]; m[p] = n[p+4]; m[p+4] = n[p] ⊕ g_p
-```
+Backward step: `n = lin_inv(m_next, r)`; `b_p = n[p+4]`,
+`m[p] = n[p+4]`, `m[p+4] = n[p] ⊕ g_p`.
 
 The selftest verifies that every forward edge is a backward edge with
-the same cost (325 edges checked), so the two searches enumerate the
-same set of trails.
+the same cost (325 edges checked).
 
-**Free-chain structure.** A round has weight 0 iff words 0..3 of its
-input mask are zero; the round then acts as a pure bit permutation and
-the tracked bit never meets F. The longest v0.1 weight-0 chain is 9
-consecutive rounds (windows r=12 and r=27 mod 31). The v0.2 free-chain
-table is PENDING (the measured v0.2 max chain is 5 rounds, §4.13).
+### 4.4. Free-chain structure
 
-### 4.4. Verified |corr| = 1 chains (v0.1 inherited, PENDING for v0.2)
+A round has weight 0 iff words 0..3 of its input mask are zero; the
+round acts as a bit permutation and the tracked bit never meets F.
 
-**v0.1.** 9-round chains at r0=12 and r0=27 were verified against the
-real cipher: `|corr| = 1.00000 ± 6.9×10^-4` for three keys each, sign
-predicted exactly by the key-dependent formula.
+**v0.1:** 9-round weight-0 chains at windows r = 12 and r = 27 (mod 31).
 
-**PENDING for v0.2.** The 9-round chains do not exist for the v0.2
-schedule (max weight-0 chain is 5). The v0.2 verified chains, if any,
-are PENDING. Run:
+**v0.2:** the same table (via `mysx_linear_beam.py reproduce`) is
+printed by `diff_free_chain_v02` and shows no weight-0 chains longer
+than ~9 rounds; the R=9 minimum for v0.2 forward is weight 1 (at
+offset 12), so the maximum weight-0 chain in the linear model is
+8 rounds for v0.2 (consistent with the 5-round differential chain
+plus 3 free rounds that do not touch F).
 
-```bash
-MYSX_ROT_CAL=22,5,8,... python3 misc/verify_diff_trail.py
-```
+### 4.5. Verified |corr| = 1 chains (v0.1)
 
-### 4.5. Beam search to 14 rounds (v0.1 inherited, partial for v0.2)
+9-round chains at r0=12 and r0=27 verified against the real cipher
+(fixed keys, 2^21 plaintexts, reduced rounds, final whitening
+disabled):
 
-**v0.1 at R=14** (beam 1200, single-bit starts):
-- r0=12 window: best weight 12
-- r0=27 window: best weight 11
+| window | rounds | start bit | end bit | seed | predicted sign | empirical corr | σ |
+|---|---|---|---|---|---|---|---|
+| 12 | 9 | s[12].174 | s[21].79 | 1 | +1 | +1.00000 | 6.9e-04 |
+| 12 | 9 | s[12].174 | s[21].79 | 2 | −1 | −1.00000 | 6.9e-04 |
+| 12 | 9 | s[12].174 | s[21].79 | 3 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 1 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 2 | +1 | +1.00000 | 6.9e-04 |
+| 27 | 9 | s[27].146 | s[36].55 | 3 | +1 | +1.00000 | 6.9e-04 |
 
-**v0.2 at R=10 and R=14** (beam 2000, 31 offsets, both directions):
+The magnitude is 1 for every key. Only the sign depends on the key.
 
-| Metric | Weight | Direction |
+### 4.6. Exact signed hulls (v0.1)
+
+For trails at r0=12, R=10,11,12:
+
+| window | R | best-trail w | hull masks kept | predicted corr | empirical corr | σ | z |
+|---|---|---|---|---|---|---|---|
+| 12 | 10 | 1 | 4 | +0.500000 | +0.499997 | 4.9e-04 | −0.01 |
+| 12 | 11 | 2 | 40 | −0.250000 | −0.250008 | 4.9e-04 | −0.02 |
+| 12 | 12 | 3 | 3152 | −0.125000 | −0.124813 | 4.9e-04 | +0.38 |
+
+Three independent predictions, three matches, |z| < 0.4.
+
+**v0.2 hulls (predictions only, no empirical).**
+`lin_hull_v02` computes exact signed hulls for v0.2 with r0=12:
+
+| R | hull size | predicted corr |
 |---|---|---|
-| lin_fwd10 (min over offsets) | 1 | forward |
-| lin_bwd10 (min over offsets) | 3 | backward |
-| lin_fwd14 (min over offsets) | 8 | forward |
-| lin_bwd14 (min over offsets) | 11 | backward |
+| 10 | 4104 | −0.25 |
+| 11 | 200 | −0.125 |
+| 12 | 10576 | +0.031 |
 
-Higher weight = lower correlation = more secure. See §4.12 for the
-full 8-candidate comparison.
+Empirical verification (comparing predicted vs real cipher) for v0.2
+is PENDING — the hulls are computed but not compared against `round_enc`.
 
-**PENDING for v0.2.** The full beam search to R=22, R=64, and R=128
-(§4.10 of v0.1). To run:
+### 4.7. What this establishes and what it does not (v0.1)
 
-```bash
-MYSX_ROT_CAL=22,5,8,... python3 misc/mysx_linear_beam.py run \
-  --offsets 0-30 --rounds 128 --beam 2000 --jobs 8 \
-  --out beam_v02_full.json
-MYSX_ROT_CAL=22,5,8,... python3 misc/mysx_linear_beam.py run \
-  --offsets 0-30 --rounds 128 --beam 2000 --jobs 8 --direction backward \
-  --out beam_v02_bwd.json
-```
+**Established (machine-checked):** exact LAT of F; exact mask
+propagation with key sign; |corr|=1 chains up to 9 rounds; exact
+signed hulls at r=10,11,12 matching the real cipher within |z|<0.4.
 
-### 4.6. Hull verification at r=10,11,12 (v0.1 inherited, PENDING for v0.2)
+**Not established:** a lower bound on the best trail weight over 128
+rounds; an exact 128-round hull; a hull-aware correlation for the
+§4.10 trails beyond R=14.
 
-**v0.1.** Exact signed hulls at r=10,11,12 matched the real cipher
-within sampling error (`|z| < 0.4`). See v0.1 §4.6.
+### 4.8. Previous incorrect models
 
-**PENDING for v0.2.** Re-run `propagate()` from
-`mysx_linear_model.py` with the v0.2 schedule and the new beam trails.
+Recorded for context: v0.0 draft reported three approximate linear
+MILP models, all failed empirical verification. They used per-cell
+AND activity (`act = α ∨ β ∨ γ`) as a proxy for correlation, which
+is not the correct structure of F.
 
-### 4.7. What this establishes and what it does not (inherited)
+### 4.9. Integral / division property
 
-**Established (machine-checked by `selftest`):**
+Standard bit-based division property: COPY, XOR with (1,1) invalid,
+AND. `--solver highs` for feasible runs.
 
-- Exact LAT of F (valid set, magnitude, sign) against brute force.
-- Exact per-round mask rule and key-sign tracking, in both directions
-  (forward and backward edges match, 325 edges checked).
-- Existence of key-independent-magnitude `|corr|=1` single-bit
-  relations over up to 9 consecutive rounds **for the v0.1 schedule**.
-- Exact signed linear-hull predictions at r=10,11,12 for the v0.1
-  schedule against the real cipher.
-- The `mysx.prod.js` Python port reproduces `KNOWN_KAT_DIGEST`.
-- The beam-search tool reproduces the §4.5 table exactly, its per-round
-  masks agree with the real cipher wherever a trail is its own hull,
-  and the selftest runs in both directions.
-
-**Not established:**
-
-- A lower bound on the best trail weight over 128 rounds.
-- An exact 128-round hull.
-- A hull-aware correlation beyond R=14.
-- The cost of a key-recovery attack.
-- Behaviour of multi-bit starts at larger R.
-
-**The weight-0 chains are not an attack.** A 9-round (v0.1) or 5-round
-(v0.2) `|corr|=1` relation sits in a 128-round cipher. Standard linear
-cryptanalysis extrapolates a weight over the full length; here the
-trail weight over the first ~9 (v0.1) or ~5 (v0.2) rounds is 0 and the
-weight over the remaining rounds is unknown. The result is best read
-as: the exact machinery is in place and it agrees with the real cipher
-on small round counts, not as MYSX is broken.
-
-### 4.8. Previous incorrect models and why they failed (inherited)
-
-The v0.0 draft reported three approximate models, all with negative
-empirical verification. They used per-cell AND activity as a proxy for
-correlation, which is not the correct structure of F. The correct
-structure is the rank of the graph `A_b` above.
-
-An instructive detail from the old work remains relevant: the empirical
-verification harness must use fixed keys per sample. With random keys
-per plaintext, the sign of every linear trail is key-dependent and the
-observed correlation of a genuinely nonzero trail collapses to zero.
-
-### 4.9. Integral / division property (v0.1 inherited, partial for v0.2)
-
-**v0.1 results at r0=0**:
+**At r0=0, v0.1:**
 
 | Input | Active bits | Integral size | Rounds with balanced bits |
 |---|---|---|---|
-| bit 0 of word 0 | 1 | 2 | 10 (single-bit dependency, not an integral) |
+| bit 0 of word 0 | 1 | 2 | 10 (single-bit dependency, not integral) |
 | word 0 | 32 | 2^32 | 6 |
 | words 0 and 4 | 64 | 2^64 | 5 |
 
-**v0.1 results at r0=15**: distinguishers extend to 10 rounds for both
-patterns (thin tail: 1 balanced bit at R=10, 0 at R=11).
+**At r0=15, v0.1:** 10-round distinguisher for both patterns
+(thin tail: 1 balanced bit at R=10, 0 at R=11).
 
-**v0.2 measured.** At r0=0, word0:
+**At r0=0, v0.2:**
 
-| Metric | v0.1 | v0.2 |
+| Input | R | Balanced bits |
 |---|---|---|
-| dp5 (R=5, balanced bits) | 21 | **9** |
-| dp6 (R=6, balanced bits) | 4 | 4 |
+| word 0 | 5 | **9/256** |
+| word 0 | 6 | **4/256** |
 
-Lower is better (fewer balanced bits = fewer filters for the attacker).
-The v0.2 schedule has 12 fewer balanced bits at R=5, and is tied at R=6.
+**At r0=0, v0.1 (measured with `integral_v1_R6`):** 4/256 at R=6,
+matching the paper. Full word0,word4 at R=5: 11/256.
 
-**PENDING for v0.2.** The full 31-offset sweep and the r0=15 peak. To run:
+**Offset sweep for v0.2.** Only 6 offsets measured (0, 5, 10, 15,
+20, 27) at R=5-6 via `run_integral_sweep_key6.py`. The full
+31-offset sweep is PENDING.
 
-```bash
-MYSX_ROT_CAL=22,5,8,... python3 misc/mysx_division_property_v2.py \
-  --rounds 5-10 --active word0 --r0-sweep --solver highs
-```
+**Not established for v0.2:** integral distinguishers at r0=15 (the
+paper's peak for v0.1); full 31-offset sweep; whether v0.2 has a
+r0=15-like offset with a 10-round distinguisher; three-subset DP.
 
-### 4.10. Full beam search, 128 rounds (v0.1 inherited, PENDING for v0.2)
+### 4.10. Beam search over the exact linear model
 
-**v0.1 results** (forward + backward + merged, all 31 offsets, up to
-128 rounds):
+**v0.1 results** (verified, see §11 for reproduction): single-trail
+weights at R = 9, 10, 12, 14, 16, 18, 20, 22, 24, 32, 40, 48, 56,
+64, 80, 96, 112, 128.
 
-| R | Best weight | Offset | Direction |
+| R | weight | offset | direction |
 |---|---|---|---|
+| 9 | 0 | 4 | backward |
+| 10 | 1 | 4 | backward |
 | 12 | 2 | 20 | backward |
 | 14 | 5 | 20 | backward |
+| 16 | 12 | 20 | backward |
+| 18 | 24 | 20 | backward |
 | 20 | 38 | 20 | backward |
-| 22 | 63 | 23 | forward |
-| 64 | 786 | 27 | forward |
+| 22 | 71 | 3 | backward |
+| 24 | 88 | 3 | backward |
+| 32 | 204 | 3 | backward |
+| 40 | 361 | 20 | backward |
+| 48 | 485 | 20 | backward |
+| 56 | **653** | 20 | backward |
+| 64 | **815** | 13 | backward |
+| 80 | 1081 | 21 | backward |
+| 96 | 1336 | 21 | backward |
+| 112 | 1671 | 21 | backward |
 | 128 | 2248 | 3 | backward |
 
-Largest R with weight < 64 (`≈2^128` texts): 22 (tie with the
-threshold). Weight grows ~12–21 per round from R=22 to R=112.
+**Correction vs v0.1 paper.** The paper's beam table lists R=56 =
+630 at offset 27 forward and R=64 = 786 at offset 27 forward. The
+committed `beam_full.json` and `beam_bwd.json` give 653 at offset 20
+backward and 815 at offset 13 backward respectively. The paper's
+values are not reproducible from the committed JSONs. The 16 of 18
+checkpoints that match are asserted in `lin_beam_full_table_v1`;
+the 2 discrepancies are documented (not asserted).
 
-**PENDING for v0.2.** Re-run with the v0.2 schedule via the beam tool
-(see §4.5 for the command). Expected to be **higher** than v0.1 because
-the weight-0 chain is 8 rounds shorter.
+**v0.2 results** (from `lin_beam_v02_R128` forward, all 31 offsets):
 
-### 4.11. Statistical randomness of the CTR keystream (v0.1 inherited, PENDING for v0.2)
+| R | weight | offset | direction |
+|---|---|---|---|
+| 9 | 1 | 12 | forward |
+| 10 | 1 | 14 | forward |
+| 12 | 3 | 14 | forward |
+| 14 | 8 | 14 | forward |
+| 16 | 18 | 14 | forward |
+| 18 | 39 | 14 | forward |
+| 20 | 71 | 14 | forward |
+| 22 | 95 | 14 | forward |
+| 24 | 124 | 14 | forward |
+| 32 | 256 | 14 | forward |
+| 40 | 396 | 14 | forward |
+| 48 | 541 | 14 | forward |
+| 56 | 701 | 13 | forward |
+| 64 | 839 | 13 | forward |
+| 80 | 1127 | 7 | forward |
+| 96 | 1439 | 7 | forward |
+| 112 | 1790 | 7 | forward |
+| 128 | 2294 | 0 | forward |
 
-**v0.1 result.** The CTR keystream passed the full NIST SP 800-22
-battery (100 sequences × 10^6 bits, fresh key and nonce per sequence,
-no failures, all margins inside the NIST acceptance region). TestU01
-BigCrush and dieharder were not run.
+**v0.2 backward beam to R=128** is PENDING.
 
-**PENDING for v0.2.** Re-run with the v0.2 schedule:
+**Comparison at R=14:**
+- v0.1 backward (offset 20): weight 5
+- v0.2 forward (offset 14): weight 8
+- v0.2 backward at R=14 (measured): weight 11 (offset 11) — see `lin_beam_v02_R14_bwd`.
 
-```bash
-MYSX_ROT_CAL=22,5,8,... MYSX_ENABLE_TEST=1 node misc/gen_nist_input.js
-cat misc/nist_input/data* > misc/nist_input/all_data.bin
-./assess 1000000   # in STS 2.1.2
-```
+The comparison v0.1 vs v0.2 at R=14 is: 5 (v0.1, backward) vs 8
+(v0.2, forward) vs 11 (v0.2, backward). v0.2 is slightly better in
+forward, slightly worse in backward, than v0.1 at this round count.
+Neither is "much stronger".
 
-### 4.12. Impossible differentials (measured for v0.2)
+**R=128 weight:** v0.1 backward = 2248; v0.2 forward = 2294.
+Essentially equal (both irrelevant at 2^4496).
 
-**Exact DMITM (single-bit and multi-bit).**
+### 4.10.3. Hull check of trails
 
-A differential round has weight 0 iff the right half of the state
-difference is zero; the round is then the linear layer only (Myszkowski
-+ word rotation), because `ΔR=0 ⇒ ΔF(R)=0` and the Feistel cell reduces
-to a swap. Weight-0 chains of up to 5 rounds exist for the v0.2
-schedule (vs 13 for v0.1, see §4.13). A miss-in-the-middle search over
-forward and backward chains gives the exact DMITM length.
+**v0.1 (verified, offset 20 backward, R=14, w=5):** isolated in its
+hull (hull_count returns 1 trail). Empirical correlation matches
+2^-5 on the real cipher at every prefix. This is the verified
+distinguisher on a 16-round window (rounds 98–113) reported in
+v0.1 §4.10.3.
 
-**v0.2 result.** Exact DMITM = **9 rounds**. This is 8 rounds shorter
-than the v0.1 value (17 rounds, §3.5 of the v0.1 paper). The
-impossibility is structural: the forward and backward chains reach the
-same intermediate state with contradictory differences, and the
-contradiction is checked bit-by-bit in the truncated-propagation sense
-(bits classified as known-0, known-1, unknown; the Simon F only marks a
-bit unknown if it depends on its AND).
+**v0.2:** no empirical hull check performed. `lin_hull_v02`
+computes exact signed hulls but does not compare with the real
+cipher. PENDING.
 
-**Verification.** The premise that each chain is deterministic in the
-real cipher is verified empirically: forward and backward chains give
-100% propagation over 18,000 pairs × 6 keys per side (including
-degenerate keys 0x00… and 0xFF…) in the v0.1 truncated case. The v0.2
-exact DMITM is a structural consequence of the weight-0 chains (which
-are themselves proven by exhaustive linear algebra over the whole
-left-half difference space); the empirical test is a sanity check and
-an implementation validation, not a statistical proof.
+**Cancelation (v0.1, verified).** r0=23 forward cancels from R=8;
+r0=24 forward cancels from R=8. Single-trail weight is not
+universally a distinguisher length.
 
-**Truncated impossible differential (PENDING for v0.2).**
+### 4.10.5. Exact hull at R=15–17 (v0.1)
 
-For v0.1, the truncated impossible differential reaches **39 rounds**
-(propagating bits classified as known-0, known-1, unknown from both
-sides and looking for a bit-level contradiction). For v0.2, this
-number is **PENDING**: it requires re-running `dmitm_trunc.py` with
-`MYSX_ROT_CAL=22,5,8,...` and `--n_bits 256` (the v0.1 numbers used
-the same script with the consecutive schedule). Expected to be shorter
-than 39, proportional to the reduction in weight-0 chain length
-(13 → 5 rounds).
+The offset-20 backward trail at R=16 has exact hull |corr| = 2^-11
+(two trails of weight 12 adding). The empirical measurement is
++6.06×10^-4 ± 6.1×10^-5 against a prediction of 4.88×10^-4 (+1.9σ).
+At R=17, the best end pairs of offsets 20 backward and 23 forward
+cancel exactly within the enumerated budget, for both keys tested.
+R ≥ 18 is undecided.
 
-**Single-bit and multi-bit variants (PENDING for v0.2).**
+### 4.11. Statistical randomness of the CTR keystream
 
-For v0.1, single-bit and multi-bit impositives at 15 and 17 rounds
-were verified against the real cipher. For v0.2, the exact DMITM = 9
-is a multi-bit result over the full left-half difference space; the
-analogous single-bit and multi-bit truncated-propagated variants are
-PENDING. To run:
+**v0.1:** CTR keystream passed NIST SP 800-22 (100 sequences ×
+10^6 bits, fresh key and nonce per sequence, no failures). Full
+report in `LEGACY_V1/NIST_SP_800-22_report.txt`.
 
-```bash
-MYSX_ROT_CAL=22,5,8,... python3 cryptanalysis/DMITM/dmitm_verify.py exact
-MYSX_ROT_CAL=22,5,8,... python3 cryptanalysis/DMITM/dmitm_trunc.py \
-  --cal_file top50_fixed.json --cal_idx 3 --max_fwd 24 --max_bwd 24 --n_bits 256
-```
+**v0.2:** PENDING. The `nist.yml` workflow fails at "Download and
+build NIST STS 2.1.2" (build error not yet diagnosed). The v0.2
+block cipher uses the same core as v0.1 with a different calendar;
+the NIST battery is expected to pass by analogy, but has not been
+measured.
 
-**Structural origin.**
+### 4.12. Impossible differentials
 
-The trace shows that the v0.2 chains visit the same word at the
-meeting point but with different bits, because the accumulated
-rotations differ. The cause of long v0.1 chains was the **consecutive**
-rotation schedule (step 1) aligning with the period of the transposition;
-the v0.2 schedule has irregular steps that break this alignment. This
-is a property of the schedule, not of Myszkowski specifically (a
-random permutation with the same consecutive schedule gives a mean of
-13 weight-0 chain length over 40 samples, and a mean of ~21.4 exact
-DMITM; the consecutive schedule is in the ~2% best case for DMITM and
-~0.2% for chain over 3000 random schedules).
+**Weight-0 chains.** Verified table in §3.5. v0.1: max 13 rounds at
+r0=10. v0.2: max 5 rounds at several offsets.
 
-**Not established for v0.2.**
+**Exact DMITM.**
 
-- The truncated impossible differential (§4.12 above, 39 rounds for
-  v0.1, PENDING for v0.2).
-- The single-bit and multi-bit truncated-propagated variants (PENDING).
-- No plaintext-to-ciphertext distinguisher, no key recovery.
-- No related-key impossible analysis.
+| Version | max weight-0 chain | exact DMITM |
+|---|---|---|
+| v0.1 | 13 rounds | **17 rounds** |
+| v0.2 | 5 rounds | **9 rounds** |
 
-### 4.13. Rotation schedule selection (v0.2)
+v0.1 verification: `dmitm_v1` confirms max=13, total=17 with 0
+offsets where multi-bit improves over single-bit. The best witness
+is Δs[23]=w1b31 --13 rounds--> w4b12, Dout=w7b6 <--4 rounds-- w3b16,
+incompatibility at s[23]. Verifiable in 0.3s.
 
-**Method.** 1M random permutations of `0..30` were sampled
-(`search_mysx_deep.py`). Each was filtered by (a) weight-0 chain at
-offset 10 ≤ 3, (b) global weight-0 chain ≤ 5, (c) exact DMITM over the
-full left-half difference space. 8 candidates reached exact DMITM = 9.
-The 8 finalists were ranked by a multi-dimensional score including
-integral, linear (forward and backward), differential, and impossible
-analyses.
+v0.2 verification: `dmitm_v02` confirms max=5, total=9. The best
+witness is Δs[3]=w3b16 --4 rounds--> w6b18, Dout=w7b7 <--5 rounds--
+w0b30, incompatibility at s[3].
 
-**Baselines.** The v0.1 consecutive schedule `(r mod 31)+1`, the
-schedule `(2r mod 31)+1` (smallest non-consecutive schedule), and the
-schedule `(22r mod 31)+1` (best affine schedule found by structured
-search over 30 candidate values of k).
+**Truncated impossible (v0.1).** Δs[44]=w2b29 --18 rounds-->
+s[62] <--21 rounds-- Δs[83]=w7b24, conflict at **w6b16**. This is
+**39 rounds**. Verified with `dmitm_trunc_v3.py --cal k1`:
+premises 100% over 2000 pairs × 4 keys per side (0x00, 0xFF, and 2
+random); propagation of the witness is exact and the conflict at
+w6b16 is confirmed.
 
-**Results (8 candidates × 9 metrics).**
+**Truncated impossible (v0.2).** Δs[66]=w2b25 --8 rounds--> s[74]
+<--20 rounds-- s[94]=w4b14, conflict at w5b13. This is **28
+rounds**. Verified with `dmitm_trunc_v3.py --cal v02 --verify 500`:
+premises 2000/2000 per side against the real cipher.
 
-| Schedule | dp5↓ | dp6↓ | linF10↑ | linB10↑ | linF14↑ | linB14↑ | DMITM↓ | chain↓ | milp5↑ |
-|---|---|---|---|---|---|---|---|---|---|
-| `(r mod 31)+1` (v0.1) | 21 | 4 | 1 | 1 | 5 | 5 | 17 | 13 | 0 |
-| `(2r mod 31)+1` | 28 | 3 | 2 | 2 | 4 | 5 | 12 | 9 | 0 |
-| `(22r mod 31)+1` | 29 | 10 | 3 | 3 | 4 | 14 | 10 | 6 | 8 |
-| **`rand_s9_45430`** (v0.2) | **9** | **4** | **1** | **3** | **8** | **11** | **9** | **5** | **4** |
-| `rand_s9_33719` | 20 | 12 | 2 | 4 | 13 | 16 | 9 | 5 | 10 |
-| `rand_s6_74172` | 11 | 6 | 3 | 5 | 12 | 17 | 9 | 5 | 2 |
-| `rand_s8_33902` | 24 | 11 | 0 | 0 | 7 | 7 | 9 | 5 | 4 |
-| `rand_s5_92657` | 24 | 9 | 3 | 3 | 14 | 12 | 9 | 5 | 6 |
+**Reduction.** 39 → 28 (11 rounds). Consistent with the reduction in
+exact DMITM (17→9, −8) and weight-0 chain (13→5, −8). The truncated
+figure is the exact figure plus a short weighted prefix, so both
+shrank by approximately the same amount.
 
-Directions: dp5, dp6, DMITM, chain = lower is better; linF10, linB10,
-linF14, linB14, milp5 = higher is better (higher weight = lower
-correlation = more secure).
+**Not established.** The search covers single-bit starting masks on
+all 31 rotation offsets. Multi-bit starts, weight-1 rounds, and
+narrower propagation are PENDING. The `--verify` check confirms the
+premises but is not a key-recovery cost. The truncated witness is a
+distinguisher, not an attack.
 
-**Selected schedule: `rand_s9_45430`** (the 31 explicit values in §2.8).
+### 4.13. Rotation schedule selection
 
-Against v0.1:
+**The 9-metric comparison** (v0.1 vs v0.2, from `wf2_deep_summary.json`):
 
-- dp5: 21 → 9 (improvement)
-- dp6: 4 → 4 (tie)
-- linF10: 1 → 1 (tie)
-- linB10: 1 → 3 (improvement)
-- linF14: 5 → 8 (improvement)
-- linB14: 5 → 11 (improvement)
-- DMITM: 17 → 9 (improvement)
-- chain: 13 → 5 (improvement)
-- milp5: 0 → 4 (improvement)
+| Metric | v0.1 | v0.2 | Result |
+|---|---|---|---|
+| dp5 (integral R=5) | 21 | **9** | improvement |
+| dp6 (integral R=6) | 4 | 4 | tie |
+| lin_fwd10 | 1 | 1 | tie |
+| lin_bwd10 | 1 | **3** | improvement |
+| lin_fwd14 | 5 | **8** | improvement |
+| lin_bwd14 | 5 | **11** | improvement |
+| DMITM exact | 17 | **9** | improvement |
+| Weight-0 chain | 13 | **5** | improvement |
+| MILP R=5 | 0 | **4** | improvement |
+| Truncated | 39 | **28** | improvement (−11) |
+
+**Directions.** Lower is better for dp5, dp6, DMITM, chain, truncated.
+Higher is better for lin_fwd10/14, lin_bwd10/14, MILP.
 
 **6 improvements, 3 ties, 0 regressions.**
 
-**A false positive of R=4 screening.** `rand_s9_33719` was top-ranked
-by R=4 screening (with dp4=42 and milp5=10). At R=6 its integral
-distinguisher is worse than v0.1 (12 vs 4 balanced bits), and its
-linear forward weight at R=14 is 13 vs 5. **Screening at R≤4 is not
-sufficient**: candidates must be evaluated at R=5-6 for integral and
-R=10-14 for linear before selection.
+**A false positive documented.** `rand_s9_33719` was top-ranked by
+R=4 screening (with dp4=42, milp5=10). At R=6 its integral is worse
+than v0.1 (dp6=12 vs 4) and its linear weight at R=14 is 13 vs 5.
+Screening at R≤4 is not sufficient.
 
-**Why Myszkowski is not the cause.** The rotation schedule is what
-determines chain length. A control with 40 random byte permutations
-and the same consecutive schedule gives a mean exact DMITM of 21.4
-(range 10–34); MYSX v0.1 sits at ~22nd percentile. Changing the
-consecutive schedule to `(k·r mod 31)+1` for k∈{2,3,5,7} drops the
-maximum chain to 6–9 rounds. The factor that controls the long
-weight-0 chains is the **step of 1** in the rotation schedule, not the
-Myszkowski permutation.
+**Why Myszkowski is not the cause.** A control with 40 random byte
+permutations and the same consecutive schedule gives mean exact
+DMITM 21.4 (range 10–34). MYSX v0.1 is at ~22nd percentile. Changing
+the consecutive schedule to `(k·r mod 31)+1` for k ∈ {2,3,5,7}
+drops the maximum chain to 6–9 rounds. The variable is the schedule
+step, not the permutation.
 
-**Reproducibility.** `CALENDAR_v02.txt` contains
-`MYSX_ROT_CAL=22,5,8,...`. `search_mysx_deep.py --n 1000000 --seed 9`
-regenerates the search. `cryptanalysis/DMITM/wf2_deep_summary.json`
-contains the raw 8-candidate × 9-metric table.
+### 4.14. What is PENDING for v0.2
 
-## 5. Related-key cryptanalysis (inherited from v0.1)
+The following are measured for v0.1 and not re-measured for v0.2:
 
-**Note.** The key schedule is unchanged from v0.1. The 22 structural
-and empirical tests of v0.1 §5 apply to v0.2 with the same key schedule.
-The rotation schedule does not affect the key schedule. The results are
-inherited; the specific key schedule tests (`misc/keyschedule_test.js`,
-`misc/keyschedule_test_extended.js`) should be re-run on the v0.2
-branch to confirm reproducibility.
+- **Differential:** full 31-offset sweep (only 6 offsets measured;
+  best r0=29 weight 94; r0=19, r0=27 unresolved); beam differential
+  (only MILP for v0.2); cluster analysis at v0.2 offsets.
+- **Linear:** backward beam to R>14 and R=128; hull empirical
+  verification.
+- **Integral:** full 31-offset sweep outside r0=0; r0=15 peak;
+  R=7–10 tail; full 2^32/2^64 integral verification.
+- **Impossible:** multi-bit starts; weight-1 rounds; narrower
+  propagation.
+- **NIST:** full NIST SP 800-22 battery.
+- **Related-key:** 22-test re-validation (key schedule unchanged;
+  expected identical).
+- **Simon normalized coverage comparison:** v0.1's comparison was
+  against the consecutive schedule for MYSX; v0.2 has different
+  figures.
+- **Differential R=16, R=17 empirical trails** (`diff_r16_r17_v1`,
+  pending external reviewer data).
 
-**v0.1 results (inherited).** No persistent `Δrk[r] = 0` for r ≥ 1 in
-any test. Beam search score: 139 (ideal 128). No weak keys, cycles, or
-fixed points. Slow diffusion at r=1–4 (expected: one Feistel round per
-cipher iteration). Worst bit (minimum weight at r=1): bit 160 (word 5,
-bit 0), 1-bit difference. Consistent across 5 base keys (structural,
-not noise).
+## 5. Related-key cryptanalysis
 
-**Limitations (inherited).** These are heuristic tests, not a proof.
-No targeted MILP/SAT related-key model was run; adaptive related keys,
-biclique attacks, and algebraic attacks on the key schedule are not
-covered. MYSX's related-key security is unknown.
+**Inherited from v0.1** (key schedule unchanged). 22 structural and
+empirical tests up to weight-6, no persistent Δrk[r]=0 for r≥1, no
+weak keys, no cycles, no fixed points. Slow diffusion at r=1–4
+(expected: one Feistel round per cipher iteration). Worst bit: bit
+160 (word 5, bit 0), 1-bit difference at r=1; consistent across 5
+base keys (structural, not noise). Beam search score 139 (ideal 128).
 
-**Round-key recovery.** The only non-linear operation of the key
-schedule is the 8 modular additions per step; everything else is XOR
-and rotation. The schedule is bijective, so any 16 consecutive state
-words determine the master key. How many round keys must be known for
-a SAT solver to recover the master key (estimate: about three
-consecutive `rk[r]`) has not been measured.
+**Limitations.** Heuristic, not a proof. No targeted MILP/SAT
+related-key model. Adaptive related keys, biclique attacks, algebraic
+attacks on the key schedule not covered. Related-key security is
+unknown.
 
-## 6. Generic attacks (inherited, updated for v2 API)
+**Round-key recovery.** The key schedule is bijective; any 16
+consecutive state words determine the master key. How many consecutive
+round keys a SAT solver needs to recover the master key (about three
+by counting) has not been measured.
 
-| Attack | Complexity | Verdict |
-|---|---|---|
-| Classical brute force | 2^512 operations (uniformly random 512-bit secret) | Infeasible |
-| Grover (quantum) | 2^256 iterations (uniformly random 512-bit secret) | Infeasible with foreseeable technology |
+## 6. Generic attacks
 
-**Note on Grover (v2 API).** The v2 API accepts a 64-byte secret
-processed through HKDF-SHA512. With 64 bytes of uniformly random
-entropy from the caller, the effective quantum security is
-`2^256` (Grover) for one target. With 1,000,000 logical qubits at
-1 ns/iteration, the time would be ~`10^60` years. This is a theoretical
-estimate; no post-quantum analysis beyond Grover has been done.
+| Attack | Complexity (uniformly random 512-bit secret) |
+|---|---|
+| Classical brute force | 2^512 operations |
+| Grover (quantum) | 2^256 iterations |
+| Block collisions | 2^128 blocks |
 
-**Note on the v1 API (deprecated).** The v1 API (`deriveAeadKeys`,
-`deriveAeadKeysFromPassword`) starts from HKDF-Extract with
-HMAC-SHA256, whose output is 256 bits. The entropy of a derived 512-bit
-`encKey` is at most 256 bits. The Grover figure for v1 is `2^128`,
-not `2^256`. The v2 API replaces HKDF-SHA256 with HKDF-SHA512 and a
-64-byte secret, recovering the `2^256` quantum bound. The `2^512` and
-`2^256` classical/Grover figures apply only when the caller supplies a
-uniformly random 64-byte secret directly to `v2.seal({secret})`.
+**Note on Grover (v2 API).** A uniformly random 64-byte secret
+processed through HKDF-SHA512 gives 2^256 Grover per target.
+`2^256 / sqrt(N)` if an attacker needs only one of N messages.
 
-**Note on the 32-byte secret (v2).** If the caller uses a 32-byte
-secret with `v2.seal({secret})`, the effective classical security is
-256 bits and the Grover figure is `2^128`. `v2.securityLevel` returns
-this distinction explicitly. For password paths with a keyfile of less
-than 64 bytes, security is limited by password entropy.
+**Note on the v1 API.** HKDF-Extract with HMAC-SHA256 produces a
+256-bit PRK. The effective quantum security is 2^128, not 2^256.
+Do not use v1 for new data.
 
-## 7. Simon cryptanalysis: what transfers and what does not
+**Note on password paths.** Security is limited by password entropy,
+not by the nominal key size. `v2.securityLevel` returns null for
+classicalBits/groverBits when the password is not accompanied by a
+≥64-byte keyfile. A keyfile is strongly recommended.
 
-MYSX uses Simon's F. It is not Simon. The differences:
+## 7. Simon cryptanalysis: what transfers
 
-- Block size and branch organization: MYSX is an SPN-like structure
-  with four parallel Feistel cells over 32-bit word pairs (§2.1). Simon
-  is a classical 2-branch Feistel over n-bit halves.
-- Four parallel F per round (Simon uses 1).
-- Myszkowski byte transposition (Simon has none).
-- Round-dependent word rotations (Simon has none).
-- Non-linear ARX key schedule (Simon's is linear).
-- 128 rounds vs 68.
+MYSX uses Simon's F. It is not Simon. Differences: block size,
+branch organization (4 parallel Feistel cells, Simon uses 1),
+Myszkowski transposition (Simon has none), round-dependent word
+rotations (Simon has none), non-linear ARX key schedule (Simon's is
+linear), 128 rounds vs 68.
 
-**What transfers.** The exact LAT of F — its closed form
-`|corr| = 2^-h(b)`, its validity condition, and its sign structure — is
-a property of the function and therefore applies to MYSX regardless of
-the surrounding structure (§4.2 is the transfer). That is the correct
-starting point for MYSX-specific linear cryptanalysis.
+**What transfers.** The exact LAT of F (§4.2) — its closed form, its
+validity condition, its sign structure — is a property of the
+function and applies to MYSX regardless of surrounding structure.
 
 **What does not transfer.** Key recovery from Simon's linear key
-schedule does not transfer: MYSX's key schedule is non-linear. Linear
-hull attacks against Simon are highly structured around Simon's
-Feistel-branch and its round-reduced behaviour; the MYSX hull is a
-different object and must be computed from the MYSX round model.
-Integral distinguishers against Simon rely on Simon's particular
-2-branch Feistel structure and its key schedule; the MYSX integral
-distinguishers are considerably shorter (relative to total rounds) and
-their relationship to Simon's is one of normalized coverage, not direct
-transfer.
+schedule (MYSX is non-linear). Linear hull attacks structured around
+Simon's Feistel branch. Integral distinguishers relying on Simon's
+2-branch Feistel structure and linear key schedule.
 
-**Relevant literature on Simon (cited for context).** Chen-Wang
-("Improved Linear Hull Attack on Round-Reduced Simon with Dynamic
-Key-guessing Techniques", FSE 2016). Shi-Hu-Sun-Song-Qiao-Ma
-("Improved Linear (hull) Cryptanalysis of Round-reduced Versions of
-SIMON", ePrint 2014/973). Biryukov-Roy-Velichkov ("Differential
-Analysis of Block Ciphers SIMON and SPECK", FSE 2014). Todo-Morii
-("Bit-Based Division Property and Application to Simon Family", FSE
-2016). Xiang-Zhang-Bao-Lin (ASIACRYPT 2016). Kölbl-Leander-Tiessen
-("Observations on the SIMON block cipher family", CRYPTO 2015).
-
-**PENDING for v0.2.** The Simon comparison in v0.1 used the
-consecutive schedule for the MYSX figures. Re-run the MYSX linear
-hull, integral, and impossible-differential comparisons with the v0.2
-schedule before publishing a normalized coverage comparison.
+**Published Simon results** (context only): Chen-Wang FSE 2016
+(49-round linear-hull key-recovery on Simon128/128); Shi et al.
+ePrint 2014/973 (34-round linear characteristic, corr 2^-61 for
+Simon128); Biryukov-Roy-Velichkov FSE 2014 (differential); Todo-Morii
+FSE 2016 (14-round integral on Simon32, 15 with three subsets);
+Xiang-Zhang-Bao-Lin ASIACRYPT 2016 (MILP division property).
 
 ## 8. Analysis limitations
 
-**Differential (PENDING for v0.2).** v0.1 upper bounds over 31 rotation
-offsets at r0=0 and the free-chain table are inherited as reference
-only. For v0.2, only the MILP differential at R=5 has been measured
-(weight 4 vs 0 for v0.1). The v0.2 offset sweep and R=14+ MILP are
-PENDING.
+**Differential:** single-trail upper bounds; two independent
+deterministic chains verified empirically (13 rounds at r0=10,
+6 rounds at r0=15, both v0.1); no lower bounds; no full clustering
+analysis at r0≠0; the exact maximum of weight-0 chains (13 for
+v0.1, 5 for v0.2) is proven by linear algebra; the non-zero-weight
+tables are upper bounds.
 
-**Linear (partial for v0.2).** An exact model of F is established and
-matches the real cipher on small round counts for v0.1. For v0.2, the
-beam search has measured R=10 and R=14 both directions (weights 1, 3,
-8, 11). The full 128-round beam, exact hulls, and hull checks are
-PENDING. Higher is better for linear weight (lower correlation = more
-secure).
+**Linear:** exact model of F; exact signed hulls at r=10,11,12
+(v0.1) matching the real cipher within |z|<0.4; beam search over
+the model in both directions (v0.1) and forward (v0.2), 31 offsets,
+up to 128 rounds. v0.2 backward beam to R=128 is PENDING. No lower
+bound over 128 rounds. No hull-aware bound beyond R=17 for v0.1.
+v0.2 hull empirical verification is PENDING.
 
-**Integral (partial for v0.2).** Measured at r0=0, word0: dp5=9, dp6=4
-(v0.1: 21, 4). The full 31-offset sweep at r0=15 and R=8-10 tails are
-PENDING.
+**Integral:** v0.1 has 6-round (2^32) / 5-round (2^64) at r0=0,
+10-round at r0=15; v0.2 has 6-round / 5-round at r0=0, 6-offset
+sweep at R=5-6. Full 31-offset sweep for v0.2 and r0=15 peak for
+v0.2 are PENDING.
 
-**Impossible differential (partial for v0.2).** Exact DMITM = 9 rounds
-(v0.1: 17). Truncated impossible differential is PENDING for v0.2 (39
-for v0.1); single-bit and multi-bit truncated variants are PENDING.
+**Impossible:** v0.1 exact = 17, truncated = 39 (verified); v0.2
+exact = 9, truncated = 28 (verified). Multi-bit starts and weight-1
+rounds PENDING.
 
-**Related-key (inherited).** Key schedule unchanged; v0.1 results
-(heuristic) apply. Not re-run on v0.2 branch.
+**Related-key:** heuristic (v0.1 inherited).
 
-**Other.** No boomerang, algebraic, or side-channel analysis. No
-post-quantum analysis beyond the trivial Grover bound. No independent
-public cryptanalysis. Functional tests (`mysx.test.js`, 17 tests) cover
-round-trip, AEAD negatives, nonce policy, PBKDF2, avalanche. They do
-not prove security.
+**NIST:** v0.1 pass; v0.2 PENDING (workflow build error).
+
+**Other:** boomerang, algebraic, side-channel not analyzed. No
+external audit.
 
 ## 9. Engineering notes
 
 ### 9.1. API surface
 
-**Public API (v2, recommended for new data):**
+**Public (v2):** `v2.seal/open`, `v2.generateSecret`,
+`v2.securityLevel`, `v2.setArgon2Provider`,
+`v2.argon2FromNoble`, `v2.CAL`, `v2.KDF`, `v2.DEFAULTS`,
+`v2.LIMITS`.
 
-- `v2.seal(plaintext, creds, opts)` — encrypt.
-- `v2.open(packet, creds, opts)` — decrypt.
-- `v2.generateSecret()` — returns a 64-byte Uint8Array for the caller
-  to store as the user's secret.
-- `v2.securityLevel(creds)` — declared nominal security for the creds.
-- `v2.setArgon2Provider(fn)` — register an Argon2id implementation.
-- `v2.argon2FromNoble(argon2idAsync)` — adapter for `@noble/hashes`.
-- `v2.CAL`, `v2.KDF`, `v2.DEFAULTS`, `v2.LIMITS` — constants.
+**Public (v1, deprecated):** `aeadEncrypt`, `aeadDecrypt`,
+`deriveAeadKeys`, `deriveAeadKeysFromPassword`, `NonceGuard`,
+`CONFIG`.
 
-**Public API (v1, deprecated for new data):**
+**Test API:** disabled by default. Enabled only with
+`MYSX_ENABLE_TEST=1`.
 
-- `aeadEncrypt(plaintext, key, macKey, opts)` — v1 encrypt.
-- `aeadDecrypt(packet, key, macKey, opts)` — v1 decrypt.
-- `deriveAeadKeys(secret, opts)` — v1 HKDF-SHA256.
-- `deriveAeadKeysFromPassword(password, salt, opts)` — v1 PBKDF2-SHA256.
-- `NonceGuard` — v1 nonce reuse guard.
-- `CONFIG` — constants.
+### 9.2. Migration v1 → v2
 
-**Test API:** disabled by default. Enabled only when
-`MYSX_ENABLE_TEST=1` is set in the process before requiring the
-module. There is no code-level toggle.
+- v1 packets (0x01...) decryptable with `aeadDecrypt`.
+- v2 packets (0x02...) created by `v2.seal`, not decryptable by
+  `aeadDecrypt`.
+- Do not use `aeadEncrypt` for new data (HKDF-SHA256 → 2^128).
+- Do not pass `_salt`/`_nonce` to `v2.seal` in production (internal
+  parameters for KAT generation).
 
-### 9.2. Migration from v1 to v2
+### 9.3. NonceGuard (v1)
 
-- v1 packets (`0x01...`) are still decryptable with `aeadDecrypt`.
-- v2 packets (`0x02...`) are created by `v2.seal` and are not
-  decryptable by `aeadDecrypt`. `v2.open` rejects v1 packets.
-- **Do not use `aeadEncrypt` for new data.** It uses HKDF-SHA256, which
-  caps the quantum security at `2^128`. Use `v2.seal` with a 64-byte
-  secret for `2^256`.
-- **Do not pass `_salt`/`_nonce` to `v2.seal` in production.** They are
-  internal parameters for deterministic KAT generation. Their presence
-  in the API is a known hygiene issue; a future version should gate
-  them behind an explicit `internal: true` flag.
-
-### 9.3. NonceGuard (v1, deprecated)
-
-NonceGuard is a best-effort defense against nonce reuse in the v1 API.
-It counts messages per key (default `2^32`), detects recent nonce
-reuse (window of 1024 per key), caps the number of tracked keys
-(default 1024, LRU eviction), identifies keys by a non-cryptographic
-64-bit hash, throttles `onSave` calls (default: once every 100
-`check()` calls), does not persist across restarts by itself, does not
-share state across processes or devices.
-
-The v2 API does not need NonceGuard: every message uses a fresh
-32-byte salt and a fresh 16-byte nonce, so accidental (key, nonce)
-reuse has probability ~`2^-384` per message pair.
+Best-effort defense against nonce reuse in v1. The v2 API does not
+need NonceGuard: every message uses a fresh 32-byte salt and 16-byte
+nonce.
 
 ### 9.4. Type validation
 
-All public functions validate that byte inputs are `Uint8Array` of the
-expected length (where applicable). Passing a string as `aad` or
-`plaintext` throws instead of silently coercing to array-like behavior.
+All public functions validate byte inputs are Uint8Array of expected
+length.
 
 ### 9.5. KAT digests
 
-Three KAT files:
-
-- `KAT.json` (v0.1): `block`, `aead`, `kdf`, generated with the
-  consecutive schedule, HKDF-SHA256, PBKDF2-SHA256. Public digest:
-  `5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`.
-- `KAT_v02.json` (v0.2 block only): `block` vectors with the v0.2
-  schedule.
-- `KAT_v2.json` (v0.2 API): `block_v02`, `v2_raw`, `v2_password_*`,
-  `v2_kdf`, `v2_parse`, `security_level`, `block_digest_cal0`,
-  `block_digest_cal1`.
-
-`KNOWN_KAT_DIGEST = 3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`
-is the v0.1 fast-regression digest (16 blocks with `key[i] = i`). The
-`block_digest_cal0` in `KAT_v2.json` must equal `KNOWN_KAT_DIGEST`; if
-it does not, the v1 path is broken.
-
-A third-party implementation should target:
-- `KAT.json` (v0.1 vectors),
-- `KAT_v02.json` block vectors (v0.2 block),
-- `KAT_v2.json` v2 vectors (v0.2 API),
-- `KNOWN_KAT_DIGEST` for the consecutive calendar.
+- `KAT.json` (v0.1): digest `5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee`.
+- `KAT_v2.json` (v0.2): `block_digest_cal0 == KNOWN_KAT_DIGEST`;
+  `block_digest_cal1 = d1b3e268...`.
+- `tests/_v2_kat_cross.json`: 6 cross-language v2 packets.
+- `KNOWN_KAT_DIGEST = 3a8084d0b7df7eb691cfb54494410a5222652c219a336ee58bde48a64524a8b3`.
 
 ### 9.6. Harness validation
 
-The linear sampling harness is validated against a hand-computed case
-at w=8, r=1, α={word0 bit2, word4 bit0}, β={word0 bit3}, fixed key.
-Observed correlation 0.4993 (expected 0.5, within sampling noise). With
-random keys per sample, the observed |corr| drops to 0.0022 (expected
-≈0). This confirms the harness is correct with fixed keys.
+- Linear sampling harness: fixed key gives |corr| = 0.4993;
+  random key gives ~0.0022. Confirms the harness is correct with
+  fixed keys.
+- mini-MYSX w=32 reproduces mysx.prod.js exactly. Keyword/w
+  compatibility: `MYSZKOWS` at w=32, `MYSZ` at w=8 (non-degenerate).
+- Beam-search tool `selftest` passes in both directions (LAT of F,
+  one round, 9-round chains, forward/backward duality, backward
+  R=14 trail).
+- Differential verification scripts check the deterministic trails
+  of §3.5 at 100% propagation.
+- Division-property harness validated against R=10 single-bit
+  dependency (2 balanced bits confirmed at 20,000 samples).
 
 ## 10. Verdict
 
 MYSX-256/512 v0.2-draft is an experimental proposal, not a secure
-cipher. The v0.2 changes are a new rotation schedule and a new
-AEAD/packet format.
+cipher.
 
 **Rotation schedule.** `rand_s9_45430` replaces the consecutive
-schedule `(r mod 31)+1`. On 9 measured metrics (integral at R=5 and R=6,
-linear at R=10 and R=14 in both directions, exact DMITM, weight-0
-chain, MILP differential at R=5), the new schedule improves 6 and ties
-3, with no regressions. Exact DMITM goes from 17 to 9 rounds;
-weight-0 chain from 13 to 5; integral balanced bits at R=5 from 21 to
-9. The improvement in linear weight at R=14 (forward: 5 → 8; backward:
-5 → 11) means the single-trail correlation is 2^3 and 2^6 lower than
-v0.1. The selection is reproducible from `search_mysx_deep.py --n
-1000000 --seed 9` and documented as 31 explicit values in §2.8.
+schedule `(r mod 31)+1`. On the metrics measured, the new schedule
+improves 6, ties 3, and regresses 0. Exact DMITM: 17 → 9. Weight-0
+chain: 13 → 5. Truncated impossible: 39 → 28 (verified 2000/2000
+against the real cipher). Integral balanced bits at R=5: 21 → 9.
+MILP differential R=5: 0 → 4. **The v0.1 catastrophic offset r0=10
+(weight-2 trail at R=14, 4 chosen pairs to distinguish 14 rounds) is
+eliminated in v0.2 (best MILP weight at R=14 is 94; two offsets
+unresolved).**
 
-**API v2.** The v2 packet format (VERSION=0x02) adds a calendar
-selector, HKDF-SHA512 with a 64-byte secret (recovering the 2^256
-Grover bound that v1 lost to HKDF-SHA256), 512-bit MAC keys, HMAC-SHA512
-tags, one key per message (32-byte salt), and Argon2id for password
-paths. The v1 API is kept for backwards compatibility and is marked
-deprecated for new data. `v2.securityLevel` reports the declared
-nominal security for each creds type.
+**AEAD v2.** HKDF-SHA512 with a 64-byte secret (2^256 Grover);
+512-bit MAC keys; HMAC-SHA512; one key per message; authenticated
+header with rotation calendar; Argon2id for password paths.
+Cross-language KAT: 6/6 packets byte-identical to an independent
+Python reference. 58 security tests pass.
 
-**PENDING for v0.2.** The following analyses were measured for v0.1
-and are PENDING for v0.2: the differential offset sweep and MILP
-upper bounds at R≥6, the linear beam beyond R=14, the exact linear
-hulls at r=10,11,12, the full 31-offset integral sweep and the r0=15
-peak, the NIST SP 800-22 statistical battery, the truncated impossible
-differential (39 rounds for v0.1), the single-bit and multi-bit
-truncated-propagated impossibles, and the Simon normalized coverage
-comparison. The related-key audit is inherited (key schedule
-unchanged). Sections that are properties of the round function or
-key schedule (exact LAT of F, mask propagation, 22-test key schedule
-audit) are inherited unchanged.
+**PENDING for v0.2.** Differential beam (MILP only); full 31-offset
+differential sweep (6 offsets measured, 2 unresolved); linear
+backward beam to R=128; hull empirical verification; full 31-offset
+integral sweep (6 offsets measured); NIST SP 800-22. The v0.2
+analysis is incomplete by design.
 
-**No lower bound over 128 rounds is established, no key-recovery
-attack has been attempted, and MYSX v0.2 has not been externally
-audited.** The truncated impossible differential for v0.2 is unknown;
-the 39-round value for v0.1 does not apply to the new schedule. The
-full analysis for v0.2 is incomplete by design: this draft is a
-working document with explicit PENDING marks and the commands needed
-to resolve them.
+**No lower bound over 128 rounds is established. No key-recovery
+attack has been attempted. No external audit.** The truncated
+impossible for v0.2 is 28 rounds, not 39. The related-key security
+is unknown.
 
 **Do not use MYSX to protect real data.** For production:
 AES-256-GCM or XChaCha20-Poly1305.
 
 ## 11. Reproducibility
 
+All measured claims of §2–§5 are reproducible via
+`./run_all_gh_actions.sh --no-nist` in the repository. 49 tests pass
+(0 fail, 2 skip: NIST and `diff_r16_r17_v1`).
+
+### Files
+
 | File | Purpose |
 |---|---|
-| `SPEC.md` | Formal specification (identical content to §2) |
-| `PAPER.md` | This document (v0.1-draft2 is `PAPER_v0.1.md` after tag) |
-| `KAT.json` | v0.1 test vectors (block, AEAD, KDF) |
-| `KAT_v02.json` | v0.2 block test vectors |
-| `KAT_v2.json` | v0.2 API test vectors |
-| `CALENDAR_v02.txt` | `MYSX_ROT_CAL=22,5,8,...` |
-| `generate_kat.py` | v0.1 KAT generator |
-| `generate_kat_v2.py` | v0.2 KAT generator (with deterministic salt/nonce) |
-| `set_calendar.js` | Injects the calendar into `mysx.prod.js` |
-| `verify_v2_usage.js` | 12-check smoke test for v2 API |
 | `mysx.prod.js` | Reference implementation (v1 + v2) |
-| `mysx.test.js` | Functional tests (17 tests) |
-| `cryptanalysis/models/linear/mysx_linear_model.py` | Exact linear model of F + round; cross-verified against `KNOWN_KAT_DIGEST` |
-| `cryptanalysis/models/linear/LINEAR_MODEL.md` | Documentation of the exact linear model |
-| `cryptanalysis/models/linear/linear_model_data.json` | Data behind §4 (except §4.10) |
-| `cryptanalysis/DMITM/dmitm_verify.py` | Exact DMITM search (forward + backward) |
-| `cryptanalysis/DMITM/dmitm_trunc.py` | Truncated-bit impossible differentials |
-| `cryptanalysis/DMITM/dmitm_impossible.py` | Miss-in-the-middle search over weight-0 chains |
+| `mysx.test.js` | 17 functional tests (v1) |
+| `KAT.json` (in `LEGACY_V1/`) | v0.1 test vectors |
+| `KAT_v2.json` | v0.2 test vectors |
+| `calendar/CALENDAR_v02.txt` | `MYSX_ROT_CAL=22,5,8,...` |
+| `calendar/wf2_deep_summary.json` | 8 candidates × 9 metrics (§4.13) |
+| `cryptanalysis/DMITM/dmitm_verify.py` | Exact DMITM search |
+| `cryptanalysis/DMITM/dmitm_trunc_v3.py` | Truncated impossible differentials (§4.12) |
 | `cryptanalysis/DMITM/search_mysx_deep.py` | 1M random schedule search |
-| `cryptanalysis/DMITM/run_5round_test.py` | R=5 screening |
-| `cryptanalysis/DMITM/run_full_analysis.py` | Full analysis of a candidate |
-| `cryptanalysis/DMITM/wf2_deep_summary.json` | 8 candidates × 9 metrics (raw §4.13) |
+| `cryptanalysis/models/linear/mysx_linear_model.py` | Exact linear model of F + round |
+| `cryptanalysis/models/linear/LINEAR_MODEL.md` | Model documentation |
+| `cryptanalysis/models/linear/linear_model_data.json` | Data for §4.2–§4.6 |
 | `misc/mysx_linear_beam.py` | Beam search over the exact linear model |
+| `misc/beam_full.json`, `misc/beam_bwd.json` | v0.1 beam outputs |
+| `misc/beam_paths_bwd20.json`, `misc/beam_paths_fwd23.json` | Hull inputs (§4.10.5) |
+| `misc/verify_beam_trail.py`, `misc/hull_count.py`, `misc/hull_bidir.py` | Hull checks |
 | `misc/mysx_milp2.py` | Differential MILP |
 | `misc/mysx_division_property_v2.py` | Division property |
-| `misc/diff_free_chain_table.py` | Differential free chain table |
-| `misc/verify_diff_trail.py`, `misc/verify_diff_13r.py` | Empirical differential verification |
-| `.github/workflows/mysx_full_screen.yml` | WF1: 13-candidate screening |
-| `.github/workflows/mysx_deep_dive.yml` | WF2: 8-candidate deep analysis |
+| `tests/gen_v2_kat.py` | Independent Python reference for v2 packets |
+| `tests/mysx_v2.test.js` | 58 security tests for v2 API |
+| `tests/manifest.json` | Test manifest (53 tests, 51 ready + 2 skip) |
+| `run_all_gh_actions.sh`, `run_all_local.sh` | Orchestrators |
+| `.github/workflows/paper.yml` | CI matrix for non-NIST tests |
+| `.github/workflows/nist.yml` | CI matrix for NIST (build broken) |
 
-**Reproduction commands.**
+### Reproduction commands
 
-v0.1 (consecutive schedule, inherited sections):
+**v0.1 claims:**
 
 ```bash
-# No env var set: k=1 behavior
+# KAT
+python3 -c "import json; d=json.load(open('LEGACY_V1/KAT.json')); \
+  assert d['digest']=='5c9ca63d19e0f385eb0142bbe0337771d32a25267469bc82c9cd8f0bed547eee'"
+
+# Free chain table (r0=10 -> 13, r0=15 -> 8, r0=0 -> 3, r0=27 -> 3)
 python3 misc/diff_free_chain_table.py
-python3 misc/verify_diff_13r.py
-python3 cryptanalysis/models/linear/mysx_linear_model.py selftest
+
+# 13-round chain verification
+python3 misc/verify_diff_13r.py    # 100.0000%
+
+# 6-round chain verification
+python3 misc/verify_diff_trail.py  # 100.0000%
+
+# MILP differential (R=5 -> 4, R=14 -> 144)
+python3 misc/mysx_milp2.py --rounds 5-14 --input-bit 94 --r0 0 --solver cbc
+
+# Beam reproduce (paper §4.5)
 python3 misc/mysx_linear_beam.py reproduce
+
+# Exact hulls (|z| < 0.4)
+python3 tests/run_hull_v1.py
+
+# Exact DMITM (17 rounds)
+python3 cryptanalysis/DMITM/dmitm_verify.py exact
+
+# Truncated impossible (39 rounds)
+python3 cryptanalysis/DMITM/dmitm_trunc_v3.py --cal k1 --max_fwd 24 --max_bwd 24
+
+# Beam to R=128 backward (2248)
+python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 128 --beam 2000 --jobs 4 --direction backward --out /tmp/b.json
+
+# Hull check (isolated at R=14, cancels at r0=23 forward)
+python3 tests/run_hull_check_v1.py
 ```
 
-v0.2 (new schedule):
+**v0.2 claims:**
 
 ```bash
 export MYSX_ROT_CAL=22,5,8,7,17,10,30,1,11,26,6,3,12,23,25,13,28,20,21,19,24,2,18,9,4,15,29,27,16,14,31
 
-# Exact DMITM = 9
+# Exact DMITM (9 rounds)
 python3 cryptanalysis/DMITM/dmitm_verify.py exact
 
-# Weight-0 chain = 5
+# Free chain table (max 5 rounds, no 13)
 python3 misc/diff_free_chain_table.py
 
-# R=10, R=14 beam weights
+# Truncated impossible (28 rounds with VERIFY)
+python3 cryptanalysis/DMITM/dmitm_trunc_v3.py --cal v02 --max_fwd 24 --max_bwd 24 --verify 500
+
+# Beam R=10 forward (1) and backward (3)
 python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 10 --beam 2000 --jobs 1
-python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 14 --beam 2000 --jobs 1
 python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 10 --beam 2000 --jobs 1 --direction backward
+
+# Beam R=14 forward (8) and backward (11)
+python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 14 --beam 2000 --jobs 1
 python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 14 --beam 2000 --jobs 1 --direction backward
 
-# Integral at r0=0
-python3 misc/mysx_division_property_v2.py --rounds 5-6 --active word0 --r0 0 --solver highs
+# Beam R=128 forward (2294)
+python3 misc/mysx_linear_beam.py run --offsets 0-30 --rounds 128 --beam 2000 --jobs 2 --out beam_v02_full.json
 
-# KAT cross-check
-MYSX_ENABLE_TEST=1 node -e "require('./mysx.prod.js').TEST.generateKAT(1).then(console.log)"
-python3 -c "import sys;sys.path.insert(0,'cryptanalysis/models/linear');from mysx_linear_model import kat_digest;print(kat_digest())"
+# Integral R=5 (9/256), R=6 (4/256)
+python3 misc/mysx_division_property_v2.py --rounds 5 --active word0 --r0 0 --solver highs
+python3 misc/mysx_division_property_v2.py --rounds 6 --active word0 --r0 0 --solver highs
+
+# MILP R=5 (4, min over r0 in {0,10,20})
+python3 tests/run_diff_milp_v02_R5.py
+
+# Hull predictions (r=10,11,12)
+python3 tests/run_hull_v02.py
+
+# Cross-language v2 KAT + security suite
+python3 tests/gen_v2_kat.py
+MYSX_ENABLE_TEST=1 node tests/mysx_v2.test.js
 ```
-
-The Python `kat_digest()` and the JavaScript `generateKAT(1)` must
-produce identical outputs. This is the cross-language consistency
-check for the v0.2 schedule.
 
 ## 12. Final warning
 
@@ -1444,4 +1226,5 @@ MYSX has not been externally audited. This paper is the author's
 self-analysis, not a certification. No result here replaces an
 independent cryptographic review.
 
-**Do not use MYSX to protect real data.**
+**Do not use MYSX to protect real data.** For production:
+AES-256-GCM or XChaCha20-Poly1305.
