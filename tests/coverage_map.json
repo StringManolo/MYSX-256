@@ -1,0 +1,628 @@
+[
+ {
+  "id": "kat-v1-digest",
+  "paper": "v1 §2.11",
+  "claim": "KAT v0.1 public digest 5c9ca63d…",
+  "tests": [
+   "kat_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo compara el JSON guardado; no regenera con generate_kat.py"
+ },
+ {
+  "id": "kat-block-digests",
+  "paper": "v2 §2.11",
+  "claim": "KNOWN_KAT_DIGEST (cal0) y block_digest_cal1 d1b3e268…",
+  "tests": [
+   "kat_v2",
+   "v2_cross_kat"
+  ],
+  "quality": "ok",
+  "note": "v2_cross_kat regenera ambos en JS y en Python independiente"
+ },
+ {
+  "id": "functional-17",
+  "paper": "v1 §8/§9",
+  "claim": "17 tests funcionales de la API v0.1",
+  "tests": [
+   "functional"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "v2-security-suite",
+  "paper": "v2 §2.9",
+  "claim": "Suite de seguridad v2 (bit-flip, downgrade, limites KDF, v1/v2)",
+  "tests": [
+   "v2_security",
+   "v2_cross_kat"
+  ],
+  "quality": "ok",
+  "note": "Hoy v2_security y v2_cross_kat ejecutan el mismo comando: deja uno"
+ },
+ {
+  "id": "v2-cross-kat",
+  "paper": "v2 §2.9",
+  "claim": "6 paquetes v2 identicos Python vs JS",
+  "tests": [
+   "v2_cross_kat"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "v2-smoke",
+  "paper": "v2 §2.9/§6",
+  "claim": "calendar_injected, packet_version, security_raw64/32, v1_compat",
+  "tests": [
+   "v2_smoke"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "v2-argon2-rfc",
+  "paper": "v2 §2.9",
+  "claim": "Vector RFC 9106 con el proveedor noble",
+  "tests": [
+   "v2_cross_kat"
+  ],
+  "quality": "ok",
+  "note": "Se omite (SKIP) si @noble/hashes no esta instalado: asegurar npm ci en CI"
+ },
+ {
+  "id": "cal-consistency",
+  "paper": "v2 §2.8",
+  "claim": "El calendario v0.2 es el mismo en codigo, manifest, workflows, KAT y paper",
+  "tests": [
+   "cal_consistency"
+  ],
+  "quality": "ok",
+  "note": "NUEVO"
+ },
+ {
+  "id": "cal-reproduce",
+  "paper": "v2 §2.8/§4.13",
+  "claim": "search_mysx_deep.py --n 1000000 --seed 9 regenera rand_s9_45430 (idx 45430)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Crear: ver gen_rand_s9_45430.sh; test que regenere y compare con la tabla"
+ },
+ {
+  "id": "cal-8-finalists",
+  "paper": "v2 §2.8",
+  "claim": "8 candidatos con DMITM exacto = 9 (DeepSeek hablaba de 12 de 1M)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Contradiccion: contar en cal_stage*.json y alinear paper"
+ },
+ {
+  "id": "py-port-kat",
+  "paper": "v1 §4.7",
+  "claim": "El puerto Python reproduce KNOWN_KAT_DIGEST",
+  "tests": [
+   "lin_model_selftest"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "diff-chain-v1-table",
+  "paper": "v1/v2 §3.5",
+  "claim": "Tabla de cadenas peso 0 v0.1, 31 offsets (13 en r0=10 …)",
+  "tests": [
+   "diff_free_chain_v1",
+   "diff_free_chain_full_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo 4-5 offsets asertados; asertar los 31"
+ },
+ {
+  "id": "diff-chain-v02-table",
+  "paper": "v2 §3.5",
+  "claim": "Cadenas peso 0 v0.2: 5/4/3 rondas en conjuntos concretos de offsets",
+  "tests": [
+   "diff_free_chain_v02"
+  ],
+  "quality": "weak",
+  "note": "Solo asierta que no hay 13; asertar los 31 offsets (verificado con algebra exacta)"
+ },
+ {
+  "id": "diff-13r-100pct",
+  "paper": "v1/v2 §3.5",
+  "claim": "Cadena de 13 rondas, 100% sobre 262144 pares x 8 claves",
+  "tests": [
+   "diff_13r_v1"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "diff-6r-100pct",
+  "paper": "v1/v2 §3.5",
+  "claim": "Cadena de 6 rondas (r0=15), 100%",
+  "tests": [
+   "diff_6r_v1"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "diff-max13-exact",
+  "paper": "v1/v2 §3.5",
+  "claim": "Maximo exacto 13 (algebra lineal, multi-bit)",
+  "tests": [
+   "dmitm_v1"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "diff-milp-v1-table",
+  "paper": "v1/v2 §3.2",
+  "claim": "Tabla MILP r0=0 R=5..14 (4,6,10,18,26,42,58,68,88,106)",
+  "tests": [
+   "diff_milp_v1_R5_R14"
+  ],
+  "quality": "weak",
+  "note": "Solo R=5 en [1,5] y R=14 en [100,199]. Ojo: v1 §3.2 decia R=5=2 (w1b24) y R=14=114; v2 cambia entrada y valores"
+ },
+ {
+  "id": "diff-offset-sweep-v1",
+  "paper": "v2 §3.2",
+  "claim": "Barrido 31 offsets v0.1 R=14 (r0=10: 2; None en 14 offsets)",
+  "tests": [
+   "diff_offset_sweep_full_v1",
+   "diff_offset_sweep_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo asierta mejor r0=10; los None dependen del limite de tiempo del solver"
+ },
+ {
+  "id": "diff-offset-sweep-v02",
+  "paper": "v2 §3.2",
+  "claim": "Barrido 31 offsets v0.2 R=14 (mejor r0=29=94; r0=30 None)",
+  "tests": [
+   "diff_offset_sweep_v02"
+  ],
+  "quality": "weak",
+  "note": "Regex solo exige peso>=90. Entrada fija w1b31 en los 31 offsets: cota muy floja"
+ },
+ {
+  "id": "diff-growth-v1",
+  "paper": "v2 §3.2",
+  "claim": "MILP r0=10 R=14..24: 2,4,6,10,16,24,38,56,79,110,134",
+  "tests": [
+   "diff_growth_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo 'OK: monotonic'"
+ },
+ {
+  "id": "diff-milp-v02-table",
+  "paper": "v2 §3.2",
+  "claim": "MILP v0.2 R=10..14 para r0=0,10,20",
+  "tests": [
+   "diff_milp_v02_R6_R14"
+  ],
+  "quality": "weak",
+  "note": "Solo regex generica 'peso minimo='"
+ },
+ {
+  "id": "diff-milp-R5",
+  "paper": "v2 §3.2/§4.13",
+  "claim": "MILP R=5: v0.1=4, v0.2=4 (empate)",
+  "tests": [
+   "diff_milp_v02_R5",
+   "diff_milp_v1_R5_R14"
+  ],
+  "quality": "weak",
+  "note": "v0.1 y v0.2 usan entradas/offsets distintos (w2b30 r0=0 vs min sobre r0 con w1b31): comparacion no homogenea"
+ },
+ {
+  "id": "diff-beam-growth",
+  "paper": "v1 §3.2/§3.5",
+  "claim": "Beam diferencial r0=10: 2,4,6,10,15,22,34,49,78,100,133; barrido beam 0:115,1:121,22:107…",
+  "tests": [],
+  "quality": "missing",
+  "note": "No hay herramienta/test de beam diferencial; v0.2 tampoco (solo MILP)"
+ },
+ {
+  "id": "diff-r16-r17-empirical",
+  "paper": "v1 §3.5",
+  "claim": "Trails R=16 (peso 6) y R=17 (peso 10): 1.63e-2 vs 1.56e-2 y 1.1e-3 vs 9.8e-4",
+  "tests": [],
+  "quality": "missing",
+  "note": "diff_r16_r17_v1 esta 'pending'; v2 elimino el resultado"
+ },
+ {
+  "id": "diff-r4-clustering",
+  "paper": "v1/v2 §3.3",
+  "claim": "Trail r=4: 7.802e-3 observado vs 3.906e-3 (x2.00)",
+  "tests": [
+   "diff_r4_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0; asertar la razon"
+ },
+ {
+  "id": "diff-r4-v02",
+  "paper": "v2 §3.3",
+  "claim": "v0.2: 16/2000 matches, peso medio 12.84",
+  "tests": [],
+  "quality": "missing",
+  "note": "Se obtuvo a mano con MYSX_ROT_CAL; con mysx.prod.js v0.2 (sin env) puede ser dato de v0.1"
+ },
+ {
+  "id": "lin-lat-exact",
+  "paper": "v1/v2 §4.2",
+  "claim": "LAT exacta de F contra fuerza bruta",
+  "tests": [
+   "lin_model_selftest"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "lin-cost-data",
+  "paper": "v1/v2 §4.2",
+  "claim": "Histogramas: 2 bits {2:464,1:32}; h aleatorio pico en 11 (4130/16384)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Ver 'mysx_linear_model.py report'"
+ },
+ {
+  "id": "lin-9r-chains-signs",
+  "paper": "v1/v2 §4.4",
+  "claim": "Cadenas |corr|=1 de 9 rondas con signo predicho (3 claves, 2^21 textos)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Posible dentro de selftest; asertar salida"
+ },
+ {
+  "id": "lin-beam-selftest",
+  "paper": "v1 §4.10.1",
+  "claim": "Selftest del beam en ambas direcciones (325 aristas)",
+  "tests": [
+   "lin_beam_selftest"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "lin-45-table",
+  "paper": "v1 §4.5",
+  "claim": "Tabla r0=12/27: 0 1 2 3 7 12 / 0 1 3 3 6 11",
+  "tests": [
+   "lin_beam_v1_reproduce"
+  ],
+  "quality": "weak",
+  "note": "Solo comprueba cadenas de texto, no los numeros"
+ },
+ {
+  "id": "lin-hull-r10-12",
+  "paper": "v1/v2 §4.6",
+  "claim": "Hulls exactos con signo r=10,11,12 (|z|<0.4)",
+  "tests": [
+   "lin_hull_v1_r10_12"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "lin-v1-table-18",
+  "paper": "v1/v2 §4.10.2",
+  "claim": "Tabla combinada v0.1 R=9..128",
+  "tests": [
+   "lin_beam_full_table_v1"
+  ],
+  "quality": "ok",
+  "note": "2 discrepancias documentadas (R=56: 653, R=64: 797)"
+ },
+ {
+  "id": "lin-v1-R128",
+  "paper": "v1/v2 §4.10.2",
+  "claim": "R=128 backward v0.1 = 2248",
+  "tests": [
+   "lin_beam_v1_R128"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "lin-v1-R14-offsets",
+  "paper": "v1/v2 §4.10.2",
+  "claim": "Pesos por offset backward a R=14 (31 valores)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Leer misc/beam_bwd.json"
+ },
+ {
+  "id": "lin-v02-R10-R14",
+  "paper": "v2 §4.10.2",
+  "claim": "v0.2 R=10: 1/3; R=14: 8/11 (fwd/bwd)",
+  "tests": [
+   "lin_beam_v02_R10_fwd",
+   "lin_beam_v02_R10_bwd",
+   "lin_beam_v02_R14_fwd",
+   "lin_beam_v02_R14_bwd"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "lin-v02-tables",
+  "paper": "v2 §4.10.2",
+  "claim": "Tablas v0.2 fwd/bwd/combinada R=9..128",
+  "tests": [
+   "lin_beam_v02_R128",
+   "lin_beam_v02_R128_bwd"
+  ],
+  "quality": "weak",
+  "note": "Solo asierta R=128 (fwd=2294; bwd regex \\d+). Falta la tabla completa y la fusion"
+ },
+ {
+  "id": "lin-threshold-R",
+  "paper": "v2 §4.10.2",
+  "claim": "Mayor R con peso<64 / <32 (v1: 22/19; v0.2: 19/17)",
+  "tests": [],
+  "quality": "missing",
+  "note": "Derivable del JSON"
+ },
+ {
+  "id": "lin-hull-check-v1",
+  "paper": "v1/v2 §4.10.3-5",
+  "claim": "Hull aislado offset-20 bwd R=1..14; r0=23/24 cancelan; R=15..17",
+  "tests": [
+   "lin_hull_check_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0 (90 min): asertar hull_count, signos y cancelaciones"
+ },
+ {
+  "id": "lin-hull-v02",
+  "paper": "v2 §4.14",
+  "claim": "Verificacion empirica de hulls v0.2",
+  "tests": [
+   "lin_hull_v02"
+  ],
+  "quality": "weak",
+  "note": "Calcula predicciones pero no las compara con el cifrado"
+ },
+ {
+  "id": "lin-multibit-starts",
+  "paper": "v1/v2 §4.10",
+  "claim": "pairs47 / rand:5000:4 no mejoran",
+  "tests": [],
+  "quality": "missing",
+  "note": "beam_pairs47.json y beam_rand.json existen; sin test"
+ },
+ {
+  "id": "lin-harness",
+  "paper": "v1/v2 §9.6",
+  "claim": "Arnes lineal w=8: correlacion 0.4993 (0.4992 en v2)",
+  "tests": [
+   "lin_harness_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0"
+ },
+ {
+  "id": "int-v1-R6",
+  "paper": "v1/v2 §4.9",
+  "claim": "word0 R=6: 4/256 balanceados (v0.1)",
+  "tests": [
+   "integral_v1_R6"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "int-v1-R5",
+  "paper": "v1/v2 §4.9",
+  "claim": "word0,word4 R=5 balanceados (v0.1); word0 R=5 = 21",
+  "tests": [
+   "integral_v1_R5_w04",
+   "integral_v1_R5_w0"
+  ],
+  "quality": "weak",
+  "note": "integral_v1_R5_w04 solo exige >=1; integral_v1_R5_w0 (21) es nuevo"
+ },
+ {
+  "id": "int-v1-dep10",
+  "paper": "v1/v2 §4.9",
+  "claim": "Dependencia de 1 bit R=10: 2 balanceados",
+  "tests": [
+   "integral_v1_dep_v1"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "int-v1-r15",
+  "paper": "v1/v2 §4.9",
+  "claim": "r0=15: traza 26,12,6,3,1,0 y 15,9,4,2,1,0; 10 rondas",
+  "tests": [
+   "integral_v1_r0_15",
+   "integral_v1_r0_15_w04",
+   "integral_v1_trace_r15_w0",
+   "integral_v1_trace_r15_w04"
+  ],
+  "quality": "weak",
+  "note": "Los antiguos solo exigen >=1 en R=10; la traza completa es nueva"
+ },
+ {
+  "id": "int-v1-sweep31",
+  "paper": "v1/v2 §4.9",
+  "claim": "31 offsets: 3-28 (R=5,w04) y 3-26 (R=6,w0); pico r0=15",
+  "tests": [
+   "integral_sweep_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo 6 offsets y el test fallaba por CLI"
+ },
+ {
+  "id": "int-v02-R5-R6",
+  "paper": "v2 §4.9",
+  "claim": "v0.2: 9/256 (R=5) y 4/256 (R=6)",
+  "tests": [
+   "integral_v02_R5",
+   "integral_v02_R6"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "int-v02-sweep",
+  "paper": "v2 §4.9",
+  "claim": "v0.2 mismos 9/4 en 6 offsets",
+  "tests": [
+   "integral_sweep_v02"
+  ],
+  "quality": "weak",
+  "note": "SOSPECHOSO: resultados identicos en 6 offsets (v1 varia 8-9x). Probable que el offset no se aplique con MYSX_ROT_CAL"
+ },
+ {
+  "id": "int-empirical",
+  "paper": "v1/v2 §4.9",
+  "claim": "Bits balanceados verificados con 20000 muestras; control 6.5%-87%; toggle r0=15",
+  "tests": [],
+  "quality": "missing",
+  "note": "misc/verify_division.py y verify_division_double_toggle.py no estan en el manifest"
+ },
+ {
+  "id": "int-xor-or",
+  "paper": "v1/v2 §4.9",
+  "claim": "Reglas XOR (1,1)-invalida y OR equivalentes",
+  "tests": [],
+  "quality": "missing",
+  "note": "misc/mysx_division_property.py --xor-rule"
+ },
+ {
+  "id": "imp-exact",
+  "paper": "v2 §4.12",
+  "claim": "DMITM exacto v0.1=17 (max 13), v0.2=9 (max 5); tabla (R,a,b)",
+  "tests": [
+   "dmitm_v1",
+   "dmitm_v02"
+  ],
+  "quality": "ok",
+  "note": "Falta asertar los recuentos 44/34/22/12/5/1 y 93/110/97/66/36/15"
+ },
+ {
+  "id": "imp-trunc",
+  "paper": "v2 §4.12",
+  "claim": "Truncado v0.1=39, v0.2=28 con --verify",
+  "tests": [
+   "trunc_v1",
+   "trunc_v02"
+  ],
+  "quality": "ok",
+  "note": "Usar dmitm_trunc_v3 (v2 recortaba candidatos y daba 13)"
+ },
+ {
+  "id": "sched-percentile",
+  "paper": "v2 §1.2/§4.13",
+  "claim": "v0.1 en el peor ~2% (DMITM) y ~0.2% (cadena) de 3000 calendarios aleatorios",
+  "tests": [
+   "cal_percentile_v1"
+  ],
+  "quality": "ok",
+  "note": "NUEVO"
+ },
+ {
+  "id": "sched-perm-control",
+  "paper": "v2 §4.13",
+  "claim": "40 permutaciones aleatorias: DMITM medio 21.4 (10-34); k=2,3,5,7",
+  "tests": [
+   "design_control"
+  ],
+  "quality": "ok",
+  "note": "NUEVO"
+ },
+ {
+  "id": "sched-wf2-table",
+  "paper": "v2 §4.13",
+  "claim": "Tabla 8x9 (dp5, dp6, lin, DMITM, chain) y falso positivo s9_33719",
+  "tests": [
+   "wf2_consistency"
+  ],
+  "quality": "ok",
+  "note": "NUEVO; ademas la tabla del paper §4.13 tiene lin_fwd10/lin_bwd10 mal (10/11/13)"
+ },
+ {
+  "id": "rk-audit",
+  "paper": "v1/v2 §5",
+  "claim": "22 tests PASS; score 139; peor bit 160",
+  "tests": [
+   "rk_basic",
+   "rk_extended"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0"
+ },
+ {
+  "id": "nist-v1",
+  "paper": "v1/v2 §4.11",
+  "claim": "NIST SP 800-22 v0.1 (100x10^6 bits) sin fallos",
+  "tests": [
+   "nist_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0; saltado si no hay sts-2.1.2/assess"
+ },
+ {
+  "id": "nist-v02",
+  "paper": "v2 §4.14",
+  "claim": "NIST v0.2",
+  "tests": [
+   "nist_v02"
+  ],
+  "quality": "weak",
+  "note": "nist_v02 existe pero nist.yml llama a misc/gen_nist_input.js (no existe; existe gen_NIST_SP_800-22_input.js) y mysx.prod.js v0.2 ya no lee MYSX_ROT_CAL: probable keystream de v0.1"
+ },
+ {
+  "id": "avalanche-v1",
+  "paper": "v2 §9.7",
+  "claim": "Escalera de avalancha v0.1: minReach 1,1,1,4,10,23,55,111,156,…,256 en r=15",
+  "tests": [
+   "avalanche_v1",
+   "avalanche_reach_v1"
+  ],
+  "quality": "ok",
+  "note": ""
+ },
+ {
+  "id": "avalanche-v02",
+  "paper": "v2 §9.7",
+  "claim": "Escalera v0.2: minReach 1,1,1,1,4,10,24,41,103,166,207,229,251,253,256",
+  "tests": [
+   "avalanche_v02",
+   "avalanche_reach_v02"
+  ],
+  "quality": "weak",
+  "note": "avalanche_v02 imprime la tabla de v0.1: el calendario no se aplica en avalanche.js"
+ },
+ {
+  "id": "mini-v1",
+  "paper": "v1/v2 §9.6",
+  "claim": "Mini-MYSX w=32 reproduce mysx.prod.js; w=8 MYSZKOWS degenerado",
+  "tests": [
+   "mini_v1",
+   "mini_nondegenerate_v1"
+  ],
+  "quality": "weak",
+  "note": "Solo returncode 0"
+ },
+ {
+  "id": "coverage-map",
+  "paper": "meta",
+  "claim": "Este mapa es coherente con el manifest",
+  "tests": [
+   "coverage_map"
+  ],
+  "quality": "ok",
+  "note": "NUEVO"
+ }
+]

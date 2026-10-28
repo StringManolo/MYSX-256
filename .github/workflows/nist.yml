@@ -59,7 +59,7 @@ jobs:
           if [ "${{ github.event.inputs.version }}" = "v02" ]; then
             export MYSX_ROT_CAL="22,5,8,7,17,10,30,1,11,26,6,3,12,23,25,13,28,20,21,19,24,2,18,9,4,15,29,27,16,14,31"
           fi
-          MYSX_ENABLE_TEST=1 node misc/gen_nist_input.js
+          MYSX_ENABLE_TEST=1 node misc/gen_NIST_SP_800-22_input.js
 
       - name: Run NIST (automated via pexpect)
         run: python3 tests/run_nist.py
